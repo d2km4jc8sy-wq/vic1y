@@ -119,6 +119,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import com.example.s1client.ui.design.AccentCyan
 import com.example.s1client.ui.design.AccentPink
+import com.example.s1client.ui.design.S1Radius
 import com.example.s1client.ui.design.BgColor
 import com.example.s1client.ui.design.BgColorBottom
 import com.example.s1client.ui.design.CardBg
@@ -1100,10 +1101,10 @@ fun ForumFeedPage(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .shadow(6.dp, RoundedCornerShape(999.dp))
-                                    .clip(RoundedCornerShape(999.dp))
+                                    .shadow(6.dp, RoundedCornerShape(S1Radius.pill))
+                                    .clip(RoundedCornerShape(S1Radius.pill))
                                     .background(CardBg)
-                                    .border(1.dp, GlassFloatLine, RoundedCornerShape(999.dp))
+                                    .border(1.dp, GlassFloatLine, RoundedCornerShape(S1Radius.pill))
                                     .combinedClickable(
                                         onClick = { showPagePicker = !showPagePicker },
                                         onLongClick = {
@@ -1149,9 +1150,9 @@ fun ForumFeedPage(
                                 color = TextSub,
                                 fontSize = 12.sp,
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(999.dp))
+                                    .clip(RoundedCornerShape(S1Radius.pill))
                                     .background(GlassFloat)
-                                    .border(1.dp, GlassFloatLine, RoundedCornerShape(999.dp))
+                                    .border(1.dp, GlassFloatLine, RoundedCornerShape(S1Radius.pill))
                                     .padding(horizontal = 14.dp, vertical = 5.dp)
                             )
                         }
