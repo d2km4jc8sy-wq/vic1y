@@ -53,7 +53,7 @@ abstract class BaseActivity : AppCompatActivity() {
      * - ERROR：失败/破坏（配对 heavy 震）
      * 视觉走玻璃卡片 + 语义色，全 App 一致。
      */
-    protected fun toast(
+    internal fun toast(
         message: String,
         type: S1Notify.Type = S1Notify.Type.INFO,
         silent: Boolean = false
