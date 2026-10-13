@@ -28,6 +28,13 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.s1client.ui.pressScale
 import com.example.s1client.util.avatarUrl
+import com.example.s1client.ui.design.AccentCyan
+import com.example.s1client.ui.design.AccentPink
+import com.example.s1client.ui.design.ChipBg
+import com.example.s1client.ui.design.GlassCard
+import com.example.s1client.ui.design.GlassLine
+import com.example.s1client.ui.design.TextMain
+import com.example.s1client.ui.design.TextSub
 
 /** 热帖火图标：琥珀色 */
 private val FireAmber = Color(0xFFFFB454)

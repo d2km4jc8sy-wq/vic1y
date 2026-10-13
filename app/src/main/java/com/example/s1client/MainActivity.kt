@@ -117,58 +117,31 @@ import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import com.example.s1client.ui.design.AccentCyan
+import com.example.s1client.ui.design.AccentPink
+import com.example.s1client.ui.design.BgColor
+import com.example.s1client.ui.design.BgColorBottom
+import com.example.s1client.ui.design.CardBg
+import com.example.s1client.ui.design.ChipBg
+import com.example.s1client.ui.design.FlowCoverColors
+import com.example.s1client.ui.design.GlassBar
+import com.example.s1client.ui.design.GlassCard
+import com.example.s1client.ui.design.GlassDialog
+import com.example.s1client.ui.design.GlassDialogLine
+import com.example.s1client.ui.design.GlassFloat
+import com.example.s1client.ui.design.GlassFloatLine
+import com.example.s1client.ui.design.GlassLine
+import com.example.s1client.ui.design.HeartRed
+import com.example.s1client.ui.design.OnAccent
+import com.example.s1client.ui.design.OnSnackbar
+import com.example.s1client.ui.design.SnackbarBg
+import com.example.s1client.ui.design.StrongIcon
+import com.example.s1client.ui.design.TextMain
+import com.example.s1client.ui.design.TextSub
 
 
 // 颜色统一走 Compose 主题调色板（ui/theme/S1Theme.kt），跟随「设置 → 选择主题」。
 // 保留这些顶层名字是 @Composable 委托，调用点都在组合中；禁止再写死色值。
-val BgColor: androidx.compose.ui.graphics.Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.bgTop
-val BgColorBottom: androidx.compose.ui.graphics.Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.bgBottom
-val TextMain: androidx.compose.ui.graphics.Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.textMain
-val TextSub: androidx.compose.ui.graphics.Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.textSub
-val HeartRed = Color(0xFFFF2C55)
-// 强调色：跟随主题（粉/棕/琥珀）
-val AccentPink: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.accent
-/** accent 按钮上的文字色 */
-val OnAccent: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.onAccent
-val AccentCyan = Color(0xFF1FB8FF)
-// 卡片配色由调色板下发
-val CardBg: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.cardBg
-// 玻璃质感：半透明底 + 亮描边，透出下方内容与页面渐变
-val GlassCard: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.glassCard
-val GlassLine: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.glassLine
-val GlassBar: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.glassBar
-val GlassFloat: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.glassFloat
-val GlassFloatLine: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.glassFloatLine
-val GlassDialog: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.glassDialog
-val GlassDialogLine: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.glassDialogLine
-/** 未选中胶囊底 */
-val ChipBg: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.chipBg
-/** Snackbar 底/字 */
-val SnackbarBg: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.snackbarBg
-val OnSnackbar: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.onSnackbar
-/** 悬浮条上的可点强图标（深色主题=白，浅色主题=主题深色） */
-val StrongIcon: Color
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.strongIcon
-/** 帖子无图卡片的流动幻彩封面（首尾同色 + TileMode.Repeated 循环） */
-val FlowCoverColors: List<Color>
-    @Composable get() = com.example.s1client.ui.theme.LocalS1Colors.current.flowCoverColors
 
 /** 顶部导航为浮层，内容按这个高度预留，避免隐藏时反复重排 */
 private val TopBarHeight = 50.dp

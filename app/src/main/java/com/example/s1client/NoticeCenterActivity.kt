@@ -44,6 +44,13 @@ import com.example.s1client.util.applyS1Theme
 import com.example.s1client.util.avatarUrl
 import com.example.s1client.util.setupS1EdgeToEdge
 import java.io.File
+import com.example.s1client.ui.design.AccentPink
+import com.example.s1client.ui.design.BgColor
+import com.example.s1client.ui.design.BgColorBottom
+import com.example.s1client.ui.design.GlassBar
+import com.example.s1client.ui.design.HeartRed
+import com.example.s1client.ui.design.TextMain
+import com.example.s1client.ui.design.TextSub
 
 /**
  * 站内「提醒」中心（替代原底栏「私信」入口）。

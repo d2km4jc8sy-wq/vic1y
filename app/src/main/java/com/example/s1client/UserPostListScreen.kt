@@ -26,6 +26,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.s1client.data.model.UserPostItem
+import com.example.s1client.ui.design.AccentPink
+import com.example.s1client.ui.design.BgColor
+import com.example.s1client.ui.design.BgColorBottom
+import com.example.s1client.ui.design.GlassBar
+import com.example.s1client.ui.design.GlassFloatLine
+import com.example.s1client.ui.design.TextMain
+import com.example.s1client.ui.design.TextSub
 
 /**
  * 「我的主题 / 我的回帖 / 收藏」共用的列表页。

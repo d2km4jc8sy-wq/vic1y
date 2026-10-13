@@ -79,6 +79,9 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.example.s1client.ui.design.AccentPink
+import com.example.s1client.ui.design.OnAccent
+import com.example.s1client.ui.design.TextSub
 
 class ThreadDetailActivity : BaseActivity() {
 

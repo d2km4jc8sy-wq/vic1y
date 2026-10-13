@@ -78,6 +78,14 @@ import com.example.s1client.util.EmojiCode
 import com.example.s1client.util.EmojiLib
 import com.example.s1client.util.ImageUploader
 import com.example.s1client.util.PostContentParser
+import com.example.s1client.ui.design.AccentPink
+import com.example.s1client.ui.design.ChipBg
+import com.example.s1client.ui.design.GlassDialog
+import com.example.s1client.ui.design.GlassDialogLine
+import com.example.s1client.ui.design.GlassFloatLine
+import com.example.s1client.ui.design.OnAccent
+import com.example.s1client.ui.design.TextMain
+import com.example.s1client.ui.design.TextSub
 
 /** 本地附件（发出去后由服务端渲染成图）：[attachimg]aid[/attachimg] */
 private val ATTACH_IMG_RE = Regex("""\[attachimg](\d+)\[/attachimg]""")

@@ -53,6 +53,18 @@ import com.example.s1client.util.ImageUploader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.example.s1client.ui.design.AccentPink
+import com.example.s1client.ui.design.BgColor
+import com.example.s1client.ui.design.BgColorBottom
+import com.example.s1client.ui.design.ChipBg
+import com.example.s1client.ui.design.GlassBar
+import com.example.s1client.ui.design.GlassDialog
+import com.example.s1client.ui.design.GlassDialogLine
+import com.example.s1client.ui.design.GlassFloat
+import com.example.s1client.ui.design.GlassFloatLine
+import com.example.s1client.ui.design.OnAccent
+import com.example.s1client.ui.design.TextMain
+import com.example.s1client.ui.design.TextSub
 
 private data class PostResult(val ok: Boolean, val message: String = "")
 

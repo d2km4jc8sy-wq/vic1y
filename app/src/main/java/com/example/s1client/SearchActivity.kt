@@ -48,6 +48,13 @@ import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.data.store.FavoriteManager
 import com.example.s1client.data.store.SearchManager
 import kotlinx.coroutines.launch
+import com.example.s1client.ui.design.AccentPink
+import com.example.s1client.ui.design.BgColor
+import com.example.s1client.ui.design.BgColorBottom
+import com.example.s1client.ui.design.GlassBar
+import com.example.s1client.ui.design.GlassFloatLine
+import com.example.s1client.ui.design.TextMain
+import com.example.s1client.ui.design.TextSub
 
 /** 站内搜索：关键词搜帖，结果复用首页卡片 */
 class SearchActivity : ComponentActivity() {
