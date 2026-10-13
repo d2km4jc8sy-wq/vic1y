@@ -120,4 +120,73 @@ class AttendanceManagerParseTest {
         assertEquals(AttendanceManager.Outcome.SIGNED_NOW, r.outcome)
         assertEquals("签到成功", r.message)
     }
+
+    // ============ Discuz showmessage 页 ============
+    // 签到插件并不总回 succeedhandle_/errorhandle_：真机上实测到它返回一张
+    // showmessage 页，被 XML 外壳 + CDATA 包着。以前缺这一支，解析落到 UNKNOWN，
+    // 把整段 XML 截 120 字当错误弹给用户（表现为「点签到弹一坨乱码」）。
+
+    /** 真实响应形状：`<?xml?><root><![CDATA[ <h3 class="flb">…<div id="messagetext">… ]]></root>` */
+    private fun xmlWrapped(inner: String): String =
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<root><![CDATA[$inner]]></root>"
+
+    @Test
+    fun `showmessage 成功页判为签到成功`() {
+        val inner = """<h3 class="flb"><em>提示信息</em><span><a href="javascript:;" class="flbc">关闭</a></span></h3>""" +
+                """<div id="messagetext" class="alert_right"><p>签到成功，获得 2 金币</p></div>"""
+        val r = AttendanceManager.parseResponse(xmlWrapped(inner))
+        assertEquals(AttendanceManager.Outcome.SIGNED_NOW, r.outcome)
+        // 必须提出干净正文：不能把 HTML 源码当消息丢给用户（真机踩过这个坑）
+        assertEquals("签到成功，获得 2 金币", r.message)
+        assertTrue("不该残留标签，实际=${r.message}", !r.message.contains("<"))
+    }
+
+    @Test
+    fun `showmessage 已签到页判为已签到`() {
+        val inner = """<div id="messagetext" class="alert_error"><p>您今天已经签到过了</p></div>"""
+        val r = AttendanceManager.parseResponse(xmlWrapped(inner))
+        assertEquals(AttendanceManager.Outcome.ALREADY_SIGNED, r.outcome)
+        assertEquals("您今天已经签到过了", r.message)
+    }
+
+    @Test
+    fun `showmessage 表单验证串错误判为失败`() {
+        val inner = """<div id="messagetext" class="alert_error"><p>您的请求来路不正确或表单验证串不符，无法提交</p></div>"""
+        val r = AttendanceManager.parseResponse(xmlWrapped(inner))
+        assertEquals(AttendanceManager.Outcome.FAILED, r.outcome)
+        assertEquals("您的请求来路不正确或表单验证串不符，无法提交", r.message)
+    }
+
+    @Test
+    fun `showmessage 正文不该混入标题与按钮噪声`() {
+        val inner = """<h3 class="flb"><em>提示信息</em><span><a href="javascript:;" class="flbc">关闭</a></span></h3>""" +
+                """<div class="c"><div class="alert_error"><p>已签到,请不要重新签到！</p></div></div>""" +
+                """<p class="o pns"><button id="closebtn"><strong>确定</strong></button></p>"""
+        val r = AttendanceManager.parseResponse(xmlWrapped(inner))
+        assertTrue("不应含「提示信息」，实际=${r.message}", !r.message.contains("提示信息"))
+        assertTrue("不应含「关闭」，实际=${r.message}", !r.message.contains("关闭"))
+        assertTrue("不应含「确定」，实际=${r.message}", !r.message.contains("确定"))
+    }
+
+    /**
+     * 真机实测响应（一加13T，2026-10-14）。服务端对"今天已签过"的真实回包：
+     * showmessage 页 + alert_error + 内嵌 errorhandle_ 的 script。
+     * 这条锁住「已签到」不能被误报成失败、也不能把 XML 源码当消息弹出来。
+     */
+    @Test
+    fun `真机实测的已签到响应`() {
+        val body = """<?xml version="1.0" encoding="utf-8"?>
+            |<root><![CDATA[<h3 class="flb"><em>提示信息</em><span><a href="javascript:;" class="flbc" onclick="hideWindow('');" title="关闭">关闭</a></span></h3>
+            |<div class="c altw">
+            |<div class="alert_error">已签到,请不要重新签到！<script type="text/javascript" reload="1">if(typeof errorhandle_=='function') {errorhandle_('已签到,请不要重新签到！', {});}</script></div>
+            |</div>
+            |<p class="o pns">
+            |<button type="button" class="pn pnc" id="closebtn" onclick="hideWindow('');"><strong>确定</strong></button>
+            |<script type="text/javascript" reload="1">if($('closebtn')) {$('closebtn').focus();}</script>
+            |</p>
+            |]]></root>""".trimMargin()
+        val r = AttendanceManager.parseResponse(body)
+        assertEquals(AttendanceManager.Outcome.ALREADY_SIGNED, r.outcome)
+        assertEquals("已签到,请不要重新签到！", r.message)
+    }
 }

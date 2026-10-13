@@ -5,6 +5,7 @@ import com.example.s1client.data.api.RetrofitClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.example.s1client.data.cache.ForumDataCache
+import org.jsoup.Jsoup
 
 /**
  * 每日签到。
@@ -93,7 +94,13 @@ object AttendanceManager {
             val body = withContext(Dispatchers.IO) {
                 RetrofitClient.api.dailyAttendance(formhash = fh).string()
             }
+            // 诊断：签到是低频写操作，把原始响应留档，便于区分「服务端拒绝」与「本地解析不了」
+            android.util.Log.d(
+                "Attendance",
+                "sign raw(formhash=${fh.take(6)}…): ${body.take(1200)}"
+            )
             val parsed = parseResponse(body)
+            android.util.Log.d("Attendance", "sign parsed => ${parsed.outcome}: ${parsed.message}")
             if (parsed.outcome == Outcome.SIGNED_NOW) recordSign(ctx)
             parsed
         } catch (e: Exception) {
@@ -118,7 +125,11 @@ object AttendanceManager {
         } catch (e: Exception) {
             null
         }
-        if (!fromForumIndex.isNullOrBlank()) return fromForumIndex
+        if (!fromForumIndex.isNullOrBlank()) {
+            // 回写全局缓存：收藏/评分/发帖等其它写操作也复用同一份，避免各拿各的
+            ForumDataCache.formhash = fromForumIndex
+            return fromForumIndex
+        }
 
         // 缓存兜底：登录/浏览过程中已经填过就复用
         return ForumDataCache.formhash
@@ -162,7 +173,86 @@ object AttendanceManager {
                 Result(Outcome.FAILED, msg)
             }
         }
+
+        // 分支 3：Discuz `showmessage` 页面。
+        // 签到插件并不总走 succeedhandle_/errorhandle_：某些情况下直接回一张
+        // showmessage 页（inajax 时被包成 <?xml?><root><![CDATA[<h3 class="flb">…]]></root>）。
+        // 之前缺这一支，于是解析落到 UNKNOWN → 把整段 XML 截 120 字当错误文案弹给用户，
+        // 表现就是「点签到后弹一坨乱码」。
+        showMessageText(body)?.let { msg ->
+            val error = body.contains("alert_error", true) ||
+                    msg.contains("抱歉") || msg.contains("失败") ||
+                    msg.contains("不符") || msg.contains("不正确")
+            return when {
+                looksAlreadySigned(msg) -> Result(Outcome.ALREADY_SIGNED, msg.ifBlank { "今日已签到" })
+                error -> Result(Outcome.FAILED, msg.ifBlank { "签到失败" })
+                else -> Result(Outcome.SIGNED_NOW, msg.ifBlank { "签到成功" })
+            }
+        }
+
+        // 分支 4：整段响应里就写着「已签到」——按已签到处理，不要误报失败。
+        if (body.contains("已签到")) {
+            return Result(Outcome.ALREADY_SIGNED, "今日已签到")
+        }
+
         return Result(Outcome.UNKNOWN, body.take(120))
+    }
+
+    /**
+     * 从 Discuz `showmessage` 页面里取出给人看的提示文本。
+     *
+     * 判定口径与项目其它写操作（发帖 PostEditorActivity、搜索 SearchManager、
+     * 评分 RatingParser）保持一致：优先 `#messagetext`，再退 `.alert_right` / `.alert_error`
+     * / `.showmessage`。取不到任何锚点则返回 null，交给调用方的其它分支处理。
+     */
+    private fun showMessageText(body: String): String? {
+        val hasAnchor = body.contains("messagetext", true) ||
+                body.contains("alert_right", true) ||
+                body.contains("alert_error", true) ||
+                body.contains("showmessage", true)
+        if (!hasAnchor) return null
+        return try {
+            // 必须先剥 XML 外壳与 CDATA：jsoup 在 HTML 语境下会把整段 <![CDATA[…]]>
+            // 当成一个**文本节点**，不剥的话里面的 .alert_error 根本选不中，
+            // 只能靠兜底拿到一整段 HTML 源码当"消息"（真机实测踩过）。
+            val doc = Jsoup.parse(unwrapCdata(body))
+            doc.select("script, style").remove()
+            val text = doc.selectFirst("#messagetext")?.text()
+                ?: doc.selectFirst(".alert_right")?.text()
+                ?: doc.selectFirst(".alert_error")?.text()
+                ?: doc.selectFirst(".showmessage")?.text()
+                // showmessage 正文容器：<div class="c"><p>…</p></div>
+                ?: doc.selectFirst("div.c p")?.text()
+                ?: doc.selectFirst("div.c")?.text()
+                // 最后兜底：整页纯文本（下面 cleanMessage 会剃掉标题与按钮词）
+                ?: doc.body()?.text()
+            cleanMessage(text.orEmpty()).takeIf { it.isNotEmpty() }
+        } catch (e: Exception) {
+            android.util.Log.w("Attendance", "showMessageText failed: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * 剥掉 inajax 的 `<?xml …?><root><![CDATA[ … ]]></root>` 外壳，只留里面的 HTML 片段。
+     * 没有 CDATA 时原样返回（普通 HTML 响应也走这里）。
+     */
+    private fun unwrapCdata(body: String): String {
+        val s = body.indexOf("<![CDATA[")
+        if (s < 0) return body
+        val e = body.indexOf("]]>", s + 9)
+        return if (e < 0) body.substring(s + 9) else body.substring(s + 9, e)
+    }
+
+    /** 剃掉 showmessage 页面混进来的标题/按钮噪声，只留正文 */
+    private fun cleanMessage(raw: String): String {
+        var t = raw
+        for (noise in listOf(
+            "提示信息", "关闭", "返回", "确定", "点击这里返回上一页", "javascript:;"
+        )) {
+            t = t.replace(noise, "")
+        }
+        return t.trim()
     }
 
     /** Discuz 会把消息包在 `succeedhandle_k_attendance(['<b>...</b>',1])` 这类 JS 里 */
