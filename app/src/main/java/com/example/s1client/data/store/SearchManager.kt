@@ -6,7 +6,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import com.example.s1client.data.cache.ForumDataCache
-import com.example.s1client.util.HtmlParser
 import com.example.s1client.util.SearchParser
 
 /**

@@ -2,7 +2,6 @@ package com.example.s1client.util
 
 import android.content.Context
 import com.example.s1client.data.api.RetrofitClient
-import com.example.s1client.util.HtmlParser
 import com.example.s1client.util.NoticeParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

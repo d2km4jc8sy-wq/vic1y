@@ -7,7 +7,6 @@ import com.example.s1client.util.applyS1Theme
 import com.example.s1client.util.setupS1EdgeToEdge
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.data.api.RetrofitClient
-import com.example.s1client.util.HtmlParser
 import com.example.s1client.util.UserPostParser
 
 /**
