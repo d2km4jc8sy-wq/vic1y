@@ -17,13 +17,13 @@ import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.data.model.PmListItem
 import com.example.s1client.databinding.ActivityPmListBinding
 import com.example.s1client.databinding.ItemPmListBinding
-import com.example.s1client.util.HtmlParser
 import com.example.s1client.ui.showUserCardDialog
 import com.example.s1client.util.avatarUrl
 import com.example.s1client.util.toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.example.s1client.util.PmParser
 
 class PmListActivity : BaseActivity() {
 
@@ -68,7 +68,7 @@ class PmListActivity : BaseActivity() {
     }
 
     private fun handleList(html: String) {
-        val list = HtmlParser.parsePmList(html)
+        val list = PmParser.parsePmList(html)
         if (list.isEmpty()) {
             binding.tvEmpty.visibility = View.VISIBLE
             binding.rvPm.adapter = null

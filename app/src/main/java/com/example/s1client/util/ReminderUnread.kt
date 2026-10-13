@@ -14,7 +14,7 @@ import kotlinx.coroutines.withContext
  *   这里采用「已看锚点」方案 —— 用户打开提醒中心并加载到的通知 id 记为已读，
  *   之后再次拉取时，凡是 id 不在已读集合里的都算未读。锚点持久化在 SharedPreferences，跨进程保留。
  *   首次启动时把当前所有通知记为已读（建立基线），避免一进来就显示一堆历史未读（如「15」）。
- * - 私信：直接复用 HtmlParser.parsePmList 的 isNew 标记（服务端真实的未读状态）；
+ * - 私信：直接复用 PmParser.parsePmList 的 isNew 标记（服务端真实的未读状态）；
  *   同时维护一份客户端已看基线，首次启动一并清零，点开会话后也记入基线，使红点 / 角标可消失。
  *
  * 底栏「提醒」图标据此显示未读数（红点/数字），真有未读才变状态。
@@ -78,7 +78,7 @@ object ReminderUnread {
             val notices = noticeUrls.flatMap { url ->
                 NoticeParser.parse(RetrofitClient.fetchHtml(url))
             }
-            val pmList = HtmlParser.parsePmList(
+            val pmList = PmParser.parsePmList(
                 RetrofitClient.fetchHtml("https://stage1st.com/2b/home.php?mod=space&do=pm")
             )
 

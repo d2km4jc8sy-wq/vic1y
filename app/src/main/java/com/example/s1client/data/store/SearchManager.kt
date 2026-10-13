@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.util.HtmlParser
+import com.example.s1client.util.SearchParser
 
 /**
  * 站内搜索。
@@ -14,7 +15,7 @@ import com.example.s1client.util.HtmlParser
  * Discuz 的搜索是两步：先 POST search.php?mod=forum 提交关键词，
  * 服务端 302 到一个 searchid 结果页，再 GET 那一页才是结果。
  * OkHttp 默认跟随重定向并把 POST 转成 GET，所以一次调用即可拿到结果页 HTML，
- * 再交给 [HtmlParser.parseSearchResult] 解析。
+ * 再交给 [SearchParser.parseSearchResult] 解析。
  */
 object SearchManager {
 
@@ -50,7 +51,7 @@ object SearchManager {
                 val html = RetrofitClient.httpClient.newCall(req).execute().use { resp ->
                     resp.body?.string().orEmpty()
                 }
-                val list = HtmlParser.parseSearchResult(html)
+                val list = SearchParser.parseSearchResult(html)
                 if (list.isNotEmpty()) Outcome(results = list)
                 else Outcome(message = extractMessage(html) ?: "没有找到相关帖子")
             } catch (e: Exception) {

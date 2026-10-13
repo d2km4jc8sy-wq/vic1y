@@ -18,11 +18,11 @@ import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.data.model.PmMessage
 import com.example.s1client.databinding.ActivityPmDetailBinding
 import com.example.s1client.databinding.ItemPmMessageBinding
-import com.example.s1client.util.HtmlParser
 import com.example.s1client.ui.showUserCardDialog
 import com.example.s1client.util.avatarUrl
 import com.example.s1client.util.toast
 import kotlinx.coroutines.launch
+import com.example.s1client.util.PmParser
 
 class PmDetailActivity : BaseActivity() {
 
@@ -93,7 +93,7 @@ class PmDetailActivity : BaseActivity() {
             val url = "https://stage1st.com/2b/home.php?mod=space&do=pm&subop=view&touid=$touid"
             when (val r = safeApiCall { RetrofitClient.fetchHtml(url) }) {
                 is ApiResult.Success -> {
-                    val list = HtmlParser.parsePmConversation(r.data)
+                    val list = PmParser.parsePmConversation(r.data)
                     adapter.submit(list)
                     if (list.isNotEmpty()) {
                         binding.rvMessages.scrollToPosition(list.size - 1)

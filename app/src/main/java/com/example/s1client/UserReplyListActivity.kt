@@ -8,6 +8,7 @@ import com.example.s1client.util.setupS1EdgeToEdge
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.data.api.RetrofitClient
 import com.example.s1client.util.HtmlParser
+import com.example.s1client.util.UserPostParser
 
 /**
  * 某用户的回帖列表。回复正文会作为标题下的正文行显示。
@@ -38,7 +39,7 @@ class UserReplyListActivity : ComponentActivity() {
                     load = {
                         val url = "https://stage1st.com/2b/home.php?mod=space&uid=$uid" +
                                 "&do=thread&view=me&type=reply&order=dateline&from=space"
-                        HtmlParser.parseReplyList(RetrofitClient.fetchHtml(url))
+                        UserPostParser.parseReplyList(RetrofitClient.fetchHtml(url))
                     }
                 )
             }

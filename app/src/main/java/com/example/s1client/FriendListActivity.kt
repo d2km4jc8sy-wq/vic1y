@@ -17,8 +17,8 @@ import com.example.s1client.data.model.FriendItem
 import com.example.s1client.databinding.ActivityFriendListBinding
 import com.example.s1client.databinding.ItemFriendBinding
 import com.example.s1client.ui.showUserCardDialog
-import com.example.s1client.util.HtmlParser
 import kotlinx.coroutines.launch
+import com.example.s1client.util.FriendParser
 
 class FriendListActivity : BaseActivity() {
 
@@ -61,7 +61,7 @@ class FriendListActivity : BaseActivity() {
                     return@launch
                 }
 
-                val rawFriends = HtmlParser.parseFriendList(html)
+                val rawFriends = FriendParser.parseFriendList(html)
 
                 // 过滤掉：当前被查看用户自己 + 当前登录用户自己
                 val viewerUid = ForumDataCache.memberUid  // 当前登录用户

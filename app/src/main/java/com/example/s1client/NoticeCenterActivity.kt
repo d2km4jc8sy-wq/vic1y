@@ -36,7 +36,6 @@ import com.example.s1client.data.api.RetrofitClient
 import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.data.model.PmListItem
 import com.example.s1client.ui.theme.S1Theme
-import com.example.s1client.util.HtmlParser
 import com.example.s1client.util.NoticeItem
 import com.example.s1client.util.NoticeParser
 import com.example.s1client.util.ReminderUnread
@@ -51,6 +50,7 @@ import com.example.s1client.ui.design.GlassBar
 import com.example.s1client.ui.design.HeartRed
 import com.example.s1client.ui.design.TextMain
 import com.example.s1client.ui.design.TextSub
+import com.example.s1client.util.PmParser
 
 /**
  * 站内「提醒」中心（替代原底栏「私信」入口）。
@@ -128,7 +128,7 @@ fun ReminderCenterScreen(onBack: () -> Unit) {
 
     suspend fun fetchPmList(): List<PmListItem> {
         val html = RetrofitClient.fetchHtml("https://stage1st.com/2b/home.php?mod=space&do=pm")
-        return HtmlParser.parsePmList(html)
+        return PmParser.parsePmList(html)
     }
 
     LaunchedEffect(tab, reloadKey) {

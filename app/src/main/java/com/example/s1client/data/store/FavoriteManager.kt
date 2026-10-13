@@ -4,6 +4,7 @@ import com.example.s1client.data.api.RetrofitClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.example.s1client.data.cache.ForumDataCache
+import com.example.s1client.util.UserPostParser
 
 /**
  * 收藏 / 取消收藏。
@@ -37,7 +38,7 @@ object FavoriteManager {
                 val url = "https://stage1st.com/2b/home.php?mod=space&do=favorite&view=me"
                 val html = RetrofitClient.fetchHtml(url)
                 if (html.isBlank()) return@withContext null
-                val items = com.example.s1client.util.HtmlParser.parseFavoriteList(html)
+                val items = com.example.s1client.util.UserPostParser.parseFavoriteList(html)
                 // 收藏列表为空是有意义的结论（真的没收藏）；解析不出任何东西才当失败
                 if (items.isEmpty() && html.contains("请先登录")) return@withContext null
                 items.any { it.tid == tid }

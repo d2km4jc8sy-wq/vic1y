@@ -11,7 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.example.s1client.data.api.RetrofitClient
 import com.example.s1client.data.cache.ForumDataCache
-import com.example.s1client.util.HtmlParser
+import com.example.s1client.util.UserPostParser
 
 /**
  * 收藏列表。
@@ -57,7 +57,7 @@ class FavoriteListActivity : ComponentActivity() {
                             } else {
                                 "https://stage1st.com/2b/home.php?mod=space&uid=$uid&do=favorite&view=me"
                             }
-                            HtmlParser.parseFavoriteList(RetrofitClient.fetchHtml(url))
+                            UserPostParser.parseFavoriteList(RetrofitClient.fetchHtml(url))
                         }
                     },
                     reloadTick = resumeTick

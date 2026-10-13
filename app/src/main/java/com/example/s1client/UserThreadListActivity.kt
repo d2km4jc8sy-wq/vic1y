@@ -8,6 +8,7 @@ import com.example.s1client.util.setupS1EdgeToEdge
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.data.api.RetrofitClient
 import com.example.s1client.util.HtmlParser
+import com.example.s1client.util.UserPostParser
 
 /**
  * 某用户的主题列表。
@@ -38,7 +39,7 @@ class UserThreadListActivity : ComponentActivity() {
                     load = {
                         val url = "https://stage1st.com/2b/home.php?mod=space&uid=$uid" +
                                 "&do=thread&view=me&from=space"
-                        HtmlParser.parseThreadList(RetrofitClient.fetchHtml(url))
+                        UserPostParser.parseThreadList(RetrofitClient.fetchHtml(url))
                     }
                 )
             }
