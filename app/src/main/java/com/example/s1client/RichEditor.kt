@@ -360,6 +360,8 @@ fun RichEditor(
                 // *2017 系列用官方短码（[f:044]），服务端直接认；老表情退回 [img]
                 val code = EmojiCode.shortCode(cat, file) ?: EmojiLib.bbcode(cat, file)
                 edit { BbCode.insert(it, code) }
+                // R3：插入后焦点立刻回输入框（用户拍板：不然不知道点了几张）
+                focusRequester.requestFocus()
             }
         )
     }
@@ -372,7 +374,23 @@ private fun EmojiPickerDialog(
     onDismiss: () -> Unit,
     onPick: (cat: String, file: String) -> Unit
 ) {
-    val categories = remember { EmojiLib.categories(context) }
+    // R3 中文合并分类（用户拍板：英文文件夹名太杂）——
+    // *2017 系列有官方短码各占一页；老表情合并成两页"经典/怀旧"，短码不可用回退 [img]
+    val tabs = remember {
+        val byCat = EmojiLib.categories(context).toMap()
+        listOf(
+            "常用" to listOf("face2017"),
+            "萌宠" to listOf("animal2017"),
+            "卡通" to listOf("carton2017"),
+            "高达" to listOf("bundam2017"),
+            "装置" to listOf("device2017"),
+            "大鹅" to listOf("goose2017"),
+            "经典" to listOf("face", "normal"),
+            "怀旧" to listOf("animal", "carton", "dym", "flash", "nq", "zdl")
+        ).map { (name, cats) ->
+            name to cats.flatMap { c -> (byCat[c] ?: emptyList()).map { f -> c to f } }
+        }.filter { it.second.isNotEmpty() }
+    }
     var current by remember { mutableStateOf(0) }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -398,17 +416,17 @@ private fun EmojiPickerDialog(
 
                 Spacer(Modifier.height(10.dp))
 
-                if (categories.isEmpty()) {
+                if (tabs.isEmpty()) {
                     Text("表情库为空", color = TextSub, fontSize = 13.sp)
                 } else {
-                    val idx = current.coerceIn(0, categories.size - 1)
+                    val idx = current.coerceIn(0, tabs.size - 1)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        categories.forEachIndexed { i, entry ->
+                        tabs.forEachIndexed { i, entry ->
                             val on = i == idx
                             Text(
                                 text = entry.first,
@@ -432,7 +450,7 @@ private fun EmojiPickerDialog(
 
                     Spacer(Modifier.height(10.dp))
 
-                    val cat = categories[idx].first
+                    val cat = tabs[idx].second.firstOrNull()?.first ?: ""
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(8),
                         modifier = Modifier
@@ -441,7 +459,7 @@ private fun EmojiPickerDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        items(categories[idx].second) { file ->
+                        items(tabs[idx].second) { (cat, file) ->
                             Box(
                                 modifier = Modifier
                                     .size(34.dp)

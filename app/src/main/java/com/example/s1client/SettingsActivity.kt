@@ -142,27 +142,11 @@ fun SettingsScreen(onFinish: () -> Unit) {
     var hapticEnabled by remember { mutableStateOf(Haptic.enabled) }
     val dataSaver by DataSaverStore.enabled.collectAsState()
     var tail by remember { mutableStateOf(SettingStore.postTail(context)) }
-    var fontSize by remember { mutableIntStateOf(SettingStore.fontSize(context)) }
-    var fontName by remember { mutableStateOf(SettingStore.customFontName(context)) }
     var hiddenForums by remember { mutableStateOf(SettingStore.hiddenForumIds(context)) }
     var cacheText by remember { mutableStateOf("计算中…") }
 
     LaunchedEffect(Unit) {
         cacheText = withContext(Dispatchers.IO) { formatSize(dirSize(imageCacheDir(context))) }
-    }
-
-    // 字体导入选择器（导入后全局立即生效，见 S1Theme 的 settingsVersion 监听）
-    val fontPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            SettingStore.importFont(context, uri)
-                .onSuccess {
-                    fontName = it
-                    S1Notify.show(context, "字体已导入：$it", S1Notify.Type.SUCCESS)
-                }
-                .onFailure {
-                    S1Notify.show(context, it.message ?: "导入失败", S1Notify.Type.ERROR)
-                }
-        }
     }
 
     Column(
@@ -195,66 +179,6 @@ fun SettingsScreen(onFinish: () -> Unit) {
         }
 
         // ═══ 外观 ═══
-        GroupTitle("外观")
-        Group {
-            SettingRow(
-                Icons.Outlined.Palette, "主题",
-                onClick = { showThemeSheet = true }
-            ) {
-                ThemeSwatch(ThemeManager.currentTheme, size = 22.dp)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    themeName(), fontSize = 12.sp, color = c.textSub,
-                    modifier = Modifier.padding(end = 4.dp)
-                )
-                Chevron()
-            }
-
-            SettingRow(Icons.Outlined.FormatSize, "文字大小") {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SettingStore.FONT_SIZES.forEach { size ->
-                        val selected = size == fontSize
-                        Text(
-                            when (size) {
-                                12 -> "小"; 14 -> "标准"; 16 -> "大"; else -> "超大"
-                            },
-                            fontSize = 11.sp,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selected) Color.White else c.textSub,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (selected) c.accent.copy(alpha = 0.85f) else c.chipBg)
-                                .clickable {
-                                    fontSize = size
-                                    SettingStore.setFontSize(context, size)
-                                }
-                                .padding(horizontal = 9.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-            }
-
-            SettingRow(
-                Icons.Outlined.TextFields, "字体",
-                sub = fontName ?: "默认字体",
-                onClick = { fontPicker.launch(arrayOf("*/*")) }
-            ) {
-                Chevron()
-            }
-
-            if (fontName != null) {
-                SettingRow(
-                    Icons.Outlined.Refresh, "恢复默认字体",
-                    sub = "移除自定义字体",
-                    onClick = {
-                        SettingStore.removeCustomFont(context)
-                        fontName = null
-                        S1Notify.show(context, "已恢复默认字体", S1Notify.Type.INFO)
-                    }
-                ) {}
-            }
-        }
-
         // ═══ 交互 ═══
         GroupTitle("交互")
         Group {
@@ -449,8 +373,6 @@ fun SettingsScreen(onFinish: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     SettingStore.resetAppearance(context)
-                    fontSize = SettingStore.fontSize(context)
-                    fontName = null
                     showResetAppearance = false
                     S1Notify.show(context, "外观偏好已重置", S1Notify.Type.SUCCESS)
                 }) { Text("确定", color = Color(0xFFFF3B30)) }

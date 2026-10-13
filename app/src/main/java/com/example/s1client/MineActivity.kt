@@ -39,6 +39,10 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Drafts
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.FormatSize
+import androidx.compose.material.icons.outlined.TextFields
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.StarOutline
@@ -78,6 +82,7 @@ import com.example.s1client.ui.ConfettiBurst
 import com.example.s1client.ui.S1SystemBarSync
 import com.example.s1client.ReadHistoryActivity
 import com.example.s1client.data.store.ReadHistoryStore
+import com.example.s1client.data.store.SettingStore
 import com.example.s1client.ui.ThemeSwatch
 import com.example.s1client.ui.showUserCardDialog
 import com.example.s1client.ui.theme.LocalS1Colors
@@ -131,6 +136,21 @@ fun MineScreen(onFinish: () -> Unit) {
     S1SystemBarSync()
     val context = LocalContext.current
     var showHiddenPostsDialog by remember { mutableStateOf(false) }
+    var showThemeSheet by remember { mutableStateOf(false) }
+    var fontSize by remember { androidx.compose.runtime.mutableIntStateOf(SettingStore.fontSize(context)) }
+    var fontName by remember { mutableStateOf(SettingStore.customFontName(context)) }
+    val fontPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            SettingStore.importFont(context, uri)
+                .onSuccess {
+                    fontName = it
+                    S1Notify.show(context, "字体已导入：$it", S1Notify.Type.SUCCESS)
+                }
+                .onFailure { S1Notify.show(context, it.message ?: "导入失败", S1Notify.Type.ERROR) }
+        }
+    }
     var confettiKey by remember { mutableIntStateOf(0) }
 
     var loggedIn by remember { mutableStateOf(ForumDataCache.isLoggedIn()) }
@@ -246,6 +266,25 @@ fun MineScreen(onFinish: () -> Unit) {
                                     showUserCardDialog(context as ComponentActivity, uid, username)
                                 } else {
                                     context.startActivity(Intent(context, LoginActivity::class.java))
+                                }
+                            },
+                            trailing = {
+                                // R3：外观快捷入口（用户拍板位置=身份卡右侧空白；
+                                // 点头像=用户卡，点这里=主题面板，职责分离不冲突）
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .background(c.chipBg)
+                                        .clickable { showThemeSheet = true },
+                                    contentAlignment = androidx.compose.ui.Alignment.Center
+                                ) {
+                                    androidx.compose.material3.Icon(
+                                        imageVector = androidx.compose.material.icons.Icons.Outlined.Palette,
+                                        contentDescription = "外观",
+                                        tint = c.accent,
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
                         )
@@ -363,6 +402,115 @@ fun MineScreen(onFinish: () -> Unit) {
                     }
                 }
 
+                // —— 外观卡（R3：从设置页整组迁出，主题秒切不再绕路）——
+                StaggerIn(3) {
+                    FlowGlassCard(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                        rotating = false,
+                        soft = true
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            // 主题行
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showThemeSheet = true }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(30.dp).clip(CircleShape).background(c.chipBg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Outlined.Palette, "主题", tint = c.accent, modifier = Modifier.size(18.dp))
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Text("主题", color = c.textMain, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                                Text(themeNameShort(), color = c.textSub, fontSize = 12.sp)
+                                Spacer(Modifier.width(6.dp))
+                                Chevron()
+                            }
+                            // 文字大小行
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(30.dp).clip(CircleShape).background(c.chipBg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(androidx.compose.material.icons.Icons.Outlined.FormatSize, "文字大小", tint = c.accent, modifier = Modifier.size(18.dp))
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    SettingStore.FONT_SIZES.forEach { size ->
+                                        val selected = size == fontSize
+                                        Text(
+                                            when (size) { 12 -> "小"; 14 -> "标准"; 16 -> "大"; else -> "超大" },
+                                            fontSize = 11.sp,
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (selected) Color.White else c.textSub,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(if (selected) c.accent.copy(alpha = 0.85f) else c.chipBg)
+                                                .clickable {
+                                                    fontSize = size
+                                                    SettingStore.setFontSize(context, size)
+                                                }
+                                                .padding(horizontal = 9.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            // 字体行
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { fontPicker.launch(arrayOf("*/*")) }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(30.dp).clip(CircleShape).background(c.chipBg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(androidx.compose.material.icons.Icons.Outlined.TextFields, "字体", tint = c.accent, modifier = Modifier.size(18.dp))
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Text("字体", color = c.textMain, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                                Text(fontName ?: "默认字体", color = c.textSub, fontSize = 12.sp)
+                                Spacer(Modifier.width(6.dp))
+                                Chevron()
+                            }
+                            // 恢复默认字体（有自定义字体时才出现）
+                            if (fontName != null) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            SettingStore.removeCustomFont(context)
+                                            fontName = null
+                                            S1Notify.show(context, "已恢复默认字体", S1Notify.Type.INFO)
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier.size(30.dp).clip(CircleShape).background(c.chipBg),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Outlined.Refresh, "恢复默认字体", tint = c.accent, modifier = Modifier.size(18.dp))
+                                    }
+                                    Spacer(Modifier.width(12.dp))
+                                    Text("恢复默认字体", color = c.textMain, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // —— 三组单色清单 ——
                 StaggerIn(3) {
                     // 去重（用户拍板）：历史/楼层收藏/草稿已在顶部数据条，清单只留不重复项
@@ -459,6 +607,9 @@ fun MineScreen(onFinish: () -> Unit) {
     }
 
     // P4：主题入口收敛到设置页外观组，此处不再渲染 ThemePickerSheet
+    if (showThemeSheet) {
+        com.example.s1client.ui.ThemePickerSheet(onDismiss = { showThemeSheet = false })
+    }
     if (showHiddenPostsDialog) {
         HiddenPostsDialog(onDismiss = { showHiddenPostsDialog = false })
     }
@@ -516,27 +667,32 @@ private fun StaggerIn(index: Int, content: @Composable () -> Unit) {
 @Composable
 private fun StatsStrip(bookmarkCount: Int, draftCount: Int, historyCount: Int) {
     val c = LocalS1Colors.current
+    val context = LocalContext.current
+    // R3：三个数据卡全部可点（用户拍板：显示数目就必须能进去）
+    val targets = listOf(
+        "楼层收藏" to { context.startActivity(Intent(context, FavoriteListActivity::class.java)) },
+        "草稿" to { context.startActivity(Intent(context, DraftListActivity::class.java)) },
+        "历史" to { context.startActivity(Intent(context, ReadHistoryActivity::class.java)) }
+    )
+    val counts = listOf(bookmarkCount, draftCount, historyCount)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        listOf(
-            "楼层收藏" to bookmarkCount,
-            "草稿" to draftCount,
-            "历史" to historyCount
-        ).forEach { (label, count) ->
+        targets.forEachIndexed { idx, (label, onClick) ->
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(14.dp))
                     .background(c.glassCard)
+                    .clickable { onClick() }
                     .padding(vertical = 11.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "$count",
+                    "${counts[idx]}",
                     fontSize = 17.sp, fontWeight = FontWeight.Bold, color = c.textMain
                 )
                 Text(label, fontSize = 10.5.sp, color = c.textSub)
@@ -683,7 +839,8 @@ private fun UserCard(
     username: String, uid: String, groupTitle: String,
     signature: String, regDate: String,
     loggedIn: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    trailing: (@Composable androidx.compose.foundation.layout.RowScope.() -> Unit)? = null
 ) {
     val c = LocalS1Colors.current
     Box(
@@ -753,6 +910,7 @@ private fun UserCard(
                     }
                 }
             }
+            trailing?.invoke(this)
         }
     }
 }
@@ -833,4 +991,15 @@ private fun HiddenPostsDialog(onDismiss: () -> Unit) {
             TextButton(onClick = onDismiss) { Text("关闭", color = c.textSub) }
         }
     )
+}
+
+private fun themeNameShort(): String = when (ThemeManager.currentTheme) {
+    com.example.s1client.util.ThemeManager.THEME_LIGHT -> "焙茶午后"
+    com.example.s1client.util.ThemeManager.THEME_OLED -> "曜石玄夜"
+    com.example.s1client.util.ThemeManager.THEME_PINK -> "樱雾粉霜"
+    com.example.s1client.util.ThemeManager.THEME_FC -> "朱砂红白"
+    com.example.s1client.util.ThemeManager.THEME_RP5 -> "苔绿灰阶"
+    com.example.s1client.util.ThemeManager.THEME_IRIDESCENT -> "幻彩渐变"
+    com.example.s1client.util.ThemeManager.THEME_LINEAR -> "Linear 墨蓝"
+    else -> "主题"
 }
