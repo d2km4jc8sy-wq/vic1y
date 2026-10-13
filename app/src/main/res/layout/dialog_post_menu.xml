@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 楼层「⋯」菜单：方案②底部弹出圆形图标网格（玻璃面板） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_glass_sheet_top"
+    android:elevation="24dp"
+    android:outlineProvider="background"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="22dp">
+
+    <!-- 顶部抓手条（颜色在代码里按主题取 tertiary 降透明度注入） -->
+    <View
+        android:id="@+id/grab"
+        android:layout_width="38dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp" />
+
+    <!-- 3 列等宽九宫格（GridLayout 保证每列撑满、对齐） -->
+    <GridLayout
+        android:id="@+id/llGrid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="3"
+        android:orientation="horizontal" />
+
+</LinearLayout>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <attr name="s1BgPage" format="color" />
+    <attr name="s1BgCard" format="color" />
+    <attr name="s1BgCardLight" format="color" />
+    <attr name="s1BgTopbar" format="color" />
+    <attr name="s1BgTabbar" format="color" />
+    <attr name="s1BorderCard" format="color" />
+    <attr name="s1BorderLight" format="color" />
+    <attr name="s1TextTitle" format="color" />
+    <attr name="s1TextBody" format="color" />
+    <attr name="s1TextSecondary" format="color" />
+    <attr name="s1TextTertiary" format="color" />
+    <attr name="s1TextTopbar" format="color" />
+    <attr name="s1TextOnAccent" format="color" />
+    <attr name="s1Accent" format="color" />
+    <attr name="s1Divider" format="color" />
+    <attr name="s1AvatarPlaceholder" format="color" />
+    <attr name="s1QuoteBg" format="color" />
+    <attr name="s1QuoteBar" format="color" />
+    <attr name="s1QuoteText" format="color" />
+    <attr name="s1QuoteBorder" format="color" />
+    <attr name="s1TagBg" format="color" />
+    <attr name="s1TagText" format="color" />
+    <attr name="s1AccentPurple" format="color" />
+    <attr name="s1AccentCyan" format="color" />
+    <attr name="s1ActionIcon" format="color" />
+    <attr name="s1ActionIconActive" format="color" />
+    <attr name="s1GlassBarBg" format="color" />
+    <attr name="s1GlassBarLine" format="color" />
+    <attr name="s1GlassSheetBg" format="color" />
+    <attr name="s1GlassSheetLine" format="color" />
+    <attr name="s1MenuSheetBg" format="color" />
+</resources>

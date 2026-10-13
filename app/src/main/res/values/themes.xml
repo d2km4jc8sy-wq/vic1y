@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+      ===== 主题基样式：以后新增主题只需继承对应基样式 + 填 s1* 业务色 =====
+      系统栏在这里统一为全透明（应用全局 edge-to-edge，内容绘制到系统栏后面，
+      底色由各页面玻璃顶/底栏承接），新增主题不需要、也不应该再写
+      android:statusBarColor / android:navigationBarColor。
+      系统栏图标明暗由代码按 s1BgPage 亮度自动决定，无需 windowLightStatusBar。
+    -->
+    <!--
+      ===== 主题基样式 =====
+      状态栏 / 导航栏：统一透明，内容绘制到系统栏后面。
+      底部由各页面的玻璃底栏（或页面底色渐变）自己承接 —— 所以不要在任何主题里
+      再写 opaque 的 navigationBarColor：那会在导航栏区域盖出一块与玻璃底栏不同色的
+      色带（浅色主题上表现为底部一条「白边」，Android 13/MIUI 上必现，
+      新系统因为强制 edge-to-edge 忽略该属性所以看不出来）。
+      Android 10+ 的系统对比度 scrim 由代码里 isNavigationBarContrastEnforced = false 关掉。
+      新增主题：继承 Base.Light/Dark + 填 s1* 业务色即可，不用管系统栏颜色。
+    -->
+    <!--
+      全局 Activity 转场：正宗 iOS 导航转场 —— 整屏位移 + 视差跟进。
+        push：新页 100% → 0 从右滑入；旧页 0 → -30% 向左让出（视差）
+        pop ：当前页 0 → 100% 右滑退出；下层 -30% → 0 滑回
+      四段共用 @interpolator/s1_ios_ease（cubic-bezier(0.32,0.72,0,1)，350ms），
+      比例严格一致，两层位移不会"打架"。
+      历史坑：早先旧页用 alpha 淡出，动画结束会跳回不透明、点进帖子时闪一下，
+      所以一度把 openExit 置成 @null。纯位移没有这个问题（结束时旧页已被完全盖住）。
+    -->
+    <style name="S1WindowAnimation">
+        <item name="android:activityOpenEnterAnimation">@anim/s1_slide_in_right</item>
+        <item name="android:activityOpenExitAnimation">@anim/s1_slide_out_left</item>
+        <item name="android:activityCloseEnterAnimation">@anim/s1_slide_in_left</item>
+        <item name="android:activityCloseExitAnimation">@anim/s1_slide_out_right</item>
+        <item name="android:taskOpenEnterAnimation">@anim/s1_slide_in_right</item>
+        <item name="android:taskOpenExitAnimation">@anim/s1_slide_out_left</item>
+        <item name="android:taskCloseEnterAnimation">@anim/s1_slide_in_left</item>
+        <item name="android:taskCloseExitAnimation">@anim/s1_slide_out_right</item>
+    </style>
+
+    <!-- 底部弹出菜单（方案②圆形图标网格）的滑入/滑出动画 -->
+    <style name="S1DialogSlideUp" parent="@android:style/Animation.Dialog">
+        <item name="android:windowEnterAnimation">@anim/s1_dialog_slide_in_bottom</item>
+        <item name="android:windowExitAnimation">@anim/s1_dialog_slide_out_bottom</item>
+    </style>
+
+    <!--
+      ===== 中性深浅「配色基座」=====
+      这两套把 31 个 s1* attr 全部定义一遍（中性灰阶，不含任何色相）。
+      所有主题 style 都必须（直接或间接）继承它们 —— 于是任何新主题一出生就有完整的
+      attr 覆盖，不会出现「漏定义某个 attr → XML 页面解析不到而串色」的问题
+      （幻彩顶栏土黄色就是这么来的）。
+      主题只需要覆盖「色相相关」的那十几个 attr，中性/通用的（边框、分隔线、
+      玻璃层透明度等）直接继承基座即可。
+      新增 attr 时：先在这里补两套，再跑 tools/check_theme_attrs.py 校验。
+    -->
+    <style name="Theme.S1Client.Palette.Light" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="s1BgPage">#FAFAFA</item>
+        <item name="s1BgCard">#FFFFFF</item>
+        <item name="s1BgCardLight">#F5F5F5</item>
+        <item name="s1BgTopbar">#EEEEEE</item>
+        <item name="s1BgTabbar">#FFFFFF</item>
+        <item name="s1BorderCard">#E0E0E0</item>
+        <item name="s1BorderLight">#EEEEEE</item>
+        <item name="s1TextTitle">#212121</item>
+        <item name="s1TextBody">#212121</item>
+        <item name="s1TextSecondary">#757575</item>
+        <item name="s1TextTertiary">#9E9E9E</item>
+        <item name="s1TextTopbar">#212121</item>
+        <item name="s1TextOnAccent">#FFFFFF</item>
+        <item name="s1Accent">#757575</item>
+        <item name="s1Divider">#E0E0E0</item>
+        <item name="s1AvatarPlaceholder">#BDBDBD</item>
+        <item name="s1QuoteBg">#F5F5F5</item>
+        <item name="s1QuoteBar">#9E9E9E</item>
+        <item name="s1QuoteText">#757575</item>
+        <item name="s1QuoteBorder">#E0E0E0</item>
+        <item name="s1TagBg">#9E9E9E</item>
+        <item name="s1TagText">#FFFFFF</item>
+        <item name="s1AccentPurple">#7E57C2</item>
+        <item name="s1AccentCyan">#4DD0E1</item>
+        <item name="s1ActionIcon">#757575</item>
+        <item name="s1ActionIconActive">#757575</item>
+        <item name="s1GlassBarBg">#E6EEEEEE</item>
+        <item name="s1GlassBarLine">#33000000</item>
+        <item name="s1GlassSheetBg">#F2FFFFFF</item>
+        <item name="s1GlassSheetLine">#33000000</item>
+        <item name="s1MenuSheetBg">#CCFFFFFF</item>
+    </style>
+
+    <style name="Theme.S1Client.Palette.Dark" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="s1BgPage">#121212</item>
+        <item name="s1BgCard">#1E1E1E</item>
+        <item name="s1BgCardLight">#262626</item>
+        <item name="s1BgTopbar">#1E1E1E</item>
+        <item name="s1BgTabbar">#121212</item>
+        <item name="s1BorderCard">#333333</item>
+        <item name="s1BorderLight">#262626</item>
+        <item name="s1TextTitle">#EDEDED</item>
+        <item name="s1TextBody">#EDEDED</item>
+        <item name="s1TextSecondary">#9E9E9E</item>
+        <item name="s1TextTertiary">#757575</item>
+        <item name="s1TextTopbar">#EDEDED</item>
+        <item name="s1TextOnAccent">#FFFFFF</item>
+        <item name="s1Accent">#BDBDBD</item>
+        <item name="s1Divider">#333333</item>
+        <item name="s1AvatarPlaceholder">#616161</item>
+        <item name="s1QuoteBg">#262626</item>
+        <item name="s1QuoteBar">#616161</item>
+        <item name="s1QuoteText">#9E9E9E</item>
+        <item name="s1QuoteBorder">#333333</item>
+        <item name="s1TagBg">#616161</item>
+        <item name="s1TagText">#FFFFFF</item>
+        <item name="s1AccentPurple">#B39DDB</item>
+        <item name="s1AccentCyan">#80DEEA</item>
+        <item name="s1ActionIcon">#9E9E9E</item>
+        <item name="s1ActionIconActive">#BDBDBD</item>
+        <item name="s1GlassBarBg">#E6121212</item>
+        <item name="s1GlassBarLine">#33FFFFFF</item>
+        <item name="s1GlassSheetBg">#F21E1E1E</item>
+        <item name="s1GlassSheetLine">#33FFFFFF</item>
+        <item name="s1MenuSheetBg">#CC1E1E1E</item>
+    </style>
+
+    <style name="Theme.S1Client.Base.Light" parent="Theme.S1Client.Palette.Light">
+        <item name="android:windowBackground">@color/light_bg_page</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@style/S1WindowAnimation</item>
+        <!-- Android 12+ 系统开屏背景：纯黑，与图标底色一致（默认会取主题米色背景，观感错误）。
+             开屏图标直接指定启动图 PNG：避免系统给 legacy 图标自动包一层白色底板 -->
+        <item name="android:windowSplashScreenBackground">@color/splash_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+    </style>
+
+    <style name="Theme.S1Client.Base.Dark" parent="Theme.S1Client.Palette.Dark">
+        <item name="android:windowBackground">@color/oled_bg_page</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@style/S1WindowAnimation</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+    </style>
+
+    <style name="Theme.S1Client.Light" parent="Theme.S1Client.Base.Light">
+        <item name="colorPrimary">#A0522D</item>
+        <item name="colorPrimaryVariant">#8B4513</item>
+        <item name="colorOnPrimary">#FFF8DC</item>
+        <item name="colorSurface">#FFFCF0</item>
+        <item name="colorOnSurface">#3A3A3A</item>
+        <item name="android:windowBackground">@color/light_bg_page</item>
+        <item name="android:navigationBarColor">@color/light_bg_page</item>
+        <item name="s1BgPage">@color/light_bg_page</item>
+        <item name="s1BgCard">@color/light_bg_card</item>
+        <item name="s1BgCardLight">@color/light_bg_card_light</item>
+        <item name="s1BgTopbar">@color/light_bg_topbar</item>
+        <item name="s1BgTabbar">@color/light_bg_tabbar</item>
+        <item name="s1BorderCard">@color/light_border_card</item>
+        <item name="s1BorderLight">@color/light_border_light</item>
+        <item name="s1TextTitle">@color/light_text_title</item>
+        <item name="s1TextBody">@color/light_text_body</item>
+        <item name="s1TextSecondary">@color/light_text_secondary</item>
+        <item name="s1TextTertiary">@color/light_text_tertiary</item>
+        <item name="s1TextTopbar">@color/light_text_topbar</item>
+        <item name="s1TextOnAccent">@color/text_on_accent</item>
+        <item name="s1Accent">@color/light_accent</item>
+        <item name="s1Divider">@color/light_divider</item>
+        <item name="s1AvatarPlaceholder">@color/light_avatar_placeholder</item>
+        <item name="s1QuoteBg">@color/light_quote_bg</item>
+        <item name="s1QuoteBar">@color/light_quote_bar</item>
+        <item name="s1QuoteText">@color/light_quote_text</item>
+        <item name="s1QuoteBorder">@color/light_quote_border</item>
+        <item name="s1TagBg">@color/light_tag_bg</item>
+        <item name="s1TagText">@color/light_tag_text</item>
+        <item name="s1AccentPurple">#6B7CFF</item>
+        <item name="s1AccentCyan">#1FB8FF</item>
+        <item name="s1ActionIcon">@color/light_text_secondary</item>
+        <item name="s1ActionIconActive">#FF2C55</item>
+        <item name="s1GlassBarBg">@color/light_glass_bar_bg</item>
+        <item name="s1GlassBarLine">@color/light_glass_bar_line</item>
+        <item name="s1GlassSheetBg">@color/light_glass_sheet_bg</item>
+        <item name="s1GlassSheetLine">@color/light_glass_sheet_line</item>
+        <item name="s1MenuSheetBg">@color/light_menu_sheet_bg</item>
+    </style>
+
+    <style name="Theme.S1Client.OLED" parent="Theme.S1Client.Base.Dark">
+        <item name="colorPrimary">#D08040</item>
+        <item name="colorPrimaryVariant">#B07030</item>
+        <item name="colorOnPrimary">#000000</item>
+        <item name="colorSurface">#0A0A0A</item>
+        <item name="colorOnSurface">#CCCCCC</item>
+        <item name="android:windowBackground">@color/oled_bg_page</item>
+        <!-- 保持 transparent：OLED 页面底本身就是 #000000，
+             内容直接画到导航栏后面，黑底无缝铺满，scrim 在黑底上也不显眼 -->
+        <item name="s1BgPage">@color/oled_bg_page</item>
+        <item name="s1BgCard">@color/oled_bg_card</item>
+        <item name="s1BgCardLight">@color/oled_bg_card_light</item>
+        <item name="s1BgTopbar">@color/oled_bg_topbar</item>
+        <item name="s1BgTabbar">@color/oled_bg_tabbar</item>
+        <item name="s1BorderCard">@color/oled_border_card</item>
+        <item name="s1BorderLight">@color/oled_border_light</item>
+        <item name="s1TextTitle">@color/oled_text_title</item>
+        <item name="s1TextBody">@color/oled_text_body</item>
+        <item name="s1TextSecondary">@color/oled_text_secondary</item>
+        <item name="s1TextTertiary">@color/oled_text_tertiary</item>
+        <item name="s1TextTopbar">@color/oled_text_topbar</item>
+        <item name="s1TextOnAccent">@color/text_on_accent</item>
+        <item name="s1Accent">@color/oled_accent</item>
+        <item name="s1Divider">@color/oled_divider</item>
+        <item name="s1AvatarPlaceholder">@color/oled_avatar_placeholder</item>
+        <item name="s1QuoteBg">@color/oled_quote_bg</item>
+        <item name="s1QuoteBar">@color/oled_quote_bar</item>
+        <item name="s1QuoteText">@color/oled_quote_text</item>
+        <item name="s1QuoteBorder">@color/oled_quote_border</item>
+        <item name="s1TagBg">@color/oled_tag_bg</item>
+        <item name="s1TagText">@color/oled_tag_text</item>
+        <item name="s1AccentPurple">#6B7CFF</item>
+        <item name="s1AccentCyan">#1FB8FF</item>
+        <item name="s1ActionIcon">@color/oled_text_secondary</item>
+        <item name="s1ActionIconActive">#FF2C55</item>
+        <item name="s1GlassBarBg">@color/oled_glass_bar_bg</item>
+        <item name="s1GlassBarLine">@color/oled_glass_bar_line</item>
+        <item name="s1GlassSheetBg">@color/oled_glass_sheet_bg</item>
+        <item name="s1GlassSheetLine">@color/oled_glass_sheet_line</item>
+        <item name="s1MenuSheetBg">@color/oled_menu_sheet_bg</item>
+    </style>
+
+
+    <style name="Theme.S1Client.Pink" parent="Theme.S1Client.Base.Light">
+        <item name="colorPrimary">#E94A72</item>
+        <item name="colorPrimaryVariant">#C2185B</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSurface">#FFFFFF</item>
+        <item name="colorOnSurface">#2B2B2B</item>
+        <item name="android:windowBackground">@color/pink_bg_page</item>
+        <item name="android:navigationBarColor">@color/pink_bg_page</item>
+        <item name="s1BgPage">@color/pink_bg_page</item>
+        <item name="s1BgCard">@color/pink_bg_card</item>
+        <item name="s1BgCardLight">@color/pink_bg_card_light</item>
+        <item name="s1BgTopbar">@color/pink_bg_topbar</item>
+        <item name="s1BgTabbar">@color/pink_bg_tabbar</item>
+        <item name="s1BorderCard">@color/pink_border_card</item>
+        <item name="s1BorderLight">@color/pink_border_light</item>
+        <item name="s1TextTitle">@color/pink_text_title</item>
+        <item name="s1TextBody">@color/pink_text_body</item>
+        <item name="s1TextSecondary">@color/pink_text_secondary</item>
+        <item name="s1TextTertiary">@color/pink_text_tertiary</item>
+        <item name="s1TextTopbar">@color/pink_text_topbar</item>
+        <item name="s1TextOnAccent">@color/text_on_accent</item>
+        <item name="s1Accent">@color/pink_accent</item>
+        <item name="s1Divider">@color/pink_divider</item>
+        <item name="s1AvatarPlaceholder">@color/pink_avatar_placeholder</item>
+        <item name="s1QuoteBg">@color/pink_quote_bg</item>
+        <item name="s1QuoteBar">@color/pink_quote_bar</item>
+        <item name="s1QuoteText">@color/pink_quote_text</item>
+        <item name="s1QuoteBorder">@color/pink_quote_border</item>
+        <item name="s1TagBg">@color/pink_tag_bg</item>
+        <item name="s1TagText">@color/pink_tag_text</item>
+        <item name="s1AccentPurple">#6B7CFF</item>
+        <item name="s1AccentCyan">#1FB8FF</item>
+        <item name="s1ActionIcon">@color/pink_text_secondary</item>
+        <item name="s1ActionIconActive">#FF2C55</item>
+        <item name="s1GlassBarBg">@color/pink_glass_bar_bg</item>
+        <item name="s1GlassBarLine">@color/pink_glass_bar_line</item>
+        <item name="s1GlassSheetBg">@color/pink_glass_sheet_bg</item>
+        <item name="s1GlassSheetLine">@color/pink_glass_sheet_line</item>
+        <item name="s1MenuSheetBg">@color/pink_menu_sheet_bg</item>
+    </style>
+
+    <!-- ============ FC 红白 ============ -->
+    <style name="Theme.S1Client.FC" parent="Theme.S1Client.Base.Dark">
+        <item name="android:windowBackground">@color/fc_bg_page</item>
+        <!-- 深色主题：继承 Base.Dark 的 transparent navigationBarColor -->
+        <item name="colorPrimary">@color/fc_accent</item>
+        <item name="colorPrimaryVariant">#8B1A1A</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="s1BgPage">@color/fc_bg_page</item>
+        <item name="s1BgCard">@color/fc_bg_card</item>
+        <item name="s1BgCardLight">@color/fc_bg_card_light</item>
+        <item name="s1BgTopbar">@color/fc_bg_topbar</item>
+        <item name="s1BgTabbar">@color/fc_bg_tabbar</item>
+        <item name="s1BorderCard">@color/fc_border_card</item>
+        <item name="s1BorderLight">@color/fc_border_light</item>
+        <item name="s1TextTitle">@color/fc_text_title</item>
+        <item name="s1TextBody">@color/fc_text_body</item>
+        <item name="s1TextSecondary">@color/fc_text_secondary</item>
+        <item name="s1TextTertiary">@color/fc_text_tertiary</item>
+        <item name="s1TextTopbar">@color/fc_text_topbar</item>
+        <item name="s1TextOnAccent">@color/text_on_accent</item>
+        <item name="s1Accent">@color/fc_accent</item>
+        <item name="s1Divider">@color/fc_divider</item>
+        <item name="s1AvatarPlaceholder">@color/fc_avatar_placeholder</item>
+        <item name="s1QuoteBg">@color/fc_quote_bg</item>
+        <item name="s1QuoteBar">@color/fc_quote_bar</item>
+        <item name="s1QuoteText">@color/fc_quote_text</item>
+        <item name="s1QuoteBorder">@color/fc_quote_border</item>
+        <item name="s1TagBg">@color/fc_tag_bg</item>
+        <item name="s1TagText">@color/fc_tag_text</item>
+        <item name="s1ActionIcon">@color/fc_text_secondary</item>
+        <item name="s1ActionIconActive">@color/fc_accent</item>
+        <item name="s1GlassSheetBg">@color/fc_glass_sheet_bg</item>
+        <item name="s1GlassSheetLine">@color/fc_glass_sheet_line</item>
+        <item name="s1MenuSheetBg">@color/fc_menu_sheet_bg</item>
+    </style>
+
+    <!-- ============ RP5 灰彩 ============ -->
+    <style name="Theme.S1Client.RP5" parent="Theme.S1Client.Base.Light">
+        <item name="android:windowBackground">@color/rp5_bg_page</item>
+        <item name="android:navigationBarColor">@color/rp5_bg_page</item>
+        <item name="colorPrimary">@color/rp5_accent</item>
+        <item name="colorPrimaryVariant">#B53030</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="s1BgPage">@color/rp5_bg_page</item>
+        <item name="s1BgCard">@color/rp5_bg_card</item>
+        <item name="s1BgCardLight">@color/rp5_bg_card_light</item>
+        <item name="s1BgTopbar">@color/rp5_bg_topbar</item>
+        <item name="s1BgTabbar">@color/rp5_bg_tabbar</item>
+        <item name="s1BorderCard">@color/rp5_border_card</item>
+        <item name="s1BorderLight">@color/rp5_border_light</item>
+        <item name="s1TextTitle">@color/rp5_text_title</item>
+        <item name="s1TextBody">@color/rp5_text_body</item>
+        <item name="s1TextSecondary">@color/rp5_text_secondary</item>
+        <item name="s1TextTertiary">@color/rp5_text_tertiary</item>
+        <item name="s1TextTopbar">@color/rp5_text_topbar</item>
+        <item name="s1TextOnAccent">@color/text_on_accent</item>
+        <item name="s1Accent">@color/rp5_accent</item>
+        <item name="s1Divider">@color/rp5_divider</item>
+        <item name="s1AvatarPlaceholder">@color/rp5_avatar_placeholder</item>
+        <item name="s1QuoteBg">@color/rp5_quote_bg</item>
+        <item name="s1QuoteBar">@color/rp5_quote_bar</item>
+        <item name="s1QuoteText">@color/rp5_quote_text</item>
+        <item name="s1QuoteBorder">@color/rp5_quote_border</item>
+        <item name="s1TagBg">@color/rp5_tag_bg</item>
+        <item name="s1TagText">@color/rp5_tag_text</item>
+        <item name="s1ActionIcon">@color/rp5_text_secondary</item>
+        <item name="s1ActionIconActive">@color/rp5_accent</item>
+        <item name="s1GlassSheetBg">@color/rp5_glass_sheet_bg</item>
+        <item name="s1GlassSheetLine">@color/rp5_glass_sheet_line</item>
+        <item name="s1MenuSheetBg">@color/rp5_menu_sheet_bg</item>
+    </style>
+
+    <!-- ============ 幻彩渐变 ============ -->
+    <style name="Theme.S1Client.Iridescent" parent="Theme.S1Client.Base.Light">
+        <item name="android:windowBackground">@color/iridescent_bg_page</item>
+        <item name="android:navigationBarColor">@color/iridescent_bg_page</item>
+        <item name="colorPrimary">@color/iridescent_accent</item>
+        <item name="colorPrimaryVariant">#A86886</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="s1BgPage">@color/iridescent_bg_page</item>
+        <item name="s1BgCard">@color/iridescent_bg_card</item>
+        <item name="s1BgCardLight">@color/iridescent_bg_card_light</item>
+        <item name="s1BgTopbar">@color/iridescent_bg_topbar</item>
+        <item name="s1BgTabbar">@color/iridescent_bg_tabbar</item>
+        <item name="s1BorderCard">@color/iridescent_border_card</item>
+        <item name="s1BorderLight">@color/iridescent_border_light</item>
+        <item name="s1TextTitle">@color/iridescent_text_title</item>
+        <item name="s1TextBody">@color/iridescent_text_body</item>
+        <item name="s1TextSecondary">@color/iridescent_text_secondary</item>
+        <item name="s1TextTertiary">@color/iridescent_text_tertiary</item>
+        <item name="s1TextTopbar">@color/iridescent_text_topbar</item>
+        <item name="s1TextOnAccent">@color/text_on_accent</item>
+        <item name="s1Accent">@color/iridescent_accent</item>
+        <item name="s1Divider">@color/iridescent_divider</item>
+        <item name="s1AvatarPlaceholder">@color/iridescent_avatar_placeholder</item>
+        <item name="s1QuoteBg">@color/iridescent_quote_bg</item>
+        <item name="s1QuoteBar">@color/iridescent_quote_bar</item>
+        <item name="s1QuoteText">@color/iridescent_quote_text</item>
+        <item name="s1QuoteBorder">@color/iridescent_quote_border</item>
+        <item name="s1TagBg">@color/iridescent_tag_bg</item>
+        <item name="s1TagText">@color/iridescent_tag_text</item>
+        <item name="s1ActionIcon">@color/iridescent_text_secondary</item>
+        <item name="s1ActionIconActive">@color/iridescent_accent</item>
+        <item name="s1GlassBarBg">@color/iridescent_glass_bar_bg</item>
+        <item name="s1GlassBarLine">@color/iridescent_glass_bar_line</item>
+        <item name="s1GlassSheetBg">@color/iridescent_glass_sheet_bg</item>
+        <item name="s1GlassSheetLine">@color/iridescent_glass_sheet_line</item>
+        <item name="s1MenuSheetBg">@color/iridescent_menu_sheet_bg</item>
+        <item name="s1AccentPurple">#7A3FD4</item>
+        <item name="s1AccentCyan">#7FB8D8</item>
+    </style>
+
+    <!-- ============ 幻彩渐变 · 深色板（对应 S1Theme.kt IridescentPresets[1]）============
+         幻彩有两套色板（浅紫粉 / 深紫），每次启动随机抽一套。
+         XML 页面（帖子详情等）必须跟着当次抽到的那套走，
+         否则抽到深色板时首页是深紫、点进详情却变浅色。 -->
+    <style name="Theme.S1Client.IridescentDark" parent="Theme.S1Client.Base.Dark">
+        <item name="android:windowBackground">@color/iridescent_dark_bg_page</item>
+        <item name="colorPrimary">@color/iridescent_dark_accent</item>
+        <item name="colorPrimaryVariant">#C636A0</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="s1BgPage">@color/iridescent_dark_bg_page</item>
+        <item name="s1BgCard">@color/iridescent_dark_bg_card</item>
+        <item name="s1BgCardLight">@color/iridescent_dark_bg_card_light</item>
+        <item name="s1BgTopbar">@color/iridescent_dark_bg_topbar</item>
+        <item name="s1BgTabbar">@color/iridescent_dark_bg_tabbar</item>
+        <item name="s1BorderCard">@color/iridescent_dark_border_card</item>
+        <item name="s1BorderLight">@color/iridescent_dark_border_light</item>
+        <item name="s1TextTitle">@color/iridescent_dark_text_title</item>
+        <item name="s1TextBody">@color/iridescent_dark_text_body</item>
+        <item name="s1TextSecondary">@color/iridescent_dark_text_secondary</item>
+        <item name="s1TextTertiary">@color/iridescent_dark_text_tertiary</item>
+        <item name="s1TextTopbar">@color/iridescent_dark_text_topbar</item>
+        <item name="s1TextOnAccent">@color/text_on_accent</item>
+        <item name="s1Accent">@color/iridescent_dark_accent</item>
+        <item name="s1Divider">@color/iridescent_dark_divider</item>
+        <item name="s1AvatarPlaceholder">@color/iridescent_dark_avatar_placeholder</item>
+        <item name="s1QuoteBg">@color/iridescent_dark_quote_bg</item>
+        <item name="s1QuoteBar">@color/iridescent_dark_quote_bar</item>
+        <item name="s1QuoteText">@color/iridescent_dark_quote_text</item>
+        <item name="s1QuoteBorder">@color/iridescent_dark_quote_border</item>
+        <item name="s1TagBg">@color/iridescent_dark_tag_bg</item>
+        <item name="s1TagText">@color/iridescent_dark_tag_text</item>
+        <item name="s1ActionIcon">@color/iridescent_dark_text_secondary</item>
+        <item name="s1ActionIconActive">@color/iridescent_dark_accent</item>
+        <item name="s1GlassBarBg">@color/iridescent_dark_glass_bar_bg</item>
+        <item name="s1GlassBarLine">@color/iridescent_dark_glass_bar_line</item>
+        <item name="s1GlassSheetBg">@color/iridescent_dark_glass_sheet_bg</item>
+        <item name="s1GlassSheetLine">@color/iridescent_dark_glass_sheet_line</item>
+        <item name="s1MenuSheetBg">@color/iridescent_dark_menu_sheet_bg</item>
+        <item name="s1AccentPurple">#C99BF0</item>
+        <item name="s1AccentCyan">#7FB8D8</item>
+    </style>
+
+    <style name="Theme.S1Client" parent="Theme.S1Client.Light" />
+
+    <style name="CircleImage">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+    <style name="Theme.S1Client.Fullscreen" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

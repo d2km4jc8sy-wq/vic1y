@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  iOS push：新页面从屏幕右缘整屏滑入（100% → 0）。
+  纯位移不带 alpha —— 半透明页面叠在旧页上滑会重影。
+-->
+<set xmlns:android="http://schemas.android.com/apk/res/android">
+    <translate
+        android:fromXDelta="100%"
+        android:toXDelta="0"
+        android:duration="350"
+        android:interpolator="@interpolator/s1_ios_ease" />
+</set>

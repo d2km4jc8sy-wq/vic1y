@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 选择文字：独立弹窗里放 selectable TextView，避免和 RecyclerView 滚动/长按冲突 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_glass_sheet"
+    android:elevation="18dp"
+    android:outlineProvider="background"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="选择文字"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="?attr/s1TextTitle"
+        android:gravity="center"
+        android:layout_marginBottom="12dp" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:overScrollMode="ifContentScrolls">
+
+        <TextView
+            android:id="@+id/tvSelectable"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textIsSelectable="true"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:textSize="15sp"
+            android:lineSpacingExtra="4dp"
+            android:textColor="?attr/s1TextBody" />
+    </ScrollView>
+
+    <TextView
+        android:id="@+id/tvClose"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="关闭"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="?attr/s1TextTitle"
+        android:gravity="center"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true" />
+</LinearLayout>

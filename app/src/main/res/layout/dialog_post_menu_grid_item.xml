@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 楼层菜单网格单元：圆形图标 + 文字标签（方案②，对齐预览 .rw-cell） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cellRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:paddingStart="1dp"
+    android:paddingEnd="1dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:background="?attr/selectableItemBackgroundBorderless">
+
+    <FrameLayout
+        android:id="@+id/circleHost"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:gravity="center">
+
+        <ImageView
+            android:id="@+id/ivIcon"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center"
+            android:scaleType="centerInside"
+            android:duplicateParentState="true" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/tvLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:textSize="11.5sp"
+        android:lineSpacingExtra="1dp"
+        android:textColor="?attr/s1TextSecondary" />
+</LinearLayout>

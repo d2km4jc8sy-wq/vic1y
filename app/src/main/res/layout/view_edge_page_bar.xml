@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 贴边页码浮条（可复用）：整条一张卡片，左边窄滚轮 + 右侧「共/N/页」标注。
+     交互：滚动选页（轻震）→ 长按 400ms 确认跳转（重震）→ 超时淡出。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/bg_edge_pill">
+
+    <!-- 窄滚轮 -->
+    <FrameLayout
+        android:layout_width="58dp"
+        android:layout_height="152dp">
+
+        <com.example.s1client.ui.WheelPickerView
+            android:id="@+id/edgeWheel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- 选中项上下边界细线 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_gravity="center"
+            android:layout_marginBottom="21dp"
+            android:background="?attr/s1BorderCard" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_gravity="center"
+            android:layout_marginTop="21dp"
+            android:background="?attr/s1BorderCard" />
+    </FrameLayout>
+
+    <!-- 右侧总页数：逐字竖排（不用 writing-mode，避免数字被旋转） -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:layout_marginStart="4dp"
+        android:layout_marginEnd="8dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="共"
+            android:textSize="11sp"
+            android:textColor="?attr/s1TextTertiary" />
+
+        <TextView
+            android:id="@+id/tvEdgeTotal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="2dp"
+            android:text="9"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="?attr/s1TextTertiary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="页"
+            android:textSize="11sp"
+            android:textColor="?attr/s1TextTertiary" />
+    </LinearLayout>
+</LinearLayout>

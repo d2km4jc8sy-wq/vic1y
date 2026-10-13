@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  iOS push 的旧页面：向左让出 30% 做视差跟进（不是跟着淡出）。
+  之前这里是 @null（旧页完全不动），原因是早期用 alpha 淡出时动画结束会"跳回不透明"闪一下；
+  纯位移没有这个问题 —— 结束时它已被新页面完全盖住，跳回 0 也看不见。
+  30% 与 s1_slide_in_left 的起点一致，前进/后退两条路径的视差量才对称。
+-->
+<set xmlns:android="http://schemas.android.com/apk/res/android">
+    <translate
+        android:fromXDelta="0"
+        android:toXDelta="-30%"
+        android:duration="350"
+        android:interpolator="@interpolator/s1_ios_ease" />
+</set>

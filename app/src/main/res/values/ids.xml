@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 用于 PostAdapter 楼层 item 上挂载布局变化监听器，避免裸整数 key 触发
+         "The key must be an application-specific resource id" 崩溃 -->
+    <item name="tag_post_layout_listener" type="id" />
+</resources>

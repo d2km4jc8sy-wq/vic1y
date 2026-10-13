@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_glass_sheet"
+    android:elevation="12dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="12dp">
+
+    <TextView
+        android:id="@+id/tvSheetTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="回复帖子"
+        android:textSize="16sp"
+        android:textColor="?attr/s1TextTitle"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp" />
+
+    <!-- 引用预览（圆角卡） -->
+    <LinearLayout
+        android:id="@+id/llQuotePreview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/bg_quote_card"
+        android:padding="12dp"
+        android:layout_marginBottom="10dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvQuoteAuthor"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="?attr/s1Accent"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvQuoteContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="12sp"
+            android:textColor="?attr/s1TextSecondary"
+            android:maxLines="2"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <!-- 编辑器：输入框 + 功能图标 + 取消/发送 全在 Compose 里排成一行 -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/cvReplyEditor"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+</LinearLayout>

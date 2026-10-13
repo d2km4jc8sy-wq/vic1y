@@ -1,0 +1,61 @@
+package com.example.s1client.util
+
+import android.content.Context
+import com.example.s1client.R
+
+object ThemeManager {
+
+    private const val PREF = "s1_theme_prefs"
+    private const val KEY = "theme_index"
+
+    const val THEME_LIGHT = 0
+    const val THEME_DARK = 1
+    const val THEME_OLED = 2
+    const val THEME_BROWN = 3
+
+    private var appContext: Context? = null
+
+    var currentTheme: Int = THEME_LIGHT
+        private set
+
+    private val appliedByActivity = mutableMapOf<String, Int>()
+
+    fun init(context: Context) {
+        if (appContext == null) {
+            appContext = context.applicationContext
+            currentTheme = appContext!!
+                .getSharedPreferences(PREF, Context.MODE_PRIVATE)
+                .getInt(KEY, THEME_LIGHT)
+        }
+    }
+
+    fun getThemeRes(): Int = when (currentTheme) {
+        THEME_LIGHT -> R.style.Theme_S1Client_Light
+        THEME_DARK -> R.style.Theme_S1Client_Dark
+        THEME_OLED -> R.style.Theme_S1Client_OLED
+        THEME_BROWN -> R.style.Theme_S1Client_Brown
+        else -> R.style.Theme_S1Client_Light
+    }
+
+    fun setTheme(index: Int) {
+        currentTheme = index
+        appContext?.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+            ?.edit()?.putInt(KEY, index)?.apply()
+    }
+
+    fun markApplied(activityClass: String) {
+        appliedByActivity[activityClass] = currentTheme
+    }
+
+    fun hasThemeChanged(activityClass: String): Boolean {
+        val applied = appliedByActivity[activityClass] ?: return false
+        return applied != currentTheme
+    }
+
+    fun getThemeNames(): List<String> = listOf(
+        "午后红茶（浅色）",
+        "深灰",
+        "OLED 纯黑",
+        "深夜红茶（深棕）"
+    )
+}

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 回帖面板：独立浮动卡片，四角都圆；底色/描边跟随主题 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/s1GlassSheetBg" />
+    <stroke
+        android:width="1dp"
+        android:color="?attr/s1GlassSheetLine" />
+    <corners android:radius="20dp" />
+</shape>

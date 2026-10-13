@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  iOS 导航转场用的缓动：cubic-bezier(0.32, 0.72, 0, 1)。
+  起手快、收尾长 —— 这是 iOS push/pop 那种"一下就位、尾巴慢慢落定"的手感来源。
+  四个转场动画共用这一条曲线，两层位移才能保持严格的比例关系（视差不会打架）。
+-->
+<pathInterpolator xmlns:android="http://schemas.android.com/apk/res/android"
+    android:controlX1="0.32"
+    android:controlY1="0.72"
+    android:controlX2="0"
+    android:controlY2="1" />

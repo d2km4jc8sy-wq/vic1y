@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/s1BgPage">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/topBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="8dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:background="?attr/s1BgTopbar">
+
+            <ImageView
+                android:id="@+id/btnClose"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:padding="10dp"
+                android:src="@drawable/ic_close"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="我的"
+                android:textSize="18sp"
+                android:textColor="?attr/s1TextTopbar"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/btnSettings"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:padding="8dp"
+                android:src="@drawable/ic_settings"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/userCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/user_card_bg"
+            android:foreground="?attr/selectableItemBackground"
+            android:padding="20dp">
+
+            <FrameLayout
+                android:layout_width="60dp"
+                android:layout_height="60dp">
+
+                <TextView
+                    android:id="@+id/tvMineAvatarLetter"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:textSize="22sp"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold"
+                    android:background="@drawable/avatar_fallback_bg" />
+
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/ivMineAvatar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:alpha="0"
+                    app:shapeAppearanceOverlay="@style/CircleImage" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="16dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvUsername"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="未登录"
+                    android:textSize="20sp"
+                    android:textColor="?attr/s1TextTitle"
+                    android:textStyle="bold"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tvUserSub"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="点击登录"
+                    android:textSize="13sp"
+                    android:textColor="?attr/s1TextSecondary"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/ivCardArrow"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_chevron_right" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/llMyContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="10dp"
+                android:text="我的内容"
+                android:textSize="14sp"
+                android:textColor="?attr/s1TextSecondary"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <LinearLayout android:id="@+id/tileFav"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_margin="6dp"
+                    android:orientation="vertical" android:gravity="center"
+                    android:background="@drawable/tile_bg"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:paddingTop="18dp" android:paddingBottom="18dp">
+                    <ImageView android:layout_width="28dp" android:layout_height="28dp"
+                        android:src="@drawable/ic_star" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:text="收藏"
+                        android:textSize="13sp" android:textColor="?attr/s1TextTitle" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/tileHistory"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_margin="6dp"
+                    android:orientation="vertical" android:gravity="center"
+                    android:background="@drawable/tile_bg"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:paddingTop="18dp" android:paddingBottom="18dp">
+                    <ImageView android:layout_width="28dp" android:layout_height="28dp"
+                        android:src="@drawable/ic_history" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:text="历史"
+                        android:textSize="13sp" android:textColor="?attr/s1TextTitle" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/tileBackup"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_margin="6dp"
+                    android:orientation="vertical" android:gravity="center"
+                    android:background="@drawable/tile_bg"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:paddingTop="18dp" android:paddingBottom="18dp">
+                    <ImageView android:layout_width="28dp" android:layout_height="28dp"
+                        android:src="@drawable/ic_backup" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:text="备份"
+                        android:textSize="13sp" android:textColor="?attr/s1TextTitle" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <LinearLayout android:id="@+id/tilePosts"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_margin="6dp"
+                    android:orientation="vertical" android:gravity="center"
+                    android:background="@drawable/tile_bg"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:paddingTop="18dp" android:paddingBottom="18dp">
+                    <ImageView android:layout_width="28dp" android:layout_height="28dp"
+                        android:src="@drawable/ic_description" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:text="帖子"
+                        android:textSize="13sp" android:textColor="?attr/s1TextTitle" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/tileReplies"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_margin="6dp"
+                    android:orientation="vertical" android:gravity="center"
+                    android:background="@drawable/tile_bg"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:paddingTop="18dp" android:paddingBottom="18dp">
+                    <ImageView android:layout_width="28dp" android:layout_height="28dp"
+                        android:src="@drawable/ic_forum" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:text="回复"
+                        android:textSize="13sp" android:textColor="?attr/s1TextTitle" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/tileMail"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_margin="6dp"
+                    android:orientation="vertical" android:gravity="center"
+                    android:background="@drawable/tile_bg"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:paddingTop="18dp" android:paddingBottom="18dp">
+                    <ImageView android:layout_width="28dp" android:layout_height="28dp"
+                        android:src="@drawable/ic_mail" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:text="私信"
+                        android:textSize="13sp" android:textColor="?attr/s1TextTitle" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <LinearLayout android:id="@+id/tileDrafts"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_margin="6dp"
+                    android:orientation="vertical" android:gravity="center"
+                    android:background="@drawable/tile_bg"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:paddingTop="18dp" android:paddingBottom="18dp">
+                    <ImageView android:layout_width="28dp" android:layout_height="28dp"
+                        android:src="@drawable/ic_drafts" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:text="草稿"
+                        android:textSize="13sp" android:textColor="?attr/s1TextTitle" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/tileNotice"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_margin="6dp"
+                    android:orientation="vertical" android:gravity="center"
+                    android:background="@drawable/tile_bg"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:paddingTop="18dp" android:paddingBottom="18dp">
+                    <ImageView android:layout_width="28dp" android:layout_height="28dp"
+                        android:src="@drawable/ic_notifications" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:text="提醒"
+                        android:textSize="13sp" android:textColor="?attr/s1TextTitle" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/tileBlock"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_margin="6dp"
+                    android:orientation="vertical" android:gravity="center"
+                    android:background="@drawable/tile_bg"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:paddingTop="18dp" android:paddingBottom="18dp">
+                    <ImageView android:layout_width="28dp" android:layout_height="28dp"
+                        android:src="@drawable/ic_block" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:text="黑名单"
+                        android:textSize="13sp" android:textColor="?attr/s1TextTitle" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnLogout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginTop="24dp"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="@drawable/btn_exit_bg"
+            android:foreground="?attr/selectableItemBackground"
+            android:padding="14dp"
+            android:visibility="gone">
+            <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                android:src="@drawable/ic_exit" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="10dp" android:text="退出登录"
+                android:textSize="15sp" android:textColor="?attr/s1TextOnAccent" android:textStyle="bold" />
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="40dp" />
+    </LinearLayout>
+</ScrollView>

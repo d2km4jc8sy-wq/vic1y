@@ -1,0 +1,30 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <!-- 评分：线框奖章（圆章 + 星形 + 两条缎带）。
+         全描边、无实心块，和收藏图标（实心星 / 线框书签）的线条语言统一，
+         在操作行里三个图标并排时不会有一个突然显得特别重。 -->
+    <!-- 缎带 -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="?attr/s1TextTitle"
+        android:strokeWidth="1.5"
+        android:strokeLineJoin="round"
+        android:pathData="M7.6,13.2L4.4,21.2l4.3,-2.2l3.3,2.2l1.2,-5.6"/>
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="?attr/s1TextTitle"
+        android:strokeWidth="1.5"
+        android:strokeLineJoin="round"
+        android:pathData="M16.4,13.2l3.2,8l-4.3,-2.2l-3.3,2.2l-1.2,-5.6"/>
+    <!-- 章面 -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="?attr/s1TextTitle"
+        android:strokeWidth="1.5"
+        android:pathData="M12,2.2l2.7,1.9l3.3,-0.1l0.6,3.2l2.5,2.2l-2,2.6l0.3,3.2l-3.1,1.1l-1.6,2.9l-2.7,-1.3l-2.7,1.3l-1.6,-2.9l-3.1,-1.1l0.3,-3.2l-2,-2.6l2.5,-2.2l0.6,-3.2l3.3,0.1z"/>
+    <!-- 章内星 -->
+    <path
+        android:fillColor="?attr/s1TextTitle"
+        android:pathData="M12,7.4l1.3,2.7l3,0.4l-2.2,2.1l0.5,3l-2.6,-1.4l-2.6,1.4l0.5,-3l-2.2,-2.1l3,-0.4z"/>
+</vector>

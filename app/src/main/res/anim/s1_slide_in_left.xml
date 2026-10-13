@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- iOS pop：下层页面从 -30% 滑回 0，与上层右滑退出同步做视差 -->
+<set xmlns:android="http://schemas.android.com/apk/res/android">
+    <translate
+        android:fromXDelta="-30%"
+        android:toXDelta="0"
+        android:duration="350"
+        android:interpolator="@interpolator/s1_ios_ease" />
+</set>
