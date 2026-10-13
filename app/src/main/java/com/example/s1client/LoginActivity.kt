@@ -79,6 +79,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.s1client.data.api.RetrofitClient
+import com.example.s1client.ui.design.S1Radius
 import com.example.s1client.data.AccountHistory
 import com.example.s1client.data.HistoryAccount
 import com.example.s1client.data.cache.ForumDataCache
@@ -955,7 +956,7 @@ private fun CapsuleLogin(
         if (step == 3) {
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
+                    .clip(RoundedCornerShape(S1Radius.pill))
                     .background(c.chipBg)
                     .clickable(enabled = !isBusy) { pickerOpen = true }
                     .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -1002,10 +1003,10 @@ private fun CapsuleLogin(
                             }
                         }
                     }
-                    .shadow(18.dp, RoundedCornerShape(999.dp))
-                    .clip(RoundedCornerShape(999.dp))
+                    .shadow(18.dp, RoundedCornerShape(S1Radius.pill))
+                    .clip(RoundedCornerShape(S1Radius.pill))
                     .background(c.cardBg.copy(alpha = 0.66f))
-                    .border(if (fieldFocused) 1.5.dp else 1.dp, focusBrush, RoundedCornerShape(999.dp))
+                    .border(if (fieldFocused) 1.5.dp else 1.dp, focusBrush, RoundedCornerShape(S1Radius.pill))
                     .padding(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1086,7 +1087,7 @@ private fun CapsuleLogin(
                 Box(
                     modifier = Modifier
                         .height(52.dp)
-                        .clip(RoundedCornerShape(999.dp))
+                        .clip(RoundedCornerShape(S1Radius.pill))
                         .background(btnColor)
                         .clickable(enabled = !disabled) { handleAction() }
                         .padding(horizontal = 26.dp),
