@@ -19,8 +19,9 @@ val TextMain: Color
 val TextSub: Color
     @Composable get() = LocalS1Colors.current.textSub
 
-/** 热帖/删除红：审计记录——写死值不随 palette，属已知双轨遗留（不改行为，阶段 3 统一） */
-val HeartRed = Color(0xFFFF2C55)
+/** 热帖红：P2 统一——全主题 palette.heart 恒为 FF2C55（视觉与统一前一致） */
+val HeartRed: Color
+    @Composable get() = LocalS1Colors.current.heart
 
 /** 强调色：跟随主题（粉/棕/琥珀） */
 val AccentPink: Color
