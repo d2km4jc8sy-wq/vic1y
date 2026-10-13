@@ -285,7 +285,7 @@ fun XhsNavItem(
 
 
 // 首字母头像的渐变色（和卡片调色板一致），同样提到顶层常量
-private val AvatarGradients: List<List<Color>> = listOf(
+internal val AvatarGradients: List<List<Color>> = listOf(
     listOf(Color(0xFFFF9A9E), Color(0xFFFAD0C4)),
     listOf(Color(0xFFA1C4FD), Color(0xFFC2E9FB)),
     listOf(Color(0xFF84FAB0), Color(0xFF8FD3F4)),
