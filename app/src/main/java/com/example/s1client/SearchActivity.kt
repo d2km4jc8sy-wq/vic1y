@@ -49,6 +49,7 @@ import com.example.s1client.data.store.FavoriteManager
 import com.example.s1client.data.store.SearchManager
 import kotlinx.coroutines.launch
 import com.example.s1client.ui.design.AccentPink
+import com.example.s1client.ui.design.S1Radius
 import com.example.s1client.ui.design.BgColor
 import com.example.s1client.ui.design.BgColorBottom
 import com.example.s1client.ui.design.GlassBar
@@ -192,15 +193,15 @@ fun SearchScreen(onBack: () -> Unit) {
                             }
                         }
                     }
-                    .clip(RoundedCornerShape(99.dp))
+                    .clip(RoundedCornerShape(S1Radius.pill))
                     .background(Color(0x14FFFFFF))
                     // 细节 06：聚焦时胶囊边框变主题渐变 + 加粗（用 onSearch 外的 focus 状态驱动）
                     .let { m ->
                         if (searchFocused) m.border(
                             1.5.dp,
                             Brush.linearGradient(listOf(AccentPink, s1c.flowCoverColors.getOrElse(0) { AccentPink })),
-                            RoundedCornerShape(99.dp)
-                        ) else m.border(1.dp, GlassFloatLine, RoundedCornerShape(99.dp))
+                            RoundedCornerShape(S1Radius.pill)
+                        ) else m.border(1.dp, GlassFloatLine, RoundedCornerShape(S1Radius.pill))
                     }
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -239,7 +240,7 @@ fun SearchScreen(onBack: () -> Unit) {
                 color = AccentPink,
                 fontSize = 14.sp,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(99.dp))
+                    .clip(RoundedCornerShape(S1Radius.pill))
                     .clickable { runSearch() }
                     .padding(horizontal = 10.dp, vertical = 8.dp)
             )
