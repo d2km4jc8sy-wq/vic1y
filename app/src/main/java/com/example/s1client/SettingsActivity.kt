@@ -30,6 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Logout
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.outlined.Delete
@@ -127,6 +128,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
     S1SystemBarSync()
 
     var showThemeSheet by remember { mutableStateOf(false) }
+    var showLogoutConfirm by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var showForumBlock by remember { mutableStateOf(false) }
     var showBlockedAuthors by remember { mutableStateOf(false) }
@@ -370,23 +372,14 @@ fun SettingsScreen(onFinish: () -> Unit) {
             ) {}
         }
 
-        // ═══ 退出登录（长按 1s 确认，细节 27）═══
+        // ═══ 退出登录（确认弹窗式——长按式被手指遮挡确认文案，用户拍板回滚，宪法 11）═══
         if (loggedIn) {
             GroupTitle("账号")
             Box(Modifier.padding(horizontal = 14.dp)) {
-                HoldToConfirmButton(
-                    label = "长按退出登录",
-                    onConfirm = {
-                        RetrofitClient.clearCookies()
-                        ForumDataCache.clearUser()
-                        // 用户拍板（2026-10-14）：登出后直达登录页，全栈清空——
-                        // 不再停留在「我的」的未登录版面（登录页教训 3 的最终闭环）
-                        val login = android.content.Intent(context, LoginActivity::class.java)
-                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                                    or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                        context.startActivity(login)
-                    }
-                )
+                SettingRow(
+                    Icons.Outlined.Logout, "退出登录",
+                    onClick = { showLogoutConfirm = true }
+                ) { Chevron() }
             }
         }
 
@@ -394,6 +387,30 @@ fun SettingsScreen(onFinish: () -> Unit) {
     }
 
     // ———————— 弹层 ————————
+    if (showLogoutConfirm) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirm = false },
+            title = { Text("退出登录", color = c.textMain) },
+            text = { Text("退出后将返回登录界面，确认退出吗？", color = c.textSub) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLogoutConfirm = false
+                    RetrofitClient.clearCookies()
+                    ForumDataCache.clearUser()
+                    // 用户拍板（2026-10-14）：登出后进登录页但不清任务栈——
+                    // 从登录页按返回可回到游客版「我的/首页」，不再困死（宪法 11 人类使用逻辑）
+                    context.startActivity(
+                        android.content.Intent(context, LoginActivity::class.java)
+                    )
+                }) { Text("退出", color = Color(0xFFFF3B30)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutConfirm = false }) {
+                    Text("取消", color = c.textSub)
+                }
+            }
+        )
+    }
     if (showThemeSheet) {
         ThemePickerSheet(onDismiss = { showThemeSheet = false })
     }

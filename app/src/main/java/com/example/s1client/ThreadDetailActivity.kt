@@ -86,7 +86,6 @@ import com.example.s1client.ui.design.TextSub
 class ThreadDetailActivity : BaseActivity() {
 
     internal lateinit var binding: ActivityThreadDetailBinding
-    internal lateinit var progressLineView: android.view.View
     internal var tid: String = ""
     internal var subject: String = ""
     internal var isFavorited: Boolean = false
@@ -210,41 +209,12 @@ class ThreadDetailActivity : BaseActivity() {
             orbitPalette.flowCoverColors.take(3).map { it.toArgb() }
         )
 
-        // ===== 细节 15：顶部阅读进度细线（2.5dp，随楼层页推进渐变生长）=====
-        // 强调色从主题属性取（与 S1Notify 同套解析），7 套主题自动适配
-        val accentTyped = android.util.TypedValue()
-        val hasAccent = theme.resolveAttribute(R.attr.s1Accent, accentTyped, true)
-        val accentColor = if (hasAccent) accentTyped.data else 0xFFFF6FB5.toInt()
-        val progressLine = android.view.View(this).apply {
-            background = android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
-                intArrayOf(
-                    accentColor,
-                    ColorUtils.blendARGB(accentColor, android.graphics.Color.WHITE, 0.35f)
-                )
-            )
-        }
-        progressLine.layoutParams = androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT, (2.5f * resources.displayMetrics.density).toInt()
-        ).apply { gravity = android.view.Gravity.TOP }
-        progressLine.pivotX = 0f
-        progressLine.scaleX = 0f
-        progressLineView = progressLine
-        (binding.root as? android.view.ViewGroup)?.addView(progressLine)
         binding.vpPages.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 currentPage = position + 1
                 hideEndFooter()
                 updatePageIndicator()
                 loadRatings(currentPage)
-                // 细节 15：推进进度线。分母必须用帖子总页数——
-                // 旧实现分母是"已加载最大页数"，用户停在最新页时 1/1=100%，
-                // 顶部会一直挂着一条满宽强调色条（真机验收发现）。
-                val maxPage = if (totalPages > 0) totalPages else maxOf(loadedMaxPage, currentPage, 1).coerceAtLeast(1)
-                progressLine.pivotX = 0f
-                progressLine.animate().scaleX(
-                    (currentPage.toFloat() / maxPage).coerceIn(0.02f, 1f)
-                ).setDuration(220).start()
                 if (currentPage + 1 > loadedMaxPage && morePagesToLoad() && !isLoading) {
                     preloadPage(currentPage + 1)
                 }
@@ -495,7 +465,6 @@ class ThreadDetailActivity : BaseActivity() {
         hasMore = true
         currentPage = 1
         isLoading = false
-        if (::progressLineView.isInitialized) progressLineView.scaleX = 0f
         setupPageAdapter()
         updatePageIndicator()
         loadFirstPage()
@@ -660,19 +629,6 @@ class ThreadDetailActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
-        // A 类修复：View 取色一次冻结 → onResume 重取（切主题回页即生效）
-        if (::progressLineView.isInitialized) {
-            val tv = android.util.TypedValue()
-            val has = theme.resolveAttribute(R.attr.s1Accent, tv, true)
-            val a = if (has) tv.data else 0xFFFF6FB5.toInt()
-            progressLineView.background = android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
-                intArrayOf(
-                    a,
-                    ColorUtils.blendARGB(a, android.graphics.Color.WHITE, 0.35f)
-                )
-            )
-        }
         binding.progressBar.refreshThemeColors()
         // 从编辑页回来要刷新，才能看到改后的内容
         if (needReloadAfterEdit) {

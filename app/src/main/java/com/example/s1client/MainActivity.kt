@@ -169,6 +169,21 @@ class MainActivity : ComponentActivity() {
     private val homeResumeSignal = androidx.compose.runtime.mutableStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 宪法 11：返回键二次确认退出，杜绝"无提示闪退"的错觉
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            private var lastBack = 0L
+            override fun handleOnBackPressed() {
+                val now = System.currentTimeMillis()
+                if (now - lastBack < 2000) {
+                    finish()
+                } else {
+                    lastBack = now
+                    com.example.s1client.util.S1Notify.show(
+                        this@MainActivity, "再按一次退出应用", com.example.s1client.util.S1Notify.Type.INFO
+                    )
+                }
+            }
+        })
         applyS1Theme()
         super.onCreate(savedInstanceState)
         // 首页底部是玻璃底栏：导航栏要填「玻璃底栏压在页面底上」的同色，
