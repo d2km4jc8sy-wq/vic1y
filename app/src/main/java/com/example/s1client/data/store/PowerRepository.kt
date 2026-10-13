@@ -1,4 +1,4 @@
-package com.example.s1client.util
+package com.example.s1client.data.store
 
 import com.example.s1client.data.api.RetrofitClient
 import com.example.s1client.data.model.ProfileData
@@ -8,6 +8,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
+import com.example.s1client.util.JsonParser
 
 /**
  * 战斗力（Stage1st 的「鹅」点数）按 uid 缓存，来源是移动版 Profile API。

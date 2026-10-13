@@ -81,7 +81,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.example.s1client.data.api.RetrofitClient
 import com.example.s1client.data.AccountHistory
 import com.example.s1client.data.HistoryAccount
-import com.example.s1client.data.model.ForumDataCache
+import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.ui.theme.OledPalette
 import com.example.s1client.ui.theme.S1Theme

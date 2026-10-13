@@ -36,12 +36,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.s1client.R
 import com.example.s1client.ui.theme.LocalS1Colors
-import com.example.s1client.util.BlockedAuthorManager
-import com.example.s1client.util.DataSaverStore
+import com.example.s1client.data.store.BlockedAuthorManager
+import com.example.s1client.data.store.DataSaverStore
 import com.example.s1client.util.S1Notify
-import com.example.s1client.util.dirSize
-import com.example.s1client.util.formatSize
-import com.example.s1client.util.imageCacheDir
+import com.example.s1client.data.store.dirSize
+import com.example.s1client.data.store.formatSize
+import com.example.s1client.data.store.imageCacheDir
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

@@ -11,7 +11,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
 import com.example.s1client.data.api.RetrofitClient
-import com.example.s1client.data.model.ForumDataCache
+import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.util.S1Notify
 import com.example.s1client.util.ThemeManager
 import com.example.s1client.util.applyS1NavigationBarColor

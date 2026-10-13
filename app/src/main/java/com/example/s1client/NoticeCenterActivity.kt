@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.s1client.data.api.RetrofitClient
-import com.example.s1client.data.model.ForumDataCache
+import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.data.model.PmListItem
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.util.HtmlParser

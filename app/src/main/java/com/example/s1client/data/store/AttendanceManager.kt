@@ -1,10 +1,10 @@
-package com.example.s1client.util
+package com.example.s1client.data.store
 
 import android.content.Context
 import com.example.s1client.data.api.RetrofitClient
-import com.example.s1client.data.model.ForumDataCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.example.s1client.data.cache.ForumDataCache
 
 /**
  * 每日签到。

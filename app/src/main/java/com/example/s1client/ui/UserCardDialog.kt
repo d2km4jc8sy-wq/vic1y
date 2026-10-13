@@ -19,9 +19,9 @@ import com.example.s1client.PmDetailActivity
 import com.example.s1client.UserReplyListActivity
 import com.example.s1client.UserThreadListActivity
 import com.example.s1client.data.api.RetrofitClient
-import com.example.s1client.data.model.ForumDataCache
+import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.databinding.DialogUserCardBinding
-import com.example.s1client.util.BlockedAuthorManager
+import com.example.s1client.data.store.BlockedAuthorManager
 import com.example.s1client.util.JsonParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel

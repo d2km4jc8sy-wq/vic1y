@@ -1,4 +1,4 @@
-package com.example.s1client.util
+package com.example.s1client.data.store
 
 import android.app.Application
 import android.content.Context

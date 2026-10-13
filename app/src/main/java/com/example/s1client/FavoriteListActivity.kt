@@ -10,7 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.example.s1client.data.api.RetrofitClient
-import com.example.s1client.data.model.ForumDataCache
+import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.util.HtmlParser
 
 /**

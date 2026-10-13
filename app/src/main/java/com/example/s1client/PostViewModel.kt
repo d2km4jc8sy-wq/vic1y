@@ -8,10 +8,10 @@ import com.example.s1client.data.api.ApiResult
 import com.example.s1client.data.api.RetrofitClient
 import com.example.s1client.data.api.safeApiCall
 import com.example.s1client.data.model.SubForum
-import com.example.s1client.util.BlockedAuthorManager
-import com.example.s1client.util.DataSaverStore
-import com.example.s1client.util.ReadHistoryStore
-import com.example.s1client.util.HiddenPostManager
+import com.example.s1client.data.store.BlockedAuthorManager
+import com.example.s1client.data.store.DataSaverStore
+import com.example.s1client.data.store.ReadHistoryStore
+import com.example.s1client.data.store.HiddenPostManager
 import com.example.s1client.util.TimeUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

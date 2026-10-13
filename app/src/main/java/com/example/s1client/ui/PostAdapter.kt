@@ -28,10 +28,10 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.example.s1client.util.S1Notify
-import com.example.s1client.util.BlockedAuthorManager
-import com.example.s1client.util.ThreadMutedUsers
-import com.example.s1client.util.ExpandedFloors
-import com.example.s1client.util.HiddenFloors
+import com.example.s1client.data.store.BlockedAuthorManager
+import com.example.s1client.data.store.ThreadMutedUsers
+import com.example.s1client.data.store.ExpandedFloors
+import com.example.s1client.data.store.HiddenFloors
 import androidx.appcompat.app.AlertDialog
 import androidx.core.text.util.LinkifyCompat
 import androidx.recyclerview.widget.RecyclerView
@@ -41,7 +41,7 @@ import coil.request.ImageRequest
 import coil.target.Target
 import com.example.s1client.ImageViewerActivity
 import com.example.s1client.R
-import com.example.s1client.data.model.ForumDataCache
+import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.data.model.Post
 import com.example.s1client.databinding.ItemPostBinding
 import com.example.s1client.util.ImageDownloader
@@ -309,21 +309,21 @@ class PostAdapter(
         // 三类折叠作用域：全局黑名单（作者 / 关键词）、本帖屏蔽某人（仅本 tid）
         val blocked = run {
             val users = _cachedBlockedUsers
-                ?: com.example.s1client.util.BlockedAuthorManager.allBlocked().keys
+                ?: com.example.s1client.data.store.BlockedAuthorManager.allBlocked().keys
                     .also { _cachedBlockedUsers = it }
             val words = _cachedBlockedWords
-                ?: com.example.s1client.util.BlacklistManager.blockedWords(ctx)
+                ?: com.example.s1client.data.store.BlacklistManager.blockedWords(ctx)
                     .also { _cachedBlockedWords = it }
             users.contains(post.authorId) ||
                     (parsed.text.isNotBlank() && words.any { w -> parsed.text.toString().contains(w, ignoreCase = true) })
         }
         val threadMuted = tid.isNotBlank() && post.authorId != null &&
-                com.example.s1client.util.ThreadMutedUsers.isMuted(tid, post.authorId)
+                com.example.s1client.data.store.ThreadMutedUsers.isMuted(tid, post.authorId)
         // 单楼屏蔽：仅在本帖藏掉这一层（pid 精确），其余楼层不受影响
         val hiddenFloor = tid.isNotBlank() && post.pid != null &&
-                com.example.s1client.util.HiddenFloors.isHidden(tid, post.pid)
+                com.example.s1client.data.store.HiddenFloors.isHidden(tid, post.pid)
         // 单楼展开：按 pid 精确、持久化；只恢复这一楼，不影响该人其他楼层
-        val expandedOnce = com.example.s1client.util.ExpandedFloors.isExpanded(tid, post.pid)
+        val expandedOnce = com.example.s1client.data.store.ExpandedFloors.isExpanded(tid, post.pid)
         // 折叠优先级：全局拉黑 / 本帖屏蔽此人 / 屏蔽此楼 > 单楼手动展开（例外）
         val folded = (blocked || threadMuted || hiddenFloor) && !expandedOnce
         val foldMsg = when {
@@ -352,7 +352,7 @@ class PostAdapter(
             hint.text = spannable
             hint.setOnClickListener {
                 // 只恢复这一楼：按 pid 持久化记录，该人其余楼层仍保持折叠
-                com.example.s1client.util.ExpandedFloors.expand(tid, post.pid)
+                com.example.s1client.data.store.ExpandedFloors.expand(tid, post.pid)
                 notifyItemChanged(position)
             }
             holder.binding.llQuote.visibility = View.GONE

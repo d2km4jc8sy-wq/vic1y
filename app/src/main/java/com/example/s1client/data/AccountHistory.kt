@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
+import com.example.s1client.data.cache.ForumDataCache
 
 /**
  * 历史登录账号（仿 QQ/微信 多账号切换）。

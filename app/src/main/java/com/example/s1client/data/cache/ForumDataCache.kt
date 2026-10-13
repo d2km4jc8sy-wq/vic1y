@@ -1,6 +1,8 @@
-package com.example.s1client.data.model
+package com.example.s1client.data.cache
 
 import android.content.Context
+import com.example.s1client.data.model.ForumCategory
+import com.example.s1client.data.model.SubForum
 
 object ForumDataCache {
     var forumList: List<SubForum> = emptyList()

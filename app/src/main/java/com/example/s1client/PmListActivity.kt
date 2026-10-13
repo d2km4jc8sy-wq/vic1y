@@ -13,7 +13,7 @@ import coil.load
 import com.example.s1client.data.api.ApiResult
 import com.example.s1client.data.api.RetrofitClient
 import com.example.s1client.data.api.safeApiCall
-import com.example.s1client.data.model.ForumDataCache
+import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.data.model.PmListItem
 import com.example.s1client.databinding.ActivityPmListBinding
 import com.example.s1client.databinding.ItemPmListBinding

@@ -72,7 +72,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.example.s1client.data.api.RetrofitClient
-import com.example.s1client.data.model.ForumDataCache
+import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.ui.AttendanceContent
 import com.example.s1client.ui.ConfettiBurst
 import com.example.s1client.ui.S1SystemBarSync
@@ -81,11 +81,11 @@ import com.example.s1client.ui.ThemeSwatch
 import com.example.s1client.ui.showUserCardDialog
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.ui.theme.S1Theme
-import com.example.s1client.util.AttendanceManager
-import com.example.s1client.util.DraftStore
-import com.example.s1client.util.HiddenPostManager
-import com.example.s1client.util.PostBookmarkManager
-import com.example.s1client.util.ReadHistoryStore
+import com.example.s1client.data.store.AttendanceManager
+import com.example.s1client.data.store.DraftStore
+import com.example.s1client.data.store.HiddenPostManager
+import com.example.s1client.data.store.PostBookmarkManager
+import com.example.s1client.data.store.ReadHistoryStore
 import com.example.s1client.util.ReminderUnread
 import com.example.s1client.util.S1Notify
 import com.example.s1client.util.ThemeManager

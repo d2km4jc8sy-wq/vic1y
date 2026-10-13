@@ -1,4 +1,4 @@
-package com.example.s1client.util
+package com.example.s1client.data.store
 
 /**
  * 本地收藏的楼层快照。

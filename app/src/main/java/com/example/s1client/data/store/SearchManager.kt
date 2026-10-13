@@ -1,11 +1,12 @@
-package com.example.s1client.util
+package com.example.s1client.data.store
 
 import com.example.s1client.data.api.RetrofitClient
-import com.example.s1client.data.model.ForumDataCache
 import com.example.s1client.data.model.Thread
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
+import com.example.s1client.data.cache.ForumDataCache
+import com.example.s1client.util.HtmlParser
 
 /**
  * 站内搜索。

@@ -10,14 +10,14 @@ import java.io.StringWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.example.s1client.data.model.ForumDataCache
-import com.example.s1client.util.BlockedAuthorManager
-import com.example.s1client.util.ExpandedFloors
+import com.example.s1client.data.cache.ForumDataCache
+import com.example.s1client.data.store.BlockedAuthorManager
+import com.example.s1client.data.store.ExpandedFloors
 import com.example.s1client.util.Haptic
-import com.example.s1client.util.HiddenFloors
-import com.example.s1client.util.HiddenPostManager
-import com.example.s1client.util.PostBookmarkManager
-import com.example.s1client.util.ThreadMutedUsers
+import com.example.s1client.data.store.HiddenFloors
+import com.example.s1client.data.store.HiddenPostManager
+import com.example.s1client.data.store.PostBookmarkManager
+import com.example.s1client.data.store.ThreadMutedUsers
 import com.example.s1client.util.ThemeManager
 
 class S1App : Application(), Application.ActivityLifecycleCallbacks {

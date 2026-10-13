@@ -45,10 +45,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.s1client.data.api.RetrofitClient
-import com.example.s1client.data.model.ForumDataCache
+import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.util.BbCode
-import com.example.s1client.util.DraftStore
-import com.example.s1client.util.SettingStore
+import com.example.s1client.data.store.DraftStore
+import com.example.s1client.data.store.SettingStore
 import com.example.s1client.util.ImageUploader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

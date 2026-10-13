@@ -1,6 +1,6 @@
 package com.example.s1client.util
 
-import com.example.s1client.util.AttendanceManager
+import com.example.s1client.data.store.AttendanceManager
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

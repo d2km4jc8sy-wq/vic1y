@@ -10,10 +10,10 @@ import androidx.activity.viewModels
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.s1client.ui.EdgePageBar
 import com.example.s1client.ui.RopeRefreshView
-import com.example.s1client.util.BlacklistManager
+import com.example.s1client.data.store.BlacklistManager
 import com.example.s1client.util.Haptic
 import com.example.s1client.util.S1Notify
-import com.example.s1client.util.BlockedAuthorManager
+import com.example.s1client.data.store.BlockedAuthorManager
 import android.app.Activity
 import com.example.s1client.ui.pressScale
 import com.example.s1client.ui.theme.LocalS1Colors
@@ -91,9 +91,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.s1client.data.api.RetrofitClient
-import com.example.s1client.data.model.ForumDataCache
+import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.data.model.ProfileData
-import com.example.s1client.util.FavoriteManager
+import com.example.s1client.data.store.FavoriteManager
 import com.example.s1client.util.JsonParser
 import com.example.s1client.util.avatarUrl
 import kotlinx.coroutines.delay
@@ -201,7 +201,7 @@ class MainActivity : ComponentActivity() {
         // 否则浅色主题下导航栏区域会是一条与底栏不同的白带（MIUI 上必现）
         setupS1EdgeToEdge(hasGlassBottomBar = true)
         RetrofitClient.init(this)
-        com.example.s1client.data.model.ForumDataCache.init(this)
+        com.example.s1client.data.cache.ForumDataCache.init(this)
         setContent {
             S1Theme {
                 XhsHomeScreen(postViewModel, homeResumeSignal)

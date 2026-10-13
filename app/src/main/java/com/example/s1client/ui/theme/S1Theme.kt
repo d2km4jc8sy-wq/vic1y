@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import com.example.s1client.util.ThemeManager
+import com.example.s1client.data.store.SettingStore
 
 /**
  * Compose 侧主题调色板。
@@ -317,14 +318,14 @@ fun S1Theme(
 
     // —— 设置中心的全局文字设置（对标 s1er：textScaler 全局覆盖 + 自定义字体）——
     // 读 SettingStore.changes：设置页改字号/导入字体 → bump → 这里重组 → 全 App 生效
-    val settingsVersion = com.example.s1client.util.SettingStore.changes.intValue
+    val settingsVersion = com.example.s1client.data.store.SettingStore.changes.intValue
     val context = androidx.compose.ui.platform.LocalContext.current
     val fontScale = remember(settingsVersion) {
-        com.example.s1client.util.SettingStore.fontScale(context)
+        com.example.s1client.data.store.SettingStore.fontScale(context)
     }
     val customFontFile = remember(settingsVersion) {
-        com.example.s1client.util.SettingStore.customFontName(context)
-            ?.let { com.example.s1client.util.SettingStore.fontFile(context) }
+        com.example.s1client.data.store.SettingStore.customFontName(context)
+            ?.let { com.example.s1client.data.store.SettingStore.fontFile(context) }
             ?.takeIf { it.exists() && android.os.Build.VERSION.SDK_INT >= 26 }
     }
     // 用户字体 × 用户缩放，叠加在系统 density 之上

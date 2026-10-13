@@ -18,6 +18,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import com.example.s1client.data.store.SecureStore
 
 object RetrofitClient {
     private const val TAG = "RetrofitClient"
@@ -79,7 +80,7 @@ object RetrofitClient {
             }
             ctx.getSharedPreferences(COOKIE_PREF, Context.MODE_PRIVATE).let { prefs ->
                 // Cookie 等于账号凭据：优先加密落盘，失败才退回明文（保住登录态优先）
-                if (!com.example.s1client.util.SecureStore.putEncrypted(prefs, COOKIE_KEY, arr.toString())) {
+                if (!com.example.s1client.data.store.SecureStore.putEncrypted(prefs, COOKIE_KEY, arr.toString())) {
                     prefs.edit().putString(COOKIE_KEY, arr.toString())
                         .putBoolean("$COOKIE_KEY.enc", false).apply()
                 }
@@ -93,7 +94,7 @@ object RetrofitClient {
         val ctx = appContext ?: return
         val prefs = ctx.getSharedPreferences(COOKIE_PREF, Context.MODE_PRIVATE)
         // SecureStore 内部会自动识别是否加密，未标记的旧数据按明文读 → 天然兼容迁移
-        val data = com.example.s1client.util.SecureStore.getString(prefs, COOKIE_KEY).orEmpty()
+        val data = com.example.s1client.data.store.SecureStore.getString(prefs, COOKIE_KEY).orEmpty()
         if (data.isBlank()) return
         try {
             val arr = JSONArray(data)

@@ -44,9 +44,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.s1client.data.model.ForumDataCache
-import com.example.s1client.util.FavoriteManager
-import com.example.s1client.util.SearchManager
+import com.example.s1client.data.cache.ForumDataCache
+import com.example.s1client.data.store.FavoriteManager
+import com.example.s1client.data.store.SearchManager
 import kotlinx.coroutines.launch
 
 /** 站内搜索：关键词搜帖，结果复用首页卡片 */

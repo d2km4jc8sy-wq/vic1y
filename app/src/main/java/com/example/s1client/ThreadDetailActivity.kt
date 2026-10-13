@@ -54,27 +54,27 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.viewpager2.widget.ViewPager2
 import coil.load
 import com.example.s1client.data.api.RetrofitClient
-import com.example.s1client.data.model.ForumDataCache
+import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.data.model.Post
 import com.example.s1client.databinding.ActivityThreadDetailBinding
 import com.example.s1client.databinding.DialogReplySheetBinding
 import com.example.s1client.databinding.DialogUserCardBinding
 import com.example.s1client.ui.PageAdapter
 import com.example.s1client.util.BbCode
-import com.example.s1client.util.DraftStore
-import com.example.s1client.util.FavoriteManager
+import com.example.s1client.data.store.DraftStore
+import com.example.s1client.data.store.FavoriteManager
 import androidx.compose.ui.graphics.toArgb
 import com.example.s1client.util.Haptic
 import com.example.s1client.util.ImageUploader
 import com.example.s1client.util.JsonParser
 import com.example.s1client.util.S1Notify
 import com.example.s1client.util.TimeUtil
-import com.example.s1client.util.BlockedAuthorManager
-import com.example.s1client.util.HiddenPostManager
-import com.example.s1client.util.PostBookmarkManager
-import com.example.s1client.util.ThreadMutedUsers
-import com.example.s1client.util.ExpandedFloors
-import com.example.s1client.util.HiddenFloors
+import com.example.s1client.data.store.BlockedAuthorManager
+import com.example.s1client.data.store.HiddenPostManager
+import com.example.s1client.data.store.PostBookmarkManager
+import com.example.s1client.data.store.ThreadMutedUsers
+import com.example.s1client.data.store.ExpandedFloors
+import com.example.s1client.data.store.HiddenFloors
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -302,7 +302,7 @@ class ThreadDetailActivity : BaseActivity() {
     private fun refreshFavoriteState() {
         if (!ForumDataCache.isLoggedIn()) return
         lifecycleScope.launch {
-            val fav = com.example.s1client.util.FavoriteManager.isFavorited(tid) ?: return@launch
+            val fav = com.example.s1client.data.store.FavoriteManager.isFavorited(tid) ?: return@launch
             if (fav != isFavorited) {
                 isFavorited = fav
                 updateFavoriteButton()
@@ -332,9 +332,9 @@ class ThreadDetailActivity : BaseActivity() {
             onPostMoreClick = { post -> showPostMenu(post) },
             rateProvider = { pid -> pid?.let { rateMap[it] } },
             onPostRatingRowClick = { post -> showRatingDetail(post) },
-            powerProvider = { uid -> com.example.s1client.util.PowerRepository.get(uid) },
+            powerProvider = { uid -> com.example.s1client.data.store.PowerRepository.get(uid) },
             onPostQuoteJump = { floor -> floor?.toIntOrNull()?.let { goToFloor(it) } },
-            bookmarkProvider = { pid -> com.example.s1client.util.PostBookmarkManager.isBookmarked(pid) },
+            bookmarkProvider = { pid -> com.example.s1client.data.store.PostBookmarkManager.isBookmarked(pid) },
             onPageMissing = { page -> onPageMissing(page) }
         )
         // 多选分享：把选中判定与切换回调注入 PageAdapter，供各页 PostAdapter 取用
@@ -823,7 +823,7 @@ class ThreadDetailActivity : BaseActivity() {
         val uids = posts.mapNotNull { it.authorId }.distinct()
         if (uids.isEmpty()) return
         lifecycleScope.launch {
-            com.example.s1client.util.PowerRepository.ensure(uids) { schedulePowerRefresh() }
+            com.example.s1client.data.store.PowerRepository.ensure(uids) { schedulePowerRefresh() }
         }
     }
 
@@ -1931,7 +1931,7 @@ class ThreadDetailActivity : BaseActivity() {
                     RetrofitClient.api.sendReply(
                         formhash = fh, tid = tid,
                         // 发帖小尾巴（对标 s1er）：回复路径同样在提交时拼接
-                        message = com.example.s1client.util.SettingStore.appendPostTail(this@ThreadDetailActivity, msg),
+                        message = com.example.s1client.data.store.SettingStore.appendPostTail(this@ThreadDetailActivity, msg),
                         noticeauthor = noticeAuthor,
                         noticetrimstr = noticeTrimStr,
                         noticeauthormsg = noticeAuthorMsg,

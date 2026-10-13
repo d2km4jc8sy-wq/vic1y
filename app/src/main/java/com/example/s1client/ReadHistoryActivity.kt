@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.ui.theme.S1Theme
-import com.example.s1client.util.ReadHistoryStore
+import com.example.s1client.data.store.ReadHistoryStore
 import com.example.s1client.util.S1Notify
 import com.example.s1client.util.applyS1Theme
 import com.example.s1client.util.setupS1EdgeToEdge

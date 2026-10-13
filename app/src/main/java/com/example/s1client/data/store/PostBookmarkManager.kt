@@ -1,4 +1,4 @@
-package com.example.s1client.util
+package com.example.s1client.data.store
 
 import android.content.Context
 import com.example.s1client.data.model.Post
@@ -11,6 +11,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
+import com.example.s1client.util.PostContentParser
 
 /**
  * 楼层收藏管理：本地 JSON 持久化 + 内存缓存。
