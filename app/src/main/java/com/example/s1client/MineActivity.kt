@@ -76,7 +76,8 @@ import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.ui.AttendanceContent
 import com.example.s1client.ui.ConfettiBurst
 import com.example.s1client.ui.S1SystemBarSync
-import com.example.s1client.ui.ThemePickerSheet
+import com.example.s1client.ReadHistoryActivity
+import com.example.s1client.data.store.ReadHistoryStore
 import com.example.s1client.ui.ThemeSwatch
 import com.example.s1client.ui.showUserCardDialog
 import com.example.s1client.ui.theme.LocalS1Colors
@@ -85,7 +86,6 @@ import com.example.s1client.data.store.AttendanceManager
 import com.example.s1client.data.store.DraftStore
 import com.example.s1client.data.store.HiddenPostManager
 import com.example.s1client.data.store.PostBookmarkManager
-import com.example.s1client.data.store.ReadHistoryStore
 import com.example.s1client.util.ReminderUnread
 import com.example.s1client.util.S1Notify
 import com.example.s1client.util.ThemeManager
@@ -130,7 +130,6 @@ fun MineScreen(onFinish: () -> Unit) {
     val c = LocalS1Colors.current
     S1SystemBarSync()
     val context = LocalContext.current
-    var showThemeSheet by remember { mutableStateOf(false) }
     var showHiddenPostsDialog by remember { mutableStateOf(false) }
     var confettiKey by remember { mutableIntStateOf(0) }
 
@@ -285,7 +284,11 @@ fun MineScreen(onFinish: () -> Unit) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { showThemeSheet = true }
+                                .clickable {
+                                    context.startActivity(
+                                        Intent(context, ReadHistoryActivity::class.java)
+                                    )
+                                }
                                 .padding(horizontal = 16.dp, vertical = 13.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -296,19 +299,19 @@ fun MineScreen(onFinish: () -> Unit) {
                                     .background(c.chipBg),
                                 contentAlignment = Alignment.Center
                             ) {
-                                // 用户拍板：顶栏调色板 icon 移植到主题行
+                                // P4：主题卡退役，换成浏览历史快捷入口（主题入口收敛到设置页）
                                 Icon(
-                                    imageVector = Icons.Default.Palette,
-                                    contentDescription = "主题",
+                                    imageVector = Icons.Outlined.History,
+                                    contentDescription = "浏览历史",
                                     tint = c.accent,
                                     modifier = Modifier.size(19.dp)
                                 )
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("主题", color = c.textMain, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                Text("浏览历史", color = c.textMain, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                                 Text(
-                                    themeDisplayName(),
+                                    "最近看过的 ${ReadHistoryStore.list(context).size} 个帖子",
                                     color = c.textSub, fontSize = 11.5.sp
                                 )
                             }
@@ -455,9 +458,7 @@ fun MineScreen(onFinish: () -> Unit) {
         }
     }
 
-    if (showThemeSheet) {
-        ThemePickerSheet(onDismiss = { showThemeSheet = false })
-    }
+    // P4：主题入口收敛到设置页外观组，此处不再渲染 ThemePickerSheet
     if (showHiddenPostsDialog) {
         HiddenPostsDialog(onDismiss = { showHiddenPostsDialog = false })
     }
@@ -640,15 +641,6 @@ private fun Chevron() {
     )
 }
 
-private fun themeDisplayName(): String = when (ThemeManager.currentTheme) {
-    ThemeManager.THEME_LIGHT -> "焙茶午后"
-    ThemeManager.THEME_PINK -> "樱雾粉霜"
-    ThemeManager.THEME_FC -> "朱砂红白"
-    ThemeManager.THEME_RP5 -> "苔绿灰阶"
-    ThemeManager.THEME_IRIDESCENT -> "幻彩渐变 · 深浅随机"
-    ThemeManager.THEME_LINEAR -> "Linear 墨蓝"
-    else -> "主题"
-}
 
 // ————————— 顶栏（渐变 + 白字/图标） —————————
 

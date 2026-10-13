@@ -260,7 +260,6 @@ fun XhsHomeScreen(viewModel: PostViewModel, resumeSignal: androidx.compose.runti
 
     var showHammerMenu by remember { mutableStateOf(false) }
     /** 顶栏调色板图标 → 主题选择器（点选即生效，不用离开瀑布流） */
-    var showThemeSheet by remember { mutableStateOf(false) }
     var showForumManage by remember { mutableStateOf(false) }
     var showBlockedManager by remember { mutableStateOf(false) }
     /** 长按帖子 → Peek 预览面板（标题 + 正文摘要 + 收藏/分享/隐藏） */
@@ -381,9 +380,6 @@ fun XhsHomeScreen(viewModel: PostViewModel, resumeSignal: androidx.compose.runti
         }
     }
 
-    if (showThemeSheet) {
-        com.example.s1client.ui.ThemePickerSheet(onDismiss = { showThemeSheet = false })
-    }
 
     if (showHammerMenu) {
         HammerMenuDialog(
