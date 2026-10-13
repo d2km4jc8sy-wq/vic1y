@@ -45,6 +45,12 @@ fun HoldToConfirmButton(
     val scope = rememberCoroutineScope()
     val progress = remember { Animatable(0f) }
     var confirmedOnce = remember { androidx.compose.runtime.mutableStateOf(false) }
+    // 按住期间换文案：让"正在确认"这件事看得见（真机反馈：原静默长按无感知）
+    val holdLabel = when {
+        confirmedOnce.value -> "已退出登录"
+        progress.value > 0.02f -> "松开取消"
+        else -> label
+    }
 
     Box(
         modifier = modifier
@@ -80,10 +86,10 @@ fun HoldToConfirmButton(
             Modifier
                 .fillMaxWidth(progress.value.coerceIn(0f, 1f))
                 .matchParentSize()
-                .background(fillColor.copy(alpha = 0.30f))
+                .background(fillColor.copy(alpha = 0.55f))
         )
         Text(
-            label,
+            holdLabel,
             color = if (progress.value > 0.85f) Color.White else fillColor,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,

@@ -156,6 +156,7 @@ internal fun ThreadDetailActivity.showReplySheet() {
         dialog.setOnDismissListener { onReplyImageUploaded = null }
 
         fun doSend() {
+            android.util.Log.d("S1Reply", "doSend 触发, draftKey=$draftKey, 文本长度=${replyValue.value.text.length}")
             val msg = replyValue.value.text.trim()
             if (msg.isEmpty()) { toast("回复内容不能为空"); return }
             // 附件要显式声明「使用」，服务端 updateattach() 才会把它挂到这一楼层
@@ -269,6 +270,16 @@ internal fun ThreadDetailActivity.jumpToNewReply(newPid: String) {
                         break
                     }
                 }
+                // 兜底：回复落在最后一页时，本页缓存还是旧数据（没有新楼层），
+                // 循环会因"没有更多页"提前退出而找不到 newPid → 表现为"只 toast 不跳转"。
+                // 重取一次最后已加载页，把新楼层捞进缓存再定位。
+                if (target == -1 && loadedMaxPage > 0) {
+                    val refetched = fetchOnePage(loadedMaxPage)
+                    if (refetched.any { it.pid == newPid }) {
+                        pageAdapter.setPage(loadedMaxPage, refetched)
+                        target = loadedMaxPage
+                    }
+                }
                 if (target > 0) {
                     binding.vpPages.setCurrentItem(target - 1, true)
                     binding.vpPages.postDelayed({
@@ -344,6 +355,8 @@ internal fun ThreadDetailActivity.sendReplyWithQuote(
                     toast("回复失败：" + msgStr.ifBlank { msgVal.ifBlank { "pid=$pid" } })
                 }
             } catch (e: Exception) {
+                android.util.Log.e("S1Reply", "回帖链路异常", e)
+                toast("发送失败：${e.message ?: "网络异常"}")
                 android.util.Log.e("S1Reply", "reply exception", e)
                 toast("回复失败：${e.message}")
             }

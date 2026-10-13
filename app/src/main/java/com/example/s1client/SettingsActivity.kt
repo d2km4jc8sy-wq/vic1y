@@ -377,10 +377,14 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 HoldToConfirmButton(
                     label = "长按退出登录",
                     onConfirm = {
-                        // 与原逻辑一致：先关本页再清登录态，避免「我的」页闪出未登录空版面
-                        onFinish()
                         RetrofitClient.clearCookies()
                         ForumDataCache.clearUser()
+                        // 用户拍板（2026-10-14）：登出后直达登录页，全栈清空——
+                        // 不再停留在「我的」的未登录版面（登录页教训 3 的最终闭环）
+                        val login = android.content.Intent(context, LoginActivity::class.java)
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                                    or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        context.startActivity(login)
                     }
                 )
             }

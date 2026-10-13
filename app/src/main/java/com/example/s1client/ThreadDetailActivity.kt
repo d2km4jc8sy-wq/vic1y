@@ -237,10 +237,14 @@ class ThreadDetailActivity : BaseActivity() {
                 hideEndFooter()
                 updatePageIndicator()
                 loadRatings(currentPage)
-                // 细节 15：推进进度线（按已加载的最大页数归一化，避免后期页数突变）
-                val maxPage = maxOf(loadedMaxPage, currentPage, 1)
+                // 细节 15：推进进度线。分母必须用帖子总页数——
+                // 旧实现分母是"已加载最大页数"，用户停在最新页时 1/1=100%，
+                // 顶部会一直挂着一条满宽强调色条（真机验收发现）。
+                val maxPage = if (totalPages > 0) totalPages else maxOf(loadedMaxPage, currentPage, 1).coerceAtLeast(1)
                 progressLine.pivotX = 0f
-                progressLine.animate().scaleX(currentPage.toFloat() / maxPage).setDuration(220).start()
+                progressLine.animate().scaleX(
+                    (currentPage.toFloat() / maxPage).coerceIn(0.02f, 1f)
+                ).setDuration(220).start()
                 if (currentPage + 1 > loadedMaxPage && morePagesToLoad() && !isLoading) {
                     preloadPage(currentPage + 1)
                 }
@@ -491,6 +495,7 @@ class ThreadDetailActivity : BaseActivity() {
         hasMore = true
         currentPage = 1
         isLoading = false
+        if (::progressLineView.isInitialized) progressLineView.scaleX = 0f
         setupPageAdapter()
         updatePageIndicator()
         loadFirstPage()
