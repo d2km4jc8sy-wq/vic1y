@@ -1,8 +1,10 @@
 package com.example.s1client.util
 
 import android.util.Log
+import com.example.s1client.data.model.ForumFavoriteItem
 import com.example.s1client.data.model.UserPostItem
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
 /** 用户空间页解析：主题列表 / 回帖列表（table 结构）+ 收藏列表（ul/li 结构） */
@@ -58,6 +60,66 @@ object UserPostParser {
             result
         } catch (e: Exception) {
             Log.e("S1HTML", "解析收藏失败", e); emptyList()
+        }
+    }
+
+    /**
+     * 版块收藏列表（R5 新增）。
+     * 对标开源 s1er：收藏三 Tab 同走 home.php?do=favorite HTML，版块轨 = 同 URL 加 &type=forum&mobile=2。
+     * 页面是 ul/li 结构：每个 li 一个收藏块，块内含版块链接 forumdisplay&fid=xxx。
+     * 判定规则照搬 s1er：块内 viewthread 链接出现在 forumdisplay 之前 → 是帖子轨（跳过），
+     * 否则有 forumdisplay 链接 → 版块轨。
+     */
+    fun parseFavoriteForumList(html: String): List<ForumFavoriteItem> {
+        if (html.isBlank()) return emptyList()
+        if (html.contains("您还没有添加任何收藏")) return emptyList()
+        return try {
+            val doc: Document = Jsoup.parse(html)
+            // 列表区域：findbox ul / threadlist_box / threadlist，都找不到就整页盲扫（对标 s1er 的三级回退）
+            val region: Element = doc.select("div.findbox ul").first()
+                ?: doc.select("div.threadlist_box").first()
+                ?: doc.select("div.threadlist").first()
+                ?: doc.body()
+
+            val result = mutableListOf<ForumFavoriteItem>()
+            val seenFids = mutableSetOf<String>()
+
+            for (li in region.select("li")) {
+                // 判定用整块 HTML 的小写形式（对标 s1er 的 block 文本比较）
+                val block = li.outerHtml().lowercase()
+                val forumIdx = block.indexOf("forumdisplay")
+                val threadIdx = block.indexOf("viewthread")
+                // 帖子轨判定：有 viewthread 且出现得更早（或没有 forumdisplay）→ 跳过
+                if (threadIdx >= 0 && (forumIdx < 0 || threadIdx < forumIdx)) continue
+                if (forumIdx < 0) continue
+
+                val forumLink = li.selectFirst("a[href*=forumdisplay]") ?: continue
+                val href = forumLink.attr("href")
+                val fid = Regex("""forumdisplay&(?:amp;)?fid=(\d+)""", RegexOption.IGNORE_CASE)
+                    .find(href)?.groupValues?.get(1) ?: continue
+                if (!seenFids.add(fid)) continue
+
+                // 标题：优先 <em>，退回链接文本
+                val title = (li.selectFirst("em")?.text()?.trim()
+                    ?: forumLink.text().trim()).ifBlank { "版块 #$fid" }
+
+                // 收藏时间：span.mtime（YYYY-MM-DD）
+                val dateline = li.selectFirst("span.mtime")?.text()?.trim().orEmpty()
+
+                // favid：取消收藏链接 op=delete&favid=xxx
+                val favid = li.selectFirst("a[href*=op=delete]")
+                    ?.attr("href")?.let { h ->
+                        Regex("""favid=(\d+)""", RegexOption.IGNORE_CASE).find(h)?.groupValues?.get(1)
+                    }.orEmpty()
+
+                result.add(ForumFavoriteItem(fid = fid, title = title, favid = favid, dateline = dateline))
+            }
+
+            Log.d("S1HTML", "解析版块收藏: ${result.size} 条")
+            result
+        } catch (e: Exception) {
+            Log.e("S1HTML", "解析版块收藏失败", e)
+            emptyList()
         }
     }
 

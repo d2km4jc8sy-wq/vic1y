@@ -54,3 +54,18 @@ data class UserPostItem(
     val views: String = "",
     val hasImage: Boolean = false
 )
+
+/**
+ * 版块收藏项（R5 新增，对标开源 s1er favoriteMembership 的 forum 分支）。
+ * Discuz 收藏是帖子/版块双轨，S1Client 原先只解析了帖子轨。
+ */
+data class ForumFavoriteItem(
+    /** 版块 fid（点击进版块帖子列表用） */
+    val fid: String,
+    /** 版块名 */
+    val title: String,
+    /** 收藏记录 id（取消收藏用，解析不到时为空） */
+    val favid: String = "",
+    /** 收藏时间（页面上的日期串，展示用） */
+    val dateline: String = ""
+)

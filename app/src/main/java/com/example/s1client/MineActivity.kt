@@ -32,20 +32,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Drafts
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.FormatSize
-import androidx.compose.material.icons.outlined.TextFields
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -82,7 +79,6 @@ import com.example.s1client.ui.ConfettiBurst
 import com.example.s1client.ui.S1SystemBarSync
 import com.example.s1client.ReadHistoryActivity
 import com.example.s1client.data.store.ReadHistoryStore
-import com.example.s1client.data.store.SettingStore
 import com.example.s1client.ui.ThemeSwatch
 import com.example.s1client.ui.showUserCardDialog
 import com.example.s1client.ui.theme.LocalS1Colors
@@ -118,11 +114,15 @@ class MineActivity : ComponentActivity() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 「我的」页 · A 秩序玻璃版
+// 「我的」页 · A 秩序玻璃版 · R5 层级化
 //
-// 结构（自上而下）：
-//   顶栏 → 用户卡 → 数据条(楼层收藏/草稿/历史，真实本地数) →
-//   主题+签到 合并玻璃卡 → 三组单色清单(浏览/创作/社交) → 加入日期
+// 结构（自上而下，一级只放高频）：
+//   顶栏 → 身份卡(右侧按钮→二级弹窗) → 数据条(楼层收藏/草稿/历史) →
+//   浏览历史+签到 合并卡 → 内容组(帖子收藏/版块收藏/帖子/回复) →
+//   互动消息(私信/好友) → 论坛查阅(小黑屋/抹布贴) → 加入日期
+//
+// 二级 A：头像右侧弹窗 QuickSettingsSheet（主题/文字大小/字体/交互震动/省流）
+// 二级 B：设置页 SettingsActivity（齿轮进入，七组 14 项原样保留）
 //
 // 落地细节：25 stagger 入场 · 23 签到彩带 · 24 里程碑徽章(在 AttendanceContent 内) ·
 //           28 私信未读呼吸点 · 齿轮 → SettingsActivity
@@ -137,20 +137,7 @@ fun MineScreen(onFinish: () -> Unit) {
     val context = LocalContext.current
     var showHiddenPostsDialog by remember { mutableStateOf(false) }
     var showThemeSheet by remember { mutableStateOf(false) }
-    var fontSize by remember { androidx.compose.runtime.mutableIntStateOf(SettingStore.fontSize(context)) }
-    var fontName by remember { mutableStateOf(SettingStore.customFontName(context)) }
-    val fontPicker = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            SettingStore.importFont(context, uri)
-                .onSuccess {
-                    fontName = it
-                    S1Notify.show(context, "字体已导入：$it", S1Notify.Type.SUCCESS)
-                }
-                .onFailure { S1Notify.show(context, it.message ?: "导入失败", S1Notify.Type.ERROR) }
-        }
-    }
+    var showQuickSheet by remember { mutableStateOf(false) }
     var confettiKey by remember { mutableIntStateOf(0) }
 
     var loggedIn by remember { mutableStateOf(ForumDataCache.isLoggedIn()) }
@@ -171,6 +158,9 @@ fun MineScreen(onFinish: () -> Unit) {
     var draftCount by remember { mutableIntStateOf(0) }
     var historyCount by remember { mutableIntStateOf(0) }
 
+    // ===== 版块收藏数（R5 内容组第 4 行，服务端数据）=====
+    var forumFavCount by remember { mutableIntStateOf(0) }
+
     LaunchedEffect(loggedIn, refresh) {
         if (loggedIn) {
             unreadCount = runCatching { ReminderUnread.computeUnread(context) }.getOrDefault(0)
@@ -180,6 +170,9 @@ fun MineScreen(onFinish: () -> Unit) {
         bookmarkCount = runCatching { PostBookmarkManager.getAll().size }.getOrDefault(0)
         draftCount = runCatching { DraftStore.listDrafts(context).size }.getOrDefault(0)
         historyCount = runCatching { ReadHistoryStore.list(context).size }.getOrDefault(0)
+        forumFavCount = if (loggedIn) {
+            runCatching { com.example.s1client.data.store.ForumFavoriteStore.fetchAll(ForumDataCache.memberUid).size }.getOrDefault(0)
+        } else 0
     }
 
     val username = remember {
@@ -269,19 +262,19 @@ fun MineScreen(onFinish: () -> Unit) {
                                 }
                             },
                             trailing = {
-                                // R3：外观快捷入口（用户拍板位置=身份卡右侧空白；
-                                // 点头像=用户卡，点这里=主题面板，职责分离不冲突）
+                                // R5：头像右侧 = 二级弹窗入口（原 palette 主题直开，
+                                // 升级为「快捷」面板：主题/字号/字体/震动/省流）
                                 Box(
                                     modifier = Modifier
                                         .size(38.dp)
                                         .clip(androidx.compose.foundation.shape.CircleShape)
                                         .background(c.chipBg)
-                                        .clickable { showThemeSheet = true },
+                                        .clickable { showQuickSheet = true },
                                     contentAlignment = androidx.compose.ui.Alignment.Center
                                 ) {
                                     androidx.compose.material3.Icon(
-                                        imageVector = androidx.compose.material.icons.Icons.Outlined.Palette,
-                                        contentDescription = "外观",
+                                        imageVector = Icons.Outlined.Tune,
+                                        contentDescription = "快捷",
                                         tint = c.accent,
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -402,116 +395,7 @@ fun MineScreen(onFinish: () -> Unit) {
                     }
                 }
 
-                // —— 外观卡（R3：从设置页整组迁出，主题秒切不再绕路）——
-                StaggerIn(3) {
-                    FlowGlassCard(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
-                        rotating = false,
-                        soft = true
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            // 主题行
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { showThemeSheet = true }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier.size(30.dp).clip(CircleShape).background(c.chipBg),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Outlined.Palette, "主题", tint = c.accent, modifier = Modifier.size(18.dp))
-                                }
-                                Spacer(Modifier.width(12.dp))
-                                Text("主题", color = c.textMain, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-                                Text(themeNameShort(), color = c.textSub, fontSize = 12.sp)
-                                Spacer(Modifier.width(6.dp))
-                                Chevron()
-                            }
-                            // 文字大小行
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier.size(30.dp).clip(CircleShape).background(c.chipBg),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(androidx.compose.material.icons.Icons.Outlined.FormatSize, "文字大小", tint = c.accent, modifier = Modifier.size(18.dp))
-                                }
-                                Spacer(Modifier.width(12.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    SettingStore.FONT_SIZES.forEach { size ->
-                                        val selected = size == fontSize
-                                        Text(
-                                            when (size) { 12 -> "小"; 14 -> "标准"; 16 -> "大"; else -> "超大" },
-                                            fontSize = 11.sp,
-                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (selected) Color.White else c.textSub,
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(if (selected) c.accent.copy(alpha = 0.85f) else c.chipBg)
-                                                .clickable {
-                                                    fontSize = size
-                                                    SettingStore.setFontSize(context, size)
-                                                }
-                                                .padding(horizontal = 9.dp, vertical = 4.dp)
-                                        )
-                                    }
-                                }
-                            }
-                            // 字体行
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { fontPicker.launch(arrayOf("*/*")) }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier.size(30.dp).clip(CircleShape).background(c.chipBg),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(androidx.compose.material.icons.Icons.Outlined.TextFields, "字体", tint = c.accent, modifier = Modifier.size(18.dp))
-                                }
-                                Spacer(Modifier.width(12.dp))
-                                Text("字体", color = c.textMain, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-                                Text(fontName ?: "默认字体", color = c.textSub, fontSize = 12.sp)
-                                Spacer(Modifier.width(6.dp))
-                                Chevron()
-                            }
-                            // 恢复默认字体（有自定义字体时才出现）
-                            if (fontName != null) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            SettingStore.removeCustomFont(context)
-                                            fontName = null
-                                            S1Notify.show(context, "已恢复默认字体", S1Notify.Type.INFO)
-                                        }
-                                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier.size(30.dp).clip(CircleShape).background(c.chipBg),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(Icons.Outlined.Refresh, "恢复默认字体", tint = c.accent, modifier = Modifier.size(18.dp))
-                                    }
-                                    Spacer(Modifier.width(12.dp))
-                                    Text("恢复默认字体", color = c.textMain, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // —— 三组单色清单 ——
+                // —— 内容组（R5：版块收藏入列，收藏双轨对齐 s1er）——
                 StaggerIn(3) {
                     // 去重（用户拍板）：历史/楼层收藏/草稿已在顶部数据条，清单只留不重复项
                     // 清单组也纳入静态柔彩框（用户拍板：幻彩里所有功能模块统一）
@@ -524,6 +408,12 @@ fun MineScreen(onFinish: () -> Unit) {
                         listOf(
                             MenuItem("帖子收藏", Icons.Outlined.StarOutline) {
                                 context.startActivity(Intent(context, FavoriteListActivity::class.java))
+                            },
+                            MenuItem(
+                                "版块收藏", Icons.Outlined.Layers,
+                                value = if (forumFavCount > 0) "$forumFavCount" else null
+                            ) {
+                                context.startActivity(Intent(context, ForumFavoriteListActivity::class.java))
                             },
                             MenuItem("帖子", Icons.Outlined.Description) {
                                 context.startActivity(Intent(context, UserThreadListActivity::class.java).apply {
@@ -539,7 +429,9 @@ fun MineScreen(onFinish: () -> Unit) {
                     )
                     }
                 }
-                StaggerIn(5) {
+
+                // —— 互动消息（R5：自原社交组拆出，天活级）——
+                StaggerIn(4) {
                     FlowGlassCard(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
                         rotating = false,
@@ -554,7 +446,21 @@ fun MineScreen(onFinish: () -> Unit) {
                                 context.startActivity(Intent(context, FriendListActivity::class.java).apply {
                                     putExtra("uid", uid); putExtra("username", username)
                                 })
-                            },
+                            }
+                        )
+                    )
+                    }
+                }
+
+                // —— 论坛查阅（R5：自原社交组拆出，月活级低频）——
+                StaggerIn(5) {
+                    FlowGlassCard(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                        rotating = false,
+                        soft = true
+                    ) {
+                    MenuGroup(
+                        listOf(
                             // v18 新增的小黑屋入口（论坛公开处罚列表）—— 重建清单时补回
                             MenuItem("小黑屋", Icons.Outlined.Info) {
                                 if (loggedIn) {
@@ -606,7 +512,20 @@ fun MineScreen(onFinish: () -> Unit) {
         }
     }
 
-    // P4：主题入口收敛到设置页外观组，此处不再渲染 ThemePickerSheet
+    // R5 层级化：二级 A 弹窗（快捷）优先渲染；主题面板由弹窗内跳转（避免嵌套 ModalBottomSheet）
+    if (showQuickSheet) {
+        com.example.s1client.ui.QuickSettingsSheet(
+            onDismiss = { showQuickSheet = false },
+            onOpenThemePicker = {
+                showQuickSheet = false
+                showThemeSheet = true
+            },
+            onOpenSettings = {
+                showQuickSheet = false
+                context.startActivity(Intent(context, SettingsActivity::class.java))
+            }
+        )
+    }
     if (showThemeSheet) {
         com.example.s1client.ui.ThemePickerSheet(onDismiss = { showThemeSheet = false })
     }
@@ -708,6 +627,8 @@ private data class MenuItem(
     val icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     val iconRes: Int? = null,
     val badge: Int = 0,
+    /** 行尾数值（如收藏数），与 badge 呼吸点互不排斥 */
+    val value: String? = null,
     val onClick: () -> Unit
 )
 
@@ -752,6 +673,10 @@ private fun MenuGroup(items: List<MenuItem>) {
                 }
                 Spacer(Modifier.width(12.dp))
                 Text(item.name, fontSize = 13.5.sp, color = c.textMain, modifier = Modifier.weight(1f))
+                if (!item.value.isNullOrBlank()) {
+                    Text(item.value, fontSize = 12.sp, color = c.textSub)
+                    Spacer(Modifier.width(6.dp))
+                }
                 Chevron()
             }
             if (i < items.lastIndex) {
@@ -993,13 +918,3 @@ private fun HiddenPostsDialog(onDismiss: () -> Unit) {
     )
 }
 
-private fun themeNameShort(): String = when (ThemeManager.currentTheme) {
-    com.example.s1client.util.ThemeManager.THEME_LIGHT -> "焙茶午后"
-    com.example.s1client.util.ThemeManager.THEME_OLED -> "曜石玄夜"
-    com.example.s1client.util.ThemeManager.THEME_PINK -> "樱雾粉霜"
-    com.example.s1client.util.ThemeManager.THEME_FC -> "朱砂红白"
-    com.example.s1client.util.ThemeManager.THEME_RP5 -> "苔绿灰阶"
-    com.example.s1client.util.ThemeManager.THEME_IRIDESCENT -> "幻彩渐变"
-    com.example.s1client.util.ThemeManager.THEME_LINEAR -> "Linear 墨蓝"
-    else -> "主题"
-}

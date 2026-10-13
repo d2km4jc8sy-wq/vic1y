@@ -49,7 +49,9 @@ fun UserPostListScreen(
     onBack: () -> Unit,
     load: suspend () -> List<UserPostItem>,
     /** 外部触发重载（例如收藏页回到前台时刷新）；值一变就重新加载 */
-    reloadTick: Int = 0
+    reloadTick: Int = 0,
+    /** 行点击行为覆盖：默认进帖子详情；版块收藏列表传「进版块帖子列表」 */
+    onItemClick: ((UserPostItem) -> Unit)? = null
 ) {
     val context = LocalContext.current
     var loading by remember { mutableStateOf(true) }
@@ -154,12 +156,17 @@ fun UserPostListScreen(
                             subtitle = item.message.takeIf { it.isNotBlank() },
                             onClick = {
                                 if (item.tid.isNotBlank()) {
-                                    context.startActivity(
-                                        Intent(context, ThreadDetailActivity::class.java).apply {
-                                            putExtra("tid", item.tid)
-                                            putExtra("subject", item.subject)
-                                        }
-                                    )
+                                    val custom = onItemClick
+                                    if (custom != null) {
+                                        custom(item)
+                                    } else {
+                                        context.startActivity(
+                                            Intent(context, ThreadDetailActivity::class.java).apply {
+                                                putExtra("tid", item.tid)
+                                                putExtra("subject", item.subject)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         )
