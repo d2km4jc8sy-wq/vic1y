@@ -21,6 +21,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -128,6 +129,68 @@ fun RichEditor(
     }
 
     Column(modifier = modifier) {
+        // R4：实时表情预览条——输入框里每有一个表情短码/[img]，这里立刻以图片呈现。
+        // （BasicTextField 公开 API 不支持文本内嵌图片，做了光标会乱跳；预览条是等价可见方案，宪法 11）
+        // 点预览图 = 从正文撤销那张。
+        val smileyCodes = remember(value.text) {
+            Regex("""\[[a-g]:\d{1,4}]|\[img\][^\[]+\[/img\]""").findAll(value.text).map { it.value }.toList()
+        }
+        if (smileyCodes.isNotEmpty()) {
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 4.dp)
+            ) {
+                item {
+                    Text(
+                        "表情 ${smileyCodes.size}",
+                        color = TextSub, fontSize = 11.sp,
+                        modifier = Modifier.padding(end = 2.dp)
+                    )
+                }
+                itemsIndexed(smileyCodes) { idx, code ->
+                    val model = EmojiCode.resolve(context, code)
+                        ?: if (code.startsWith("[img]")) code.removePrefix("[img]").removeSuffix("[/img]") else null
+                    if (model != null) {
+                        coil.compose.AsyncImage(
+                            model = model,
+                            contentDescription = "撤销该表情",
+                            modifier = Modifier
+                                .size(26.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(ChipBg)
+                                .clickable {
+                                    // 撤销第 idx 次出现的该表情
+                                    val sb = StringBuilder()
+                                    var from = 0
+                                    var seen = 0
+                                    var cutStart = -1
+                                    var cutEnd = -1
+                                    val re = Regex("""\[[a-g]:\d{1,4}]|\[img\][^\[]+\[/img\]""")
+                                    for (m in re.findAll(value.text)) {
+                                        if (m.value == code && seen == idx) {
+                                            cutStart = m.range.first; cutEnd = m.range.last + 1
+                                            break
+                                        }
+                                        if (m.value == code) seen++
+                                    }
+                                    if (cutStart >= 0) {
+                                        sb.append(value.text.substring(0, cutStart))
+                                        sb.append(value.text.substring(cutEnd))
+                                        val nv = TextFieldValue(
+                                            text = sb.toString(),
+                                            selection = androidx.compose.ui.text.TextRange(cutStart.coerceAtMost(sb.length))
+                                        )
+                                        onValueChange(nv)
+                                    }
+                                }
+                        )
+                    }
+                }
+            }
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
