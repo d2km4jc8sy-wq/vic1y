@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.s1client.data.api.RetrofitClient
 import com.example.s1client.data.cache.ForumDataCache
+import com.example.s1client.ui.S1Switch
 import com.example.s1client.ui.HoldToConfirmButton
 import com.example.s1client.ui.S1SystemBarSync
 import com.example.s1client.ui.SunMoonSwitch
@@ -243,7 +244,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
         GroupTitle("交互")
         Group {
             SettingRow(Icons.Outlined.Vibration, "交互震动", sub = "全局触觉反馈") {
-                SunMoonSwitch(
+                S1Switch(
                     checked = hapticEnabled,
                     onCheckedChange = {
                         Haptic.setEnabled(context, it)
@@ -255,7 +256,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
             }
 
             SettingRow(Icons.Outlined.DataUsage, "省流模式", sub = "图片不自动加载，点按才载入") {
-                SunMoonSwitch(
+                S1Switch(
                     checked = dataSaver,
                     onCheckedChange = { DataSaverStore.set(context, it) }
                 )
@@ -269,7 +270,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 Icons.Outlined.Edit, "发帖小尾巴",
                 sub = if (tail.enabled) "发帖 / 回复 / 编辑提交时自动追加" else "已关闭"
             ) {
-                SunMoonSwitch(
+                S1Switch(
                     checked = tail.enabled,
                     onCheckedChange = {
                         tail = SettingStore.postTail(context).let { old ->
@@ -594,7 +595,7 @@ private fun TailEditDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("附带机型信息", fontSize = 13.sp, color = c.textMain, modifier = Modifier.weight(1f))
-                    SunMoonSwitch(
+                    S1Switch(
                         checked = showDevice,
                         onCheckedChange = onDeviceChange
                     )

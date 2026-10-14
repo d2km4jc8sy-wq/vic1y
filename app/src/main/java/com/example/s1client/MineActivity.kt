@@ -331,7 +331,7 @@ fun MineScreen(onFinish: () -> Unit) {
                                         Intent(context, ReadHistoryActivity::class.java)
                                     )
                                 }
-                                .padding(horizontal = 13.dp, vertical = 9.dp),
+                                .padding(horizontal = 13.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
@@ -464,32 +464,6 @@ fun MineScreen(onFinish: () -> Unit) {
                 }
             }
 
-            // 「欢迎加入 stage1 N 天」
-            if (loggedIn) {
-                val regDate = ForumDataCache.memberRegDate
-                if (regDate.isNotBlank()) {
-                    val welcome = com.example.s1client.util.JoinDays.welcomeText(regDate)
-                    val line = welcome ?: run {
-                        val m = Regex("""(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})""").find(regDate)
-                        if (m != null)
-                            "${m.groupValues[1]}年${m.groupValues[2].toInt()}月${m.groupValues[3].toInt()}日 加入 S1"
-                        else regDate
-                    }
-                    Text(
-                        line,
-                        fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                        color = c.textSub.copy(alpha = 0.85f),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 13.dp, bottom = 21.dp),
-                        textAlign = TextAlign.Center
-                    )
-                } else {
-                    Spacer(Modifier.height(28.dp))
-                }
-            } else {
-                Spacer(Modifier.height(28.dp))
-            }
         }
 
         // —— 细节 23：签到成功全屏彩带 ——
@@ -650,28 +624,29 @@ private fun TripodCell(
     onClick: () -> Unit
 ) {
     val c = LocalS1Colors.current
-    Column(
+    // 横向版式：标签在左、数字在右。原来的"上数字下标签"约占 60dp，
+    // 改成单行后约 43dp，为「我的」页一屏全显腾出空间（数字仍是主角，21sp 不变）。
+    Row(
         modifier = modifier
             .clip(RoundedCornerShape(13.dp))
             .background(c.glassCard)
             .clickable(onClick = onClick)
-            .padding(vertical = 13.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 13.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(contentAlignment = Alignment.TopEnd) {
+        Text(label, fontSize = 14.sp, color = c.textSub)
+        Spacer(Modifier.width(5.dp))
+        Box(contentAlignment = Alignment.CenterEnd) {
             Text(
                 "$count",
-                fontSize = 21.sp,
-                fontWeight = FontWeight.Bold,
-                color = c.textMain
+                fontSize = 21.sp, lineHeight = 21.sp,
+                fontWeight = FontWeight.Bold, color = c.textMain
             )
             // 细节 28：有未读时数字右上角亮呼吸点
             if (showDot) {
-                BreathingDot(Modifier.align(Alignment.TopEnd).offset(x = 8.dp))
+                BreathingDot(Modifier.align(Alignment.TopEnd).offset(x = 7.dp, y = (-3).dp))
             }
         }
-        Spacer(Modifier.height(5.dp))
-        Text(label, fontSize = 13.sp, color = c.textSub)
     }
 }
 
@@ -699,7 +674,7 @@ private fun MenuGroup(items: List<MenuItem>) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = item.onClick)
-                    .padding(horizontal = 13.dp, vertical = 9.dp),
+                    .padding(horizontal = 13.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box {
@@ -741,7 +716,7 @@ private fun MenuGroup(items: List<MenuItem>) {
                         .padding(horizontal = 13.dp)
                         .height(1.dp)
                         .fillMaxWidth()
-                        .background(Color.White.copy(alpha = 0.06f))
+                        .background(c.chipBg)
                 )
             }
         }
@@ -842,10 +817,10 @@ private fun UserCard(
             .padding(horizontal = 13.dp, vertical = 9.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(c.glassCard)
-            .padding(13.dp)
+            .padding(11.dp)
     ) {
         Row(
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.clickable(onClick = onClick)
         ) {
             Box(
@@ -937,6 +912,40 @@ private fun UserCard(
                                 modifier = Modifier.padding(start = if (titleText.isNotEmpty()) 8.dp else 0.dp)
                             )
                         }
+                    }
+                }
+
+                // —— 欢迎语：移到身份卡内、压在头衔与签名之下 ——
+                // 发光只做"呼吸式明暗"。**不用 Modifier.shadow** —— 它会在文字后面
+                // 画出一块可见的光晕矩形，浅色底上尤其脏（用户实测反馈"背景怪异"）。
+                val days = JoinDays.daysSince(regDate) ?: 0
+                if (loggedIn && days > 0) {
+                    val glow = rememberInfiniteTransition(label = "joinDaysGlow")
+                    val glowA by glow.animateFloat(
+                        initialValue = 0.5f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(tween(1100), RepeatMode.Reverse),
+                        label = "joinDaysAlpha"
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
+                        Text(
+                            "欢迎加入 stage1",
+                            fontSize = 11.sp, color = c.textSub.copy(alpha = 0.7f)
+                        )
+                        Spacer(Modifier.width(5.dp))
+                        Text(
+                            "$days",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = c.accent.copy(alpha = glowA)
+                        )
+                        Text(
+                            " 天",
+                            fontSize = 11.sp, color = c.textSub.copy(alpha = 0.7f)
+                        )
                     }
                 }
             }
