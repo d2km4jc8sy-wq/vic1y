@@ -60,9 +60,7 @@ object FavoriteJsonParser {
 
     private fun FavoriteJsonItem.isForumItem(): Boolean {
         val t = idtype?.trim()?.lowercase()
-        if (t == "forum" || t == "fid") return true
-        // 没有 idtype 时：只有 fid、没有 tid 的按版块处理
-        return !tid.isNullOrBlank().not() && fid != null && tid.isNullOrBlank()
+        return t == "forum" || t == "fid"
     }
 
     private fun FavoriteJsonItem.toUserPostItem(): UserPostItem? {
@@ -77,9 +75,8 @@ object FavoriteJsonParser {
             message = "",
             // 收藏时间：dateline / dbdateline 都是 Unix 秒
             dateline = formatCollectTime(dateline ?: dbdateline),
-            forum = (fname ?: forumname).orEmpty().trim(),
+
             replies = replies?.trim().orEmpty(),
-            views = views?.trim().orEmpty(),
             hasImage = false
         )
     }
