@@ -333,6 +333,11 @@ fun XhsPostCard(
     val gMid = s1.glassEdgeMid
     val gBot = s1.glassEdgeBottom
     val gInset = s1.glassInsetLight
+    // 幻彩主题下**无条件**用主题色环做卡框（原来只在 coverStyle==5 的分支里画，
+    // 一旦封面风格不是 5，幻彩卡片就退化成"半透明白玻璃边" —— 在浅色粉底上等于没有边，
+    // 这正是"瀑布流幻彩卡片边框太细 / 主题不突出"的真因）。
+    val isIridescentTheme = ThemeManager.currentTheme == ThemeManager.THEME_IRIDESCENT
+    val ringBand = remember(s1) { com.example.s1client.ui.theme.s1RingColors(s1) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -380,7 +385,7 @@ fun XhsPostCard(
         modifier = Modifier
           .fillMaxWidth()
           .then(
-              if (coverStyle == 5) {
+              if (isIridescentTheme) {
                   // 幻彩整卡外框：与「我的」页卡框**共用同一套取色**（s1RingColors），
                   // 封面/meta 同面板直角拼接，内角弧不复存在。
                   //
@@ -391,15 +396,24 @@ fun XhsPostCard(
                   // 现在：主题色板取色 + 4dp + 90% 不透明度。
                   Modifier.drawWithContent {
                       drawContent()
-                      val band = com.example.s1client.ui.theme.s1RingColors(s1)
+                      val band = ringBand
+                      android.util.Log.d("S1Border", "ring coverStyle=$coverStyle band=$band size=$size")
+                      // ⚠️ 描边要**整体内缩半个线宽**：Card/Surface 会把内容 clip 到圆角形状，
+                      // 直接画在边界上时靠外的一半会被裁掉 —— 4dp 只剩 2dp，看起来还是"细边"。
+                      val strokePx = 4.dp.toPx()
+                      val inset = strokePx / 2f
                       drawRoundRect(
                           brush = Brush.linearGradient(
                               band.map { it.copy(alpha = 0.9f) },
                               start = Offset.Zero,
                               end = Offset(size.width, size.height)
                           ),
-                          cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner.dp.toPx()),
-                          style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4.dp.toPx())
+                          topLeft = Offset(inset, inset),
+                          size = Size(size.width - strokePx, size.height - strokePx),
+                          cornerRadius = androidx.compose.ui.geometry.CornerRadius(
+                              (corner.dp.toPx() - inset).coerceAtLeast(0f)
+                          ),
+                          style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokePx)
                       )
                   }
               } else if (gTop != null) {

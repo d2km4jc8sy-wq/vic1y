@@ -248,16 +248,21 @@ private val IridescentPresets = listOf(
 /**
  * 幻彩描边取色 —— **「我的」页卡框与瀑布流卡框共用**，保证同一套幻彩语言。
  *
- * 取 [S1Colors.headerGradient]（顶栏渐变，本来就是按"要在当前底色上醒目"挑的）
- * 再配封面流光两色；**刻意不用 accentCyan** —— 幻彩浅色板里它是 #7FB8D8 淡蓝，
- * 叠在粉紫底 + 低透明度上会直接融进背景（这是"彩边不明显"的一半原因）。
+ * ⚠️ 血泪教训（两次都错在这里）：**只用饱和色**，不要用 `headerGradient`。
+ * `headerGradient` 在多数主题里是"顶栏那一整块**背景**"的渐变，浅色端接近白：
+ *   · 幻彩浅色板 = #F7EBFC / #FDE6F3（近白）
+ *   · 樱雾粉霜   = #E94A72 / #FCE4E9（一半近白）
+ * 拿它当描边色，线性渐变从左上角起就是一片淡色，"彩边"自然看不出来。
+ * 同理也不能用 accentCyan（幻彩浅色板 #7FB8D8 淡蓝，叠粉底上直接融进背景）。
+ *
+ * 只用这三类：主色 + 封面流光色 + strongIcon —— 它们在所有主题里都是高饱和的。
  */
 fun s1RingColors(c: S1Colors): List<Color> {
-    val base = ArrayList<Color>(4)
-    base.addAll(c.headerGradient)
-    if (c.flowCoverColors.isNotEmpty()) base.add(c.flowCoverColors[0])
-    base.add(c.accent)
-    return if (base.isEmpty()) listOf(c.accent) else base
+    val out = ArrayList<Color>(5)
+    out.add(c.accent)
+    c.flowCoverColors.forEach { if (it != c.accent) out.add(it) }
+    if (out.size < 3) out.add(c.strongIcon)
+    return out.distinct()
 }
 
 private fun buildIridescentPalette(seed: Int): S1Colors {

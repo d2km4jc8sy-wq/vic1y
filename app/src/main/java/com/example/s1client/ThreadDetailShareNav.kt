@@ -306,10 +306,17 @@ internal fun ThreadDetailActivity.goToFloor(floor: Int) {
 internal fun ThreadDetailActivity.onPageMissing(page: Int) {
         // pageInRange：预留槽位后，滑过界会回调到不存在的页码（如第 0 页或超出总页数），
         // 不挡住的话会一直发无意义的请求。
-        if (isLoading || !pageInRange(page)) return
+        if (!pageInRange(page)) return
         // 已经拿到内容就别重复请求（预留槽位会在每次 bind 时回调这里）
         if (pageAdapter.hasPage(page)) return
-        isLoading = true
+        //
+        // ⚠️ 原来这里还有一道 `if (isLoading) return`，是"部分网页永久空白"的根因：
+        //   loadFirstPage 从发请求到纠正页码**全程占着 isLoading**，而 ViewPager2 会在
+        //   首屏就把左右相邻页一起 bind —— 那两次 onPageMissing 全部被挡掉，
+        //   占位 VH 拿不到数据；等用户真正滑过去时它**不会重新 bind**（VH 已存在），
+        //   于是那两页永远空白。
+        // 改成"按页去重"：同一页并发只会请求一次，不再依赖全局 isLoading。
+        if (!missingPages.add(page)) return
         lifecycleScope.launch {
             try {
                 val posts = fetchOnePage(page)
@@ -323,7 +330,7 @@ internal fun ThreadDetailActivity.onPageMissing(page: Int) {
                     pageAdapter.getPage(page)?.let { loadPowers(it) }
                 }
             } finally {
-                isLoading = false
+                missingPages.remove(page)
             }
         }
     }
@@ -371,6 +378,12 @@ internal suspend fun ThreadDetailActivity.fetchOnePage(page: Int): List<Post> = 
                 }
             }
             val posts = r.variables?.postList ?: emptyList()
+            // 投票数据顺手带走：整个帖子的属性，第 1 页的响应里就有，
+            // 不必再为它单独发一次请求（原来 loadPollIfAny() 每次开帖都多发一次）。
+            if (page == 1) {
+                capturedPollSpecial = r.variables?.thread?.special
+                capturedPollJson = r.variables?.specialPoll
+            }
             // 瀑布流封面缓存：服务端只对约 1/4 帖子返回 attachmentImagePreviewList，
             // 用户进详情页看到图就顺手记下来，下次瀑布流这张卡就有封面（零额外请求）
             if (page == 1) {

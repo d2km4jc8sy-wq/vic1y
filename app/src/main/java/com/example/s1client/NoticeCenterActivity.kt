@@ -473,6 +473,11 @@ private fun NoticeRow(item: NoticeItem, showHairline: Boolean = true) {
                         //   · 定位失败可以直接在详情页明确提示，而不是在这里静默丢掉页号、
                         //     让用户看到一个停在第 1 页、什么都不说的界面。
                         val pid = item.pid?.takeIf { it.isNotBlank() }
+                        android.util.Log.d(
+                            "S1Locate",
+                            "click tid=$tid pid=$pid type=${item.type} " +
+                                "targetUrl=${item.targetUrl} content=${item.content?.take(60)}"
+                        )
                         context.startActivity(
                             Intent(context, ThreadDetailActivity::class.java)
                                 .putExtra("tid", tid)

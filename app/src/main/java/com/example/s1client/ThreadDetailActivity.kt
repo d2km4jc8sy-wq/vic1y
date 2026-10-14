@@ -103,6 +103,13 @@ class ThreadDetailActivity : BaseActivity() {
     /** 投票数据（special==1 的投票帖才有）；合并本地已投记录后渲染 */
     private var threadPoll: com.example.s1client.data.model.ThreadPoll? = null
 
+    /**
+     * 第 1 页响应里顺带带回来的投票原始值（fetchOnePage 在 IO 线程写，主线程读并 apply）。
+     * 见 [applyCapturedPoll]：不用再为投票单独发一次请求。
+     */
+    @Volatile internal var capturedPollSpecial: String? = null
+    @Volatile internal var capturedPollJson: com.google.gson.JsonObject? = null
+
     /** 本地阅读进度：进来时恢复、滚动时节流保存（点击帖子回到之前的进度） */
     private var lastProgressSaveAt = 0L
 
@@ -124,6 +131,9 @@ class ThreadDetailActivity : BaseActivity() {
     /** 上次阅读时服务端自报的每页帖数（ppp）。进页面时还没拉到数据，
      *  先用它把"绝对楼层"换算成页，拿到真实 ppp 后再纠正一次。 */
     private var recordedPerPage: Int = 0
+
+    /** 定位"滚 + 校验"的循环：见 [tryScrollToTarget] 里的说明 */
+    private var scrollVerifyJob: kotlinx.coroutines.Job? = null
 
     /**
      * 首屏落定前**禁止写进度**。
@@ -206,6 +216,9 @@ class ThreadDetailActivity : BaseActivity() {
 
     /** pid -> 评分聚合，来自网页版 viewthread HTML 的 ratelog（移动版 API 没有） */
     internal val rateMap = java.util.concurrent.ConcurrentHashMap<String, com.example.s1client.util.RateInfo>()
+    /** 正在补拉的页码（按页去重，替代原来的 isLoading 闸门 —— 见 onPageMissing） */
+    internal val missingPages = java.util.concurrent.ConcurrentHashMap.newKeySet<Int>()
+
     /** 已经抓过评分的页码，避免重复请求。
      *  注意：loadFirstPage / 多个 preloadPage 会并发调用 loadRatings，
      *  这里必须是并发安全集合（普通 mutableSetOf 会 ConcurrentModificationException）。 */
@@ -241,6 +254,10 @@ class ThreadDetailActivity : BaseActivity() {
                 resumeFloor = p.floor
                 resumeFloorPid = p.floorPid
                 recordedPerPage = p.perPage
+                android.util.Log.d(
+                    "S1Progress",
+                    "load tid=$tid floor=${p.floor} page=${p.page} ppp=${p.perPage} pid=${p.floorPid}"
+                )
             }
         }
 
@@ -359,6 +376,8 @@ class ThreadDetailActivity : BaseActivity() {
      */
     private fun tryScrollToTarget(finalAttempt: Boolean = false) {
         if (pendingScrollPid == null && resumeFloor <= 0) return
+        // 正在"滚 + 校验"：别再插一轮，否则 onScrolled 会形成自激
+        if (scrollVerifyJob?.isActive == true) return
         val posts = pageAdapter.getPage(currentPage) ?: return
         if (posts.isEmpty()) return
 
@@ -386,25 +405,46 @@ class ThreadDetailActivity : BaseActivity() {
         }
 
         val listIndex = pageAdapter.listIndexFromPostIndex(currentPage, postIndex)
-        val rv = attachedRv ?: binding.vpPages.getChildAt(0) as? RecyclerView
-        if (rv == null) {
-            // 列表还没 attach，交给 PageAdapter 记住的那一页 RV（onScrolled 里会补）
-            pageAdapter.scrollToPositionInPage(currentPage, listIndex)
-            return
+
+        // ⚠️ 必须用 PageAdapter 按**页**记住的那个 RecyclerView。
+        // 原来退化成 `binding.vpPages.getChildAt(0) as? RecyclerView` —— 那是
+        // **ViewPager2 自己的内部 RecyclerView**（不是某一页的楼层列表），
+        // 于是"定位成功、日志也打了 scroll、屏幕上却没动"。
+        if (!pageAdapter.scrollToPositionInPage(currentPage, listIndex)) {
+            return   // 该页还没绑好：onScrolled / post / postDelayed 三个钩子会再调进来
         }
-        android.util.Log.d(
-            "S1Locate",
-            "scroll page=$currentPage pid=$pid floor=$resumeFloor postIndex=$postIndex listIndex=$listIndex"
-        )
-        pendingScrollPid = null
-        resumeFloor = 0
-        resumeFloorPid = null
-        rv.post {
-            // 瞬时跳转：目标可能在几十楼外，smoothScrollToPosition 会一路掠过（好几秒），
-            // 用户会以为没跳过去。
-            (rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager)
-                ?.scrollToPositionWithOffset(listIndex, 0)
-                ?: rv.scrollToPosition(listIndex)
+
+        // —— 滚一次不够，要"滚 + 校验" ——
+        // 紧随其后到货的 战斗力 / 评分 / 页码 等数据会触发 notifyItemChanged /
+        // notifyDataSetChanged，把 RecyclerView 的锚点又 reset 回顶部 ——
+        // 表现就是"日志说滚了、屏幕上还在开头"。所以这里重复几次，
+        // 直到确认目标行真的停在视口顶端才收工。
+        if (scrollVerifyJob?.isActive == true) return
+        scrollVerifyJob = lifecycleScope.launch {
+            repeat(6) { i ->
+                kotlinx.coroutines.delay(if (i == 0) 260L else 320L)
+                val rv = pageAdapter.rvForPage(currentPage) ?: return@launch
+                val first = (rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager)
+                    ?.findFirstVisibleItemPosition() ?: -1
+                if (first == listIndex) {
+                    android.util.Log.d(
+                        "S1Locate",
+                        "scroll ok page=$currentPage pid=$pid floor=$resumeFloor index=$listIndex " +
+                            "after ${i + 1} checks"
+                    )
+                    pendingScrollPid = null
+                    resumeFloor = 0
+                    resumeFloorPid = null
+                    return@launch
+                }
+                android.util.Log.d("S1Locate", "scroll retry#$i first=$first target=$listIndex")
+                pageAdapter.scrollToPositionInPage(currentPage, listIndex)
+            }
+            // 反复滚不上也要把标志清掉，否则每次 onScrolled 都会再试一遍
+            android.util.Log.w("S1Locate", "scroll give up page=$currentPage target=$listIndex")
+            pendingScrollPid = null
+            resumeFloor = 0
+            resumeFloorPid = null
         }
     }
 
@@ -413,6 +453,35 @@ class ThreadDetailActivity : BaseActivity() {
      * `thread.special == 1` 且 `Variables.special_poll` 存在才是投票帖。
      * 再把本地记住的已投选项合进去（API 不返回这个字段）。
      */
+    /**
+     * 把第 1 页响应里顺带回来的投票数据挂到列表上（主线程）。
+     *
+     * 判定照 s1er 的 parsePoll：`thread.special == 1` 且 `Variables.special_poll` 存在
+     * 才是投票帖；再把本地记住的已投选项合并进去（API 不返回这个字段）。
+     */
+    private fun applyCapturedPoll() {
+        val special = capturedPollSpecial
+        val pollJson = capturedPollJson
+        if (special == null && pollJson == null) return
+        capturedPollSpecial = null
+        capturedPollJson = null
+        android.util.Log.d(
+            "S1Poll",
+            "apply tid=$tid special=$special hasPoll=${pollJson != null} keys=${pollJson?.keySet()}"
+        )
+        if (special?.trim() == "1" && pollJson != null) {
+            val parsed = com.example.s1client.data.model.ThreadPoll
+                .fromGson(pollJson)
+                .withUserVotes(PollVoteRepository.remembered(tid))
+            if (parsed.options.isNotEmpty()) {
+                threadPoll = parsed
+                // 投票卡是**楼层列表里的一行**（第 1 页主楼之后），不再塞顶层卡槽
+                pageAdapter.setPoll(parsed)
+            }
+        }
+    }
+
+    /** 投票成功后重新拉一次（票数/百分比要更新） */
     private fun loadPollIfAny() {
         lifecycleScope.launch {
             try {
@@ -683,6 +752,8 @@ class ThreadDetailActivity : BaseActivity() {
     internal fun loadFirstPage() {
         isLoading = true
         binding.progressBar.visibility = View.VISIBLE
+        // 声明在 try 外：finally 里要用它去释放"首屏页占位"
+        var startPage = 0
         lifecycleScope.launch {
             try {
                 // —— 起始页的判定顺序（照 s1er 的 resolveThreadInitialPage）——
@@ -690,7 +761,7 @@ class ThreadDetailActivity : BaseActivity() {
                 //   ② 带 pid（提醒跳转）→ 先 locatePostPage 定位，失败明确报错
                 //   ③ 本地阅读进度 → 由"绝对楼层 + 上次的每页帖数"推页
                 //   ④ 都没有 → 第 1 页
-                var startPage = intent.getIntExtra("page", 0).takeIf { it >= 1 } ?: 0
+                startPage = intent.getIntExtra("page", 0).takeIf { it >= 1 } ?: 0
 
                 if (startPage == 0 && pendingScrollPid != null) {
                     val pid = pendingScrollPid!!
@@ -703,6 +774,11 @@ class ThreadDetailActivity : BaseActivity() {
                     }
                     startPage = p ?: 1
                 }
+                android.util.Log.d(
+                    "S1Progress",
+                    "start tid=$tid explicit=${intent.getIntExtra("page", 0)} " +
+                        "pid=$pendingScrollPid resumeFloor=$resumeFloor recPpp=$recordedPerPage"
+                )
                 if (startPage == 0) {
                     startPage = if (resumeFloor > 1) {
                         val ppp = if (recordedPerPage > 0) recordedPerPage else PAGE_SIZE
@@ -710,8 +786,16 @@ class ThreadDetailActivity : BaseActivity() {
                     } else 1
                 }
 
+                // 把首屏这一页也占住：ViewPager2 首次绑定会走"占位分支"并回调
+                // onPageMissing(startPage)，不去重的话会并发再拉一次同一页，
+                // 它返回后的 setPage → notifyItemChanged → 重绑，会把刚做好的定位滚动覆盖掉。
+                missingPages.add(startPage)
                 var posts = fetchOnePage(startPage)
                 syncPageSocketsOnMain()
+                // ⚠️ 上一版我重写本函数时把投票的首次加载漏掉了，
+                // 结果是"投票卡完全不显示"（只有投过票才会去拉一次）。
+                // 现在改从第 1 页的响应里顺带取，零额外请求。
+                applyCapturedPoll()
                 if (posts.isEmpty()) { toast("加载失败", S1Notify.Type.ERROR); return@launch }
 
                 // —— 拿到真实 ppp 后纠正一次页码 ——
@@ -747,10 +831,13 @@ class ThreadDetailActivity : BaseActivity() {
                 binding.vpPages.postDelayed({ tryScrollToTarget(finalAttempt = true) }, 600)
 
                 updatePageIndicator()
+                // 从阅读进度恢复到第 N 页时没有第 1 页的响应，兜底单独拉一次投票
+                if (startPage > 1) loadPollIfAny()
                 if (ratingsReady) ratingFetchedPages.add(startPage)
                 pageAdapter.getPage(startPage)?.let { loadPowers(it) }
                 if (hasMore) preloadPage(startPage + 1)
             } finally {
+                missingPages.remove(startPage)
                 binding.progressBar.visibility = View.GONE
                 isLoading = false
             }
@@ -936,6 +1023,7 @@ class ThreadDetailActivity : BaseActivity() {
         val ppp = if (perPage > 0) perPage else PAGE_SIZE
         val floor = (page - 1) * ppp + postIndexInPage + 1
         val pid = pageAdapter.getPage(page)?.getOrNull(postIndexInPage)?.pid
+        android.util.Log.d("S1Progress", "save tid=$tid page=$page floor=$floor ppp=$ppp pid=$pid")
         ReadingProgressStore.get(this).save(
             tid = tid,
             page = page,

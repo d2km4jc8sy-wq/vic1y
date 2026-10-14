@@ -154,6 +154,9 @@ class PageAdapter(
 
     fun hasPage(page: Int): Boolean = pages.get(page) != null
 
+    /** 取某一页（1-based）当前正在用的 RecyclerView（用于定位滚动 + 校验） */
+    fun rvForPage(page: Int): RecyclerView? = liveRvs[page - 1]
+
     /** 取某一页的楼层，参数是**页码（1-based）** */
     fun getPage(page: Int): List<Post>? = pages.get(page)
 
@@ -272,8 +275,13 @@ class PageAdapter(
      * 跳页后让指定页（1-based）的列表滚到某下标。
      * 不依赖「当前可见页」的 attachedRv，避免跳页时 attachedRv 仍指向旧页而导致滚错页、够不到末楼。
      */
-    fun scrollToPositionInPage(page: Int, index: Int) {
-        liveRvs[page - 1]?.scrollToPosition(index)
+    fun scrollToPositionInPage(page: Int, index: Int): Boolean {
+        val rv = liveRvs[page - 1] ?: return false
+        // 用 WithOffset(index, 0)：把目标行顶到视口顶端（scrollToPosition 只是"滚进可见"，
+        // 目标在屏幕下方时看起来就像"没滚")
+        val lm = rv.layoutManager as? LinearLayoutManager
+        if (lm != null) lm.scrollToPositionWithOffset(index, 0) else rv.scrollToPosition(index)
+        return true
     }
 
     override fun getItemCount() = maxPage
