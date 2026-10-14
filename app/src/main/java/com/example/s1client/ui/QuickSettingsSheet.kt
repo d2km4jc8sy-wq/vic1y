@@ -300,24 +300,8 @@ private fun SheetSwitchRow(
                 Text(sub, color = c.textSub, fontSize = 11.5.sp)
             }
         }
-        // 开关：与 SunMoonSwitch 同语义的简化版（弹窗内不需要日月脸动画）
-        Box(
-            modifier = Modifier
-                .width(44.dp)
-                .height(26.dp)
-                .clip(RoundedCornerShape(13.dp))
-                .background(if (checked) c.accent else c.chipBg)
-                .clickable { onCheckedChange(!checked) },
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Box(
-                modifier = Modifier
-                    .padding(start = if (checked) 20.dp else 2.dp)
-                    .size(22.dp)
-                    .clip(CircleShape)
-                    .background(Color.White)
-            )
-        }
+        // 统一用 S1Switch（Material You 形制），与设置页长得完全一样
+        S1Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

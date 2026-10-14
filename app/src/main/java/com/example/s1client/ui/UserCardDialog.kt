@@ -179,12 +179,9 @@ fun showUserCardDialog(
                 return if (t.isEmpty() || t == "0" || t.equals("null", true) || t == "-") "" else t
             }
             val sig = meaningful(p.signature)
-            if (sig.isEmpty()) {
-                cardBinding.tvCardSignature.visibility = View.GONE
-            } else {
-                cardBinding.tvCardSignature.text = sig
-                cardBinding.tvCardSignature.visibility = View.VISIBLE
-            }
+            cardBinding.tvCardSignature.text = sig
+            // 外层 Wrap 一起控制显隐，避免只藏文字却留下一道竖杠
+            cardBinding.llCardSignatureWrap.visibility = if (sig.isEmpty()) View.GONE else View.VISIBLE
             // 头衔：有值时并到用户组那一行后面（如「Lv.N 牛人 · 半肾」）
             val title = meaningful(p.customStatus)
             cardBinding.tvCardGroup.text = listOf(

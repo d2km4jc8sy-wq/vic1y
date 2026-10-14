@@ -38,19 +38,6 @@
                 android:contentDescription="关闭" />
         </FrameLayout>
 
-        <!-- 签名：6 个功能上方，无则隐藏 -->
-        <TextView
-            android:id="@+id/tvCardSignature"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="12sp"
-            android:textColor="?attr/s1TextBody"
-            android:maxLines="2"
-            android:ellipsize="end"
-            android:gravity="center_horizontal"
-            android:layout_marginBottom="10dp"
-            android:visibility="gone" />
-
         <!-- 主区：左列（称号/头像/用户名） + 右列（6 功能 2×3） -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -419,6 +406,37 @@
                 android:layout_height="wrap_content"
                 android:textSize="13sp"
                 android:textColor="?attr/s1TextBody" />
+        </LinearLayout>
+
+        <!-- 个人签名：放在数据列表下方。左侧一竖杠，与「我的」页身份卡的
+             签名写法同源；无签名时整块隐藏（visibility 由代码控制） -->
+        <LinearLayout
+            android:id="@+id/llCardSignatureWrap"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="13dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:visibility="gone">
+
+            <View
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:layout_marginTop="2dp"
+                android:background="?attr/s1Accent" />
+
+            <TextView
+                android:id="@+id/tvCardSignature"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:textSize="13sp"
+                android:textColor="?attr/s1TextBody"
+                android:maxLines="3"
+                android:ellipsize="end"
+                android:lineSpacingExtra="2dp" />
         </LinearLayout>
 
         <!-- 积分明细（动态填充，有数据才显示） -->
