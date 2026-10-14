@@ -169,18 +169,28 @@ fun showUserCardDialog(
             }
             // 弹窗已关闭 → 直接放弃这次更新，避免写已废弃的视图
             if (!dialog.isShowing) return@launch
-            cardBinding.tvCardGroup.text = p.groupName.ifBlank { "--" }
             cardBinding.tvCardFriends.text = p.friends
             cardBinding.tvCardThreads.text = p.threads
             cardBinding.tvCardPosts.text = p.posts
-            // 签名：S1 对无签名者返回 "0"/"null"/"-"，过滤后隐藏
-            val sig = p.customStatus.trim()
-            if (sig.isEmpty() || sig == "0" || sig.equals("null", true) || sig == "-") {
+            // 个人签名 = sightml；自定义头衔 = customStatus，两者别搞混
+            // （此前这里错取了 customStatus，导致卡片显示的是头衔、真签名一直空着）
+            fun meaningful(raw: String): String {
+                val t = raw.trim()
+                return if (t.isEmpty() || t == "0" || t.equals("null", true) || t == "-") "" else t
+            }
+            val sig = meaningful(p.signature)
+            if (sig.isEmpty()) {
                 cardBinding.tvCardSignature.visibility = View.GONE
             } else {
                 cardBinding.tvCardSignature.text = sig
                 cardBinding.tvCardSignature.visibility = View.VISIBLE
             }
+            // 头衔：有值时并到用户组那一行后面（如「Lv.N 牛人 · 半肾」）
+            val title = meaningful(p.customStatus)
+            cardBinding.tvCardGroup.text = listOf(
+                p.groupName.ifBlank { "--" },
+                title.ifEmpty { null }
+            ).filterNotNull().joinToString("  ·  ")
             cardBinding.tvCardCredits.text = p.credits
             cardBinding.tvCardRegDate.text = p.regDate
             // 原 ProfileActivity 搬入字段
