@@ -54,6 +54,7 @@ import com.example.s1client.ui.design.BgColor
 import com.example.s1client.ui.design.BgColorBottom
 import com.example.s1client.ui.design.GlassBar
 import com.example.s1client.ui.design.HeartRed
+import com.example.s1client.ui.design.ChipBg
 import com.example.s1client.ui.design.TextMain
 import com.example.s1client.ui.design.TextSub
 import com.example.s1client.util.PmParser
@@ -306,14 +307,16 @@ fun ReminderCenterScreen(onBack: () -> Unit) {
                 items.isEmpty() -> Text(if (loggedIn) "暂无提醒" else "请先登录", color = TextSub, fontSize = 14.sp)
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 8.dp)
+                    contentPadding = PaddingValues(vertical = 0.dp)
                 ) {
                     items(items, key = { it.key }) { row ->
+                        val last = row.key == items.last().key
                         when (row) {
-                            is ReminderRowItem.Notice -> NoticeRow(row.data)
+                            is ReminderRowItem.Notice -> NoticeRow(row.data, showHairline = !last)
                             is ReminderRowItem.Pm -> PmRow(
                                 item = row.data,
-                                isSeen = row.isSeen || row.data.touid in localSeenPm
+                                isSeen = row.isSeen || row.data.touid in localSeenPm,
+                                showHairline = !last
                             ) {
                                 localSeenPm = localSeenPm + row.data.touid
                                 ReminderUnread.markPmSeen(context, row.data.touid)
@@ -422,9 +425,22 @@ private fun FeedChips(
     }
 }
 
+/** 行底发丝线：让列表成为"连续信息流"，行不再浮在空白里（对标 ThreadRow 的分割线） */
 @Composable
-private fun NoticeRow(item: NoticeItem) {
+private fun RowHairline() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 60.dp)
+            .height(1.dp)
+            .background(ChipBg)
+    )
+}
+
+@Composable
+private fun NoticeRow(item: NoticeItem, showHairline: Boolean = true) {
     val context = LocalContext.current
+    Column {
     val typeColor = when (item.type) {
         "reply" -> Color(0xFFFF6B6B)
         "at" -> Color(0xFF4F80F2)
@@ -449,7 +465,7 @@ private fun NoticeRow(item: NoticeItem) {
                     S1Notify.show(context, "该提醒暂不支持跳转")
                 }
             }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 13.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Top
     ) {
         // 未读竖条：服务端 new=1 才亮（HTML 兜底路径拿不到，恒为透明）
@@ -466,7 +482,7 @@ private fun NoticeRow(item: NoticeItem) {
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(40.dp)
+                .size(34.dp)
                 .clip(CircleShape)
                 .background(TextSub.copy(alpha = 0.15f))
         )
@@ -511,11 +527,19 @@ private fun NoticeRow(item: NoticeItem) {
             }
         }
     }
+    if (showHairline) RowHairline()
+    }
 }
 
 @Composable
-private fun PmRow(item: PmListItem, isSeen: Boolean, onSeen: () -> Unit) {
+private fun PmRow(
+    item: PmListItem,
+    isSeen: Boolean,
+    showHairline: Boolean = true,
+    onSeen: () -> Unit
+) {
     val context = LocalContext.current
+    Column {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -527,12 +551,12 @@ private fun PmRow(item: PmListItem, isSeen: Boolean, onSeen: () -> Unit) {
                         .putExtra("username", item.username)
                 )
             }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 13.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(42.dp)
+                .size(34.dp)
                 .clip(CircleShape)
                 .background(Brush.linearGradient(listOf(Color(0xFFE94A72), Color(0xFFF48FB1))))
         ) {
@@ -580,5 +604,7 @@ private fun PmRow(item: PmListItem, isSeen: Boolean, onSeen: () -> Unit) {
                 overflow = TextOverflow.Ellipsis
             )
         }
+    }
+    if (showHairline) RowHairline()
     }
 }
