@@ -2,10 +2,28 @@ package com.example.s1client
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import android.content.Intent
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.example.s1client.data.model.UserPostItem
+import com.example.s1client.data.store.FavoriteManager
+import com.example.s1client.ui.FavoriteRow
+import com.example.s1client.ui.design.AccentPink
+import com.example.s1client.util.FavoriteJsonParser
+import com.example.s1client.util.S1Notify
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -153,29 +171,10 @@ private fun FavoritesScreen(
                     embedded = true
                 )
 
-                // 我的收藏 · 主题（服务端）
-                segment == 0 -> UserPostListScreen(
-                    title = "我的收藏",
-                    emptyText = emptyText,
-                    // 页面不返回每条收藏的作者 —— 不传身份，避免整表显示成自己
-                    authorId = null,
-                    authorName = null,
-                    onBack = onBack,
-                    load = {
-                        if (!loggedIn) {
-                            emptyList()
-                        } else {
-                            UserPostParser.parseFavoriteList(
-                                RetrofitClient.fetchHtml(
-                                    "https://stage1st.com/2b/home.php?mod=space" +
-                                        "&do=favorite&view=me"
-                                )
-                            )
-                        }
-                    },
-                    reloadTick = reloadTick,
-                    showAuthor = false,
-                    embedded = true
+                // 我的收藏 · 主题（服务端）—— 用指标块版式，与帖子列表刻意区分
+                segment == 0 -> FavoriteThreadList(
+                    loggedIn = loggedIn,
+                    reloadTick = reloadTick
                 )
 
                 // 我的收藏 · 回复（本地楼层收藏快照）
@@ -259,6 +258,155 @@ private fun TopBar(title: String, onBack: () -> Unit) {
             modifier = Modifier
                 .align(Alignment.Center)
                 .padding(horizontal = 56.dp)
+        )
+    }
+}
+
+/**
+ * 「我的收藏 · 主题」列表。
+ *
+ * 数据源走 mobile API `module=myfavthread`（JSON）而不是 HTML 抓取 ——
+ * HTML 那条路拿不到版块名 / 浏览数 / 回复数 / 分页（所以旧版「💬 0」是假的）。
+ *
+ * 三个能力：
+ *   · 触底自动加载下一页（count/perpage 驱动）；
+ *   · 长按卡片 = 取消收藏（带确认弹窗，符合宪法「破坏性操作要确认」）；
+ *   · 点版块名 = 跳首页并切到该版块（fid 由 ForumDataCache 按名称反查）。
+ */
+@Composable
+private fun FavoriteThreadList(loggedIn: Boolean, reloadTick: Int) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var items by remember { mutableStateOf<List<UserPostItem>>(emptyList()) }
+    var page by remember { mutableIntStateOf(1) }
+    var totalPages by remember { mutableIntStateOf(1) }
+    var loading by remember { mutableStateOf(true) }
+    var loadingMore by remember { mutableStateOf(false) }
+    var removing by remember { mutableStateOf<UserPostItem?>(null) }
+
+    LaunchedEffect(reloadTick, page) {
+        if (!loggedIn) {
+            loading = false
+            return@LaunchedEffect
+        }
+        val first = page == 1
+        if (first) loading = true else loadingMore = true
+        try {
+            val resp = RetrofitClient.api.getFavoriteThreadList(page = page)
+            if (FavoriteJsonParser.isLoginRequired(resp)) throw IllegalStateException("请先登录后查看收藏")
+            val p = FavoriteJsonParser.parse(resp, page)
+            totalPages = p.totalPages
+            items = if (first) p.items else items + p.items
+        } catch (e: Exception) {
+            S1Notify.show(context, e.message ?: "加载失败", S1Notify.Type.ERROR)
+            if (first) items = emptyList()
+        }
+        loading = false
+        loadingMore = false
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        when {
+            loading -> CircularProgressIndicator(
+                color = AccentPink,
+                modifier = Modifier.align(Alignment.Center)
+            )
+
+            items.isEmpty() -> Text(
+                if (loggedIn) "暂无收藏" else "请先登录",
+                color = TextSub,
+                fontSize = 14.sp,
+                modifier = Modifier.align(Alignment.Center)
+            )
+
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 13.dp, top = 5.dp, end = 13.dp, bottom = 21.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(items, key = { it.tid }) { item ->
+                    FavoriteRow(
+                        item = item,
+                        onClick = {
+                            context.startActivity(
+                                Intent(context, ThreadDetailActivity::class.java).apply {
+                                    putExtra("tid", item.tid)
+                                    putExtra("subject", item.subject)
+                                }
+                            )
+                        },
+                        onForumClick = {
+                            val fid = ForumDataCache.getAllForums()
+                                .firstOrNull { it.name == item.forum }?.fid
+                            if (fid.isNullOrBlank()) {
+                                S1Notify.show(context, "未找到该版块", S1Notify.Type.INFO)
+                            } else {
+                                context.startActivity(
+                                    Intent(context, MainActivity::class.java).apply {
+                                        putExtra("open_fid", fid)
+                                        addFlags(
+                                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                                                Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                        )
+                                    }
+                                )
+                            }
+                        },
+                        onLongPress = { removing = item }
+                    )
+                }
+
+                // 触底加载下一页
+                if (page < totalPages) {
+                    item {
+                        LaunchedEffect(page) {
+                            if (!loadingMore && !loading) page++
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 13.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = AccentPink,
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 长按 = 取消收藏（破坏性操作，确认弹窗；用 toggle 即可，已收藏时会切成取消）
+    removing?.let { target ->
+        AlertDialog(
+            onDismissRequest = { removing = null },
+            title = { Text("取消收藏", color = TextMain) },
+            text = {
+                Text(
+                    "不再收藏「${target.subject.take(40)}」？",
+                    color = TextSub
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    removing = null
+                    scope.launch {
+                        val r = FavoriteManager.toggleFavorite(target.tid)
+                        if (r.failed) {
+                            S1Notify.show(context, "取消失败：${r.message}", S1Notify.Type.ERROR)
+                        } else {
+                            items = items.filterNot { it.tid == target.tid }
+                            S1Notify.show(context, "已取消收藏", S1Notify.Type.SUCCESS)
+                        }
+                    }
+                }) { Text("取消收藏", color = Color(0xFFFF3B30)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { removing = null }) { Text("保留", color = TextSub) }
+            }
         )
     }
 }
