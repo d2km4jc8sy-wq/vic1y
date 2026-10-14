@@ -35,7 +35,9 @@ object JsonParser {
         val lastVisit = getString(obj, "lastvisit", "lastvisitdate") ?: ""
         val lastActivity = getString(obj, "lastactivity", "lastactivedate") ?: ""
         val lastPost = getString(obj, "lastpost", "lastpostdate") ?: ""
-        val customStatus = getString(obj, "customstatus", "status") ?: ""
+        // customstatus 是**自定义头衔**，signature（sightml）才是**个人签名** —— 两者别搞混
+        val customStatus = getString(obj, "customstatus") ?: ""
+        val signature = getString(obj, "sightml") ?: ""
         val credits = getString(obj, "credits", "credit") ?: ""
 
         val creditItems = parseExtCredits(extCredits, obj)
@@ -48,7 +50,8 @@ object JsonParser {
             lastVisit = formatTimestamp(lastVisit),
             lastActivity = formatTimestamp(lastActivity),
             lastPost = formatTimestamp(lastPost),
-            customStatus = customStatus, credits = credits, creditItems = creditItems
+            customStatus = customStatus, signature = signature,
+            credits = credits, creditItems = creditItems
         )
     }
 

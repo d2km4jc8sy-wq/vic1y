@@ -88,6 +88,7 @@ import com.example.s1client.data.store.BlockedAuthorManager
 import com.example.s1client.data.store.HiddenPostManager
 import com.example.s1client.util.ReminderUnread
 import com.example.s1client.util.S1Notify
+import com.example.s1client.util.JoinDays
 import com.example.s1client.util.ThemeManager
 import com.example.s1client.util.applyS1Theme
 import com.example.s1client.util.setupS1EdgeToEdge
@@ -198,11 +199,15 @@ fun MineScreen(onFinish: () -> Unit) {
                 }
                 friendCount = parsed.friends.trim().toIntOrNull() ?: 0
                 if (parsed.regDate.isNotBlank()) ForumDataCache.memberRegDate = parsed.regDate
-                if (parsed.customStatus.isNotBlank()) {
-                    val raw = parsed.customStatus.trim()
-                    if (raw != "0" && raw != "null" && raw != "-")
-                        ForumDataCache.memberSignature = raw
+                // 头衔与签名分开存：customstatus 是头衔，sightml 才是签名
+                fun usable(raw: String): String {
+                    val t = raw.trim()
+                    return if (t.isEmpty() || t == "0" || t == "null" || t == "-") "" else t
                 }
+                val titleVal = usable(parsed.customStatus)
+                if (titleVal.isNotEmpty()) ForumDataCache.groupTitle = titleVal
+                val sigVal = usable(parsed.signature)
+                if (sigVal.isNotEmpty()) ForumDataCache.memberSignature = sigVal
                 ForumDataCache.saveUser()
                 refresh++
             } catch (_: Exception) {
@@ -220,7 +225,7 @@ fun MineScreen(onFinish: () -> Unit) {
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
             // 卡片间距统一交给父布局：所有功能卡之间恒定 12dp，不再贴死也不再忽大忽小
-            verticalArrangement = Arrangement.spacedBy(13.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             TopBar(
                 onBack = onFinish,
@@ -325,7 +330,7 @@ fun MineScreen(onFinish: () -> Unit) {
                                         Intent(context, ReadHistoryActivity::class.java)
                                     )
                                 }
-                                .padding(horizontal = 13.dp, vertical = 13.dp),
+                                .padding(horizontal = 13.dp, vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
@@ -475,7 +480,7 @@ fun MineScreen(onFinish: () -> Unit) {
                         color = c.textSub.copy(alpha = 0.85f),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 22.dp, bottom = 28.dp),
+                            .padding(top = 13.dp, bottom = 21.dp),
                         textAlign = TextAlign.Center
                     )
                 } else {
@@ -693,7 +698,7 @@ private fun MenuGroup(items: List<MenuItem>) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = item.onClick)
-                    .padding(horizontal = 13.dp, vertical = 13.dp),
+                    .padding(horizontal = 13.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box {
@@ -821,10 +826,10 @@ private fun UserCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 13.dp, vertical = 13.dp)
+            .padding(horizontal = 13.dp, vertical = 9.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(c.glassCard)
-            .padding(16.dp)
+            .padding(13.dp)
     ) {
         Row(
             verticalAlignment = Alignment.Top,
@@ -832,8 +837,8 @@ private fun UserCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(13.dp))
                     .background(c.accent.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -847,7 +852,7 @@ private fun UserCard(
                         AsyncImage(
                             model = url, contentDescription = null,
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp))
+                            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(13.dp))
                         )
                     } else {
                         Text(
@@ -864,23 +869,61 @@ private fun UserCard(
             }
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f).padding(end = 30.dp)) {
+                // —— 用户名 —— 
                 Text(username, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = c.textMain)
-                val sub = buildString {
-                    if (loggedIn) {
-                        append("UID: ").append(uid)
-                        if (groupTitle.isNotBlank()) append("  ·  ").append(groupTitle)
-                    } else append("点击登录")
-                }
-                Text(sub, fontSize = 11.sp, color = c.textSub, modifier = Modifier.padding(top = 3.dp))
 
-                if (signature.isNotBlank()) {
-                    val rawSig = signature.trim()
-                    val sig = if (rawSig == "0" || rawSig == "null" || rawSig == "-") "" else rawSig
-                    if (sig.isNotBlank()) {
+                // —— UID 行（头衔已移出，单独成标签）——
+                Text(
+                    if (loggedIn) "UID: $uid" else "点击登录",
+                    fontSize = 11.sp, color = c.textSub, modifier = Modifier.padding(top = 3.dp)
+                )
+
+                val sigText = signature.trim()
+                val titleText = groupTitle.trim()
+
+                // —— 自定义头衔：弱化成小标签（次要信息，不与签名抢戏）——
+                if (titleText.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 5.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(c.chipBg)
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
+                        Text(titleText, fontSize = 10.5.sp, color = c.textSub, maxLines = 1)
+                    }
+                }
+
+                // —— 个人签名：用户自己写的话，正文级呈现 ——
+                if (sigText.isNotEmpty()) {
+                    Text(
+                        sigText,
+                        fontSize = 13.sp,
+                        color = c.textMain.copy(alpha = 0.85f),
+                        lineHeight = 18.sp,
+                        maxLines = 2,
+                        modifier = Modifier.padding(top = 5.dp)
+                    )
+                }
+
+                // —— 欢迎语：最弱的一层，压在卡片最底 ——
+                val days = JoinDays.daysSince(regDate) ?: 0
+                if (loggedIn && days > 0) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 5.dp)
+                    ) {
                         Text(
-                            sig, fontSize = 12.sp, color = c.textMain.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(top = 8.dp),
-                            maxLines = 2, lineHeight = 16.sp
+                            "欢迎加入 stage1 ",
+                            fontSize = 10.5.sp, color = c.textSub.copy(alpha = 0.75f)
+                        )
+                        Text(
+                            "$days",
+                            fontSize = 10.5.sp, color = c.accent, fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            " 天",
+                            fontSize = 10.5.sp, color = c.textSub.copy(alpha = 0.75f)
                         )
                     }
                 }

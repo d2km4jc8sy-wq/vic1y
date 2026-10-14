@@ -26,7 +26,13 @@ data class ProfileData(
     val lastVisit: String = "",
     val lastActivity: String = "",
     val lastPost: String = "",
+    /** 自定义头衔（Discuz 的 customstatus，对应网页版「自定义头衔」那一栏） */
     val customStatus: String = "",
+    /**
+     * 真正的个人签名 —— Discuz 存在 `sightml`，对应网页版「个人签名」栏。
+     * 注意：不是 customStatus（那是头衔），此前一直取错导致签名不显示。
+     */
+    val signature: String = "",
     val credits: String = "",
     val creditItems: List<CreditItem> = emptyList()
 )
