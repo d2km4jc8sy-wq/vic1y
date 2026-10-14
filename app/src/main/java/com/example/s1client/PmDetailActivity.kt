@@ -1,6 +1,12 @@
 package com.example.s1client
 
 import android.graphics.drawable.GradientDrawable
+import android.content.Context
+import android.content.Intent
+import com.example.s1client.util.PmRichText
+import com.example.s1client.util.S1Notify
+import com.example.s1client.ui.showUserCardDialog
+import androidx.activity.ComponentActivity
 import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -171,7 +177,30 @@ class PmMessageAdapter(
     override fun onBindViewHolder(holder: VH, position: Int) {
         val m = items[position]
         val b = holder.binding
-        b.tvMessage.text = stripBbcode(m.message)
+        // 私信正文是 HTML 原文，表情/@/链接本来都在（PmParser 取的 msgEl.html()），
+        // 这里做富文本渲染而不是剥成纯文本
+        b.tvMessage.text = PmRichText.render(
+            m.message,
+            onImageClick = { src ->
+                val url = if (src.startsWith("http")) src else "https://stage1st.com/2b/$src"
+                runCatching {
+                    b.root.context.startActivity(
+                        Intent(b.root.context, ImageViewerActivity::class.java).apply {
+                            putStringArrayListExtra("urls", arrayListOf(url))
+                            putExtra("position", 0)
+                        }
+                    )
+                }.onFailure {
+                    S1Notify.show(b.root.context, "图片无法打开", S1Notify.Type.INFO)
+                }
+            },
+            onUserClick = { targetUid ->
+                (b.root.context as? ComponentActivity)?.let { act ->
+                    runCatching { showUserCardDialog(act, targetUid, ForumDataCache.memberUsername) }
+                }
+            }
+        )
+        b.tvMessage.movementMethod = android.text.method.LinkMovementMethod.getInstance()
         b.tvAuthor.text = if (m.isSelf) "我" else touName
         b.tvTime.text = m.dateline
 
