@@ -27,3 +27,4 @@ adb_devices.txt
 preview/
 # APK 签名附属
 *.idsig
+shot_*.png
