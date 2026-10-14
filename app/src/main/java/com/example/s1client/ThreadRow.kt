@@ -97,7 +97,7 @@ fun ThreadRow(
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
         border = BorderStroke(1.dp, GlassLine)
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
+        Column(modifier = Modifier.padding(21.dp)) {
 
             // ===== 第一行：分类竖条标签 + 标题 + [图] =====
             Row(verticalAlignment = Alignment.Top) {
@@ -105,7 +105,7 @@ fun ThreadRow(
                     Box(
                         modifier = Modifier
                             // 13dp 的竖条在 26sp 的行高里居中
-                            .padding(top = 6.dp)
+                            .padding(top = 5.dp)
                             .size(width = 3.dp, height = 13.dp)
                             .clip(RoundedCornerShape(2.dp))
                             .background(accent)
@@ -146,7 +146,7 @@ fun ThreadRow(
                             .padding(top = 3.dp)
                             .clip(RoundedCornerShape(4.dp))
                             .background(AccentCyan.copy(alpha = 0.16f))
-                            .padding(horizontal = 6.dp, vertical = 1.dp)
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
                     )
                 }
             }
@@ -160,7 +160,7 @@ fun ThreadRow(
                     lineHeight = 21.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 10.dp)
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
 
@@ -168,7 +168,7 @@ fun ThreadRow(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp)
+                    .padding(top = 13.dp)
                     .height(1.dp)
                     .background(ChipBg)
             )
@@ -223,7 +223,7 @@ fun ThreadRow(
                         )
                     }
 
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(8.dp))
                 }
                 Text(
                     text = timeText,
@@ -252,7 +252,7 @@ fun ThreadRow(
                     tint = TextSub,
                     modifier = Modifier.size(15.dp)
                 )
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(3.dp))
                 Text(
                     text = replies.toString(),
                     color = TextSub,
