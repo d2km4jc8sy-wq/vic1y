@@ -178,7 +178,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Brush.horizontalGradient(c.headerGradient))
-                .padding(top = 48.dp, bottom = 10.dp, start = 4.dp, end = 8.dp),
+                .padding(top = 48.dp, bottom = 8.dp, start = 3.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onFinish) {
@@ -189,7 +189,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 )
             }
             Text(
-                "设置", fontSize = 17.sp, fontWeight = FontWeight.Bold,
+                "设置", fontSize = 16.sp, fontWeight = FontWeight.Bold,
                 color = if (c.isDark) c.textMain else Color.White,
                 modifier = Modifier.weight(1f)
             )
@@ -209,7 +209,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
 
             // 文字大小：行内 chips 即点即换（与快捷弹窗同一形态）
             SettingRow(Icons.Outlined.FormatSize, "文字大小") {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     SettingStore.FONT_SIZES.forEach { size ->
                         val selected = size == fontSize
                         Text(
@@ -226,7 +226,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
                                     fontSize = size
                                     SettingStore.setFontSize(context, size)
                                 }
-                                .padding(horizontal = 9.dp, vertical = 4.dp)
+                                .padding(horizontal = 9.dp, vertical = 3.dp)
                         )
                     }
                 }
@@ -342,7 +342,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
         // ═══ 退出登录（确认弹窗式——长按式被手指遮挡确认文案，用户拍板回滚，宪法 11）═══
         if (loggedIn) {
             GroupTitle("账号")
-            Box(Modifier.padding(horizontal = 14.dp)) {
+            Box(Modifier.padding(horizontal = 13.dp)) {
                 SettingRow(
                     Icons.Outlined.Logout, "退出登录",
                     onClick = { showLogoutConfirm = true }
@@ -453,7 +453,7 @@ private fun GroupTitle(title: String) {
         title,
         fontSize = 12.sp, fontWeight = FontWeight.Bold,
         color = LocalS1Colors.current.textSub,
-        modifier = Modifier.padding(start = 26.dp, top = 18.dp, bottom = 6.dp)
+        modifier = Modifier.padding(start = 26.dp, top = 21.dp, bottom = 5.dp)
     )
 }
 
@@ -465,7 +465,7 @@ private fun Group(content: @Composable () -> Unit) {
     FlowGlassCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp),
+            .padding(horizontal = 13.dp),
         rotating = false,
         soft = true
     ) {
@@ -581,12 +581,12 @@ private fun TailEditDialog(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
                         .background(c.chipBg)
-                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                        .padding(horizontal = 13.dp, vertical = 8.dp)
                 )
                 Text(
                     "${text.length}/20",
                     fontSize = 10.sp, color = c.textSub,
-                    modifier = Modifier.align(Alignment.End).padding(top = 4.dp)
+                    modifier = Modifier.align(Alignment.End).padding(top = 3.dp)
                 )
                 Spacer(Modifier.height(12.dp))
                 Row(

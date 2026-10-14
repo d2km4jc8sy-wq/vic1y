@@ -391,7 +391,7 @@ fun PostEditorScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { showForumPicker = true }
-                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                    .padding(horizontal = 21.dp, vertical = 13.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("版面", color = TextSub, fontSize = 14.sp)
@@ -419,7 +419,7 @@ fun PostEditorScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 6.dp)
+                    .padding(horizontal = 21.dp, vertical = 5.dp)
             ) {
                 CircularProgressIndicator(
                     color = AccentPink,
@@ -433,7 +433,7 @@ fun PostEditorScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 18.dp),
+                        .padding(horizontal = 21.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -441,7 +441,7 @@ fun PostEditorScreen(
                         text = if (typeRequired) "分类*" else "分类",
                         color = TextSub,
                         fontSize = 13.sp,
-                        modifier = Modifier.padding(end = 4.dp)
+                        modifier = Modifier.padding(end = 3.dp)
                     )
                     types.forEach { (id, name) ->
                         val selected = id == typeId
@@ -460,7 +460,7 @@ fun PostEditorScreen(
                                     RoundedCornerShape(99.dp)
                                 )
                                 .clickable { typeId = if (selected) "" else id }
-                                .padding(horizontal = 12.dp, vertical = 5.dp)
+                                .padding(horizontal = 13.dp, vertical = 5.dp)
                         )
                     }
                 }
@@ -473,14 +473,14 @@ fun PostEditorScreen(
             value = subject,
             onValueChange = { subject = it },
             singleLine = true,
-            textStyle = TextStyle(color = TextMain, fontSize = 17.sp, fontWeight = FontWeight.Bold),
+            textStyle = TextStyle(color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold),
             cursorBrush = SolidColor(AccentPink),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp)
+                .padding(horizontal = 21.dp)
         ) {
             if (subject.isEmpty()) {
-                Text("标题", color = TextSub, fontSize = 17.sp)
+                Text("标题", color = TextSub, fontSize = 16.sp)
             }
             it()
         }
@@ -488,7 +488,7 @@ fun PostEditorScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 12.dp)
+                .padding(horizontal = 21.dp, vertical = 13.dp)
                 .height(1.dp)
                 .background(GlassFloatLine)
         )
@@ -516,7 +516,7 @@ fun PostEditorScreen(
                     modifier = Modifier
                         .clip(RoundedCornerShape(99.dp))
                         .clickable(enabled = !posting) { onBack() }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .padding(horizontal = 13.dp, vertical = 8.dp)
                 )
                 Spacer(Modifier.width(6.dp))
                 Box(
@@ -524,7 +524,7 @@ fun PostEditorScreen(
                         .clip(RoundedCornerShape(99.dp))
                         .background(if (posting) GlassFloat else AccentPink)
                         .clickable(enabled = !posting) { submit() }
-                        .padding(horizontal = 16.dp, vertical = 7.dp)
+                        .padding(horizontal = 13.dp, vertical = 7.dp)
                 ) {
                     if (posting) {
                         CircularProgressIndicator(
@@ -545,7 +545,7 @@ fun PostEditorScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(horizontal = 18.dp)
+                .padding(horizontal = 21.dp)
         )
     }
 }
@@ -565,13 +565,13 @@ private fun ForumChooseDialog(
             border = androidx.compose.foundation.BorderStroke(1.dp, GlassDialogLine),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(vertical = 16.dp)) {
+            Column(modifier = Modifier.padding(vertical = 13.dp)) {
                 Text(
                     text = "选择版面",
                     color = TextMain,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 20.dp)
+                    modifier = Modifier.padding(horizontal = 21.dp)
                 )
                 Spacer(Modifier.height(12.dp))
                 if (forums.isEmpty()) {
@@ -579,7 +579,7 @@ private fun ForumChooseDialog(
                         text = "版面列表加载中…",
                         color = TextSub,
                         fontSize = 13.sp,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 21.dp, vertical = 8.dp)
                     )
                 } else {
                     LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
@@ -590,7 +590,7 @@ private fun ForumChooseDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { onPick(tab) }
-                                    .padding(horizontal = 20.dp, vertical = 13.dp),
+                                    .padding(horizontal = 21.dp, vertical = 13.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
