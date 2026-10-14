@@ -145,6 +145,18 @@ interface S1Api {
         @Query("page") page: Int = 1
     ): NoticeListResponse
 
+    // ===== 收藏列表（Mobile API JSON） =====
+    // 基准：s1er `_getFavoriteThreadListJson`（module=myfavthread）。
+    // 相比 HTML 抓取，这条接口多给版块名(fname)、浏览(views)、回复(replies)
+    // 与分页(count/perpage)；接口不返回作者（HTML 路径同样没有）。
+    @GET("api/mobile/index.php")
+    suspend fun getFavoriteThreadList(
+        @Query("mobile") mobile: String = "no",
+        @Query("version") version: Int = 4,
+        @Query("module") module: String = "myfavthread",
+        @Query("page") page: Int = 1
+    ): FavoriteListResponse
+
     // ============ 每日签到 ============
     // Discuz「每日签到」插件，GET 且带 formhash；**会产生服务端写入**，
     // 所以只在用户明确点击时调用一次，失败不自动重试。
