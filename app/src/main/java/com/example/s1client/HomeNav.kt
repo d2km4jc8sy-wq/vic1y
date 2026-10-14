@@ -240,7 +240,7 @@ fun XhsNavItem(
                 tickHaptic(navCtx)
                 onClick()
             }
-            .padding(horizontal = 12.dp, vertical = 2.dp)
+            .padding(horizontal = 13.dp, vertical = 2.dp)
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
             Icon(
@@ -257,7 +257,7 @@ fun XhsNavItem(
                         .offset(x = 9.dp, y = (-5).dp)
                         .height(15.dp)
                         .background(HeartRed, RoundedCornerShape(99.dp))
-                        .padding(horizontal = 4.dp),
+                        .padding(horizontal = 3.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(

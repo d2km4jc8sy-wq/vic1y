@@ -220,7 +220,7 @@ fun MineScreen(onFinish: () -> Unit) {
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
             // 卡片间距统一交给父布局：所有功能卡之间恒定 12dp，不再贴死也不再忽大忽小
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(13.dp)
         ) {
             TopBar(
                 onBack = onFinish,
@@ -245,7 +245,7 @@ fun MineScreen(onFinish: () -> Unit) {
                 Box(Modifier.graphicsLayer { scaleX = heroScale.value; scaleY = heroScale.value }) {
                     // 控件 10：幻彩主题下身份卡接管旋转流光边框；其他主题保持静态玻璃
                     FlowGlassCard(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp),
                         rotating = false,
                         soft = true
                     ) {
@@ -293,7 +293,7 @@ fun MineScreen(onFinish: () -> Unit) {
                 StaggerIn(1) {
                     // 控件 10：静态柔彩配角框（一页只留身份卡一个旋转）
                     FlowGlassCard(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp),
                         rotating = false,
                         soft = true
                     ) {
@@ -309,7 +309,7 @@ fun MineScreen(onFinish: () -> Unit) {
                 // —— 主题 + 签到 合并玻璃卡（控件 10：静态柔彩；签到成功彩边快转一圈庆祝）——
                 StaggerIn(2) {
                     FlowGlassCard(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp),
                         rotating = false,
                         soft = true,
                         pulseKey = confettiKey
@@ -325,7 +325,7 @@ fun MineScreen(onFinish: () -> Unit) {
                                         Intent(context, ReadHistoryActivity::class.java)
                                     )
                                 }
-                                .padding(horizontal = 16.dp, vertical = 13.dp),
+                                .padding(horizontal = 13.dp, vertical = 13.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
@@ -356,7 +356,7 @@ fun MineScreen(onFinish: () -> Unit) {
 
                         Box(
                             Modifier
-                                .padding(horizontal = 16.dp)
+                                .padding(horizontal = 13.dp)
                                 .height(1.dp)
                                 .fillMaxWidth()
                                 .background(Color.White.copy(alpha = 0.07f))
@@ -403,13 +403,13 @@ fun MineScreen(onFinish: () -> Unit) {
                 StaggerIn(3) {
                     // 清单组也纳入静态柔彩框（用户拍板：幻彩里所有功能模块统一）
                     FlowGlassCard(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp),
                         rotating = false,
                         soft = true
                     ) {
                     MenuGroup(
                         listOf(
-                            MenuItem("帖子收藏", Icons.Outlined.StarOutline) {
+                            MenuItem("我的收藏", Icons.Outlined.StarOutline) {
                                 context.startActivity(Intent(context, FavoriteListActivity::class.java))
                             },
                             MenuItem("帖子", Icons.Outlined.Description) {
@@ -433,7 +433,7 @@ fun MineScreen(onFinish: () -> Unit) {
                 // 原组名「论坛查阅」有歧义（容易被理解成查帖子/收藏/发帖记录）。
                 StaggerIn(4) {
                     FlowGlassCard(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp),
                         rotating = false,
                         soft = true
                     ) {
@@ -604,7 +604,7 @@ private fun SocialTripod(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // 提醒：走提醒中心（本身已包含私信轨），未读＝通知+私信合计
         TripodCell(
@@ -693,7 +693,7 @@ private fun MenuGroup(items: List<MenuItem>) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = item.onClick)
-                    .padding(horizontal = 16.dp, vertical = 11.dp),
+                    .padding(horizontal = 13.dp, vertical = 13.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box {
@@ -732,7 +732,7 @@ private fun MenuGroup(items: List<MenuItem>) {
             if (i < items.lastIndex) {
                 Box(
                     Modifier
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = 13.dp)
                         .height(1.dp)
                         .fillMaxWidth()
                         .background(Color.White.copy(alpha = 0.06f))
@@ -782,7 +782,7 @@ private fun TopBar(onBack: () -> Unit, onGearClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .background(Brush.horizontalGradient(c.headerGradient))
-            .padding(top = 48.dp, bottom = 10.dp, start = 4.dp, end = 8.dp),
+            .padding(top = 48.dp, bottom = 8.dp, start = 3.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onBack) {
@@ -821,7 +821,7 @@ private fun UserCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .padding(horizontal = 13.dp, vertical = 13.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(c.glassCard)
             .padding(16.dp)
@@ -879,7 +879,7 @@ private fun UserCard(
                     if (sig.isNotBlank()) {
                         Text(
                             sig, fontSize = 12.sp, color = c.textMain.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(top = 7.dp),
+                            modifier = Modifier.padding(top = 8.dp),
                             maxLines = 2, lineHeight = 16.sp
                         )
                     }

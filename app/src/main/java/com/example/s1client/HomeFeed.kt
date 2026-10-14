@@ -314,7 +314,7 @@ fun ForumFeedPage(
                                 .fillMaxWidth()
                                 // 实体玻璃底：筛选条浮在卡片上时文字不再与内容打架
                                 .background(GlassBar)
-                                .padding(top = TopBarHeight, bottom = 4.dp)
+                                .padding(top = TopBarHeight, bottom = 3.dp)
                                 // 手势隔离：触摸分类条期间通知外层禁用切版手势，
                                 // 横滑分类时永远只滑分类，不会连带切换版面
                                 .pointerInput(Unit) {
@@ -328,7 +328,7 @@ fun ForumFeedPage(
                                     }
                                 },
                             contentPadding = PaddingValues(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(18.dp),
+                            horizontalArrangement = Arrangement.spacedBy(21.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             // 细节 30：热帖筛选项（永远第一位，本地计算不额外请求）
@@ -339,7 +339,7 @@ fun ForumFeedPage(
                                         .clip(RoundedCornerShape(99.dp))
                                         .background(if (hotOnly) AccentPink else GlassFloat)
                                         .clickable { hotOnly = !hotOnly }
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                        .padding(horizontal = 13.dp, vertical = 5.dp)
                                 ) {
                                     Text(
                                         text = "热帖",
@@ -362,7 +362,7 @@ fun ForumFeedPage(
                                                 onSelectType(id)
                                                 onRequestCollapse()
                                             }
-                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                            .padding(horizontal = 13.dp, vertical = 5.dp)
                                     ) {
                                         Text(
                                             text = name,
@@ -438,7 +438,7 @@ fun ForumFeedPage(
                         },
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = TopBarHeight, end = 16.dp)
+                            .padding(top = TopBarHeight, end = 13.dp)
                             .size(width = 60.dp, height = 260.dp)
                             .zIndex(2f)
                     )
@@ -490,7 +490,7 @@ fun ForumFeedPage(
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(CardBg)
                                 .border(1.dp, GlassFloatLine, RoundedCornerShape(14.dp))
-                                .padding(10.dp)
+                                .padding(8.dp)
                         ) {
                             Column(modifier = Modifier.width(162.dp)) {
                                 Text(
@@ -506,8 +506,8 @@ fun ForumFeedPage(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .heightIn(max = 320.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                        verticalArrangement = Arrangement.spacedBy(5.dp)
                                     ) {
                                         items(state.totalPages) { p0 ->
                                             val p = p0 + 1
@@ -521,7 +521,7 @@ fun ForumFeedPage(
                                                         showPagePicker = false
                                                         onJumpPage(p)
                                                     }
-                                                    .padding(vertical = 7.dp),
+                                                    .padding(vertical = 8.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
@@ -569,7 +569,7 @@ fun ForumFeedPage(
                                             showPagePicker = true
                                         }
                                     )
-                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    .padding(horizontal = 13.dp, vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -587,7 +587,7 @@ fun ForumFeedPage(
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
-                                .padding(bottom = 16.dp),
+                                .padding(bottom = 13.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator(color = HeartRed, modifier = Modifier.size(24.dp))
@@ -599,7 +599,7 @@ fun ForumFeedPage(
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
-                                .padding(bottom = 16.dp),
+                                .padding(bottom = 13.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -685,7 +685,7 @@ fun XhsCategoryTabs(
                 state = listState,
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(start = 14.dp, end = 10.dp, top = 9.dp, bottom = 9.dp),
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                horizontalArrangement = Arrangement.spacedBy(21.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 items(tabs.size) { index ->
@@ -737,7 +737,7 @@ fun XhsCategoryTabs(
                 )
                 Box(
                     modifier = Modifier
-                        .padding(start = 2.dp, end = 12.dp)
+                        .padding(start = 2.dp, end = 13.dp)
                         .size(30.dp)
                         .clip(CircleShape)
                         .background(Color.Transparent)
@@ -826,10 +826,10 @@ private fun SkeletonCard(brush: Brush, height: Dp) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(10.dp)
+                    .padding(8.dp)
                     .background(brush, RoundedCornerShape(10.dp))
             )
-            Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 12.dp)) {
+            Column(modifier = Modifier.padding(start = 13.dp, end = 13.dp, top = 8.dp, bottom = 13.dp)) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.92f)
