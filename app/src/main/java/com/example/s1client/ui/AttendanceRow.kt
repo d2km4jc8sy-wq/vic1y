@@ -70,12 +70,12 @@ fun AttendanceContent(
 ) {
     val c = LocalS1Colors.current
 
+    // 精简：不再堆"连续 + 累计"，只保留最能驱动回访的连签天数
     val subtitle = when {
         !loggedIn -> "登录后可签到"
         signingIn -> "签到中…"
-        signedToday && streak > 0 -> "已连续签到 $streak 天 · 累计 $total 天"
-        signedToday -> "今日已签到 · 累计 $total 天"
-        streak > 0 -> "已连续 $streak 天"
+        streak > 0 -> "已连续签到 $streak 天"
+        signedToday -> "今日已签到"
         else -> "每日签到"
     }
 
@@ -130,98 +130,37 @@ fun AttendanceContent(
             )
         }
 
-        // —— 本周进度 + 里程碑徽章（登录后显示）——
+        // —— 本周进度：去掉发光与徽章，只留一条安静的细线（视觉弱化，信息保留在副标题里）
         if (loggedIn) {
-            Spacer(Modifier.height(10.dp))
-            WeekProgressBar(progress = streak.coerceAtMost(7) / 7f, streak = streak)
             Spacer(Modifier.height(8.dp))
-            MilestoneBadges(streak = streak)
+            WeekProgressBar(progress = streak.coerceAtMost(7) / 7f, streak = streak)
         }
     }
 }
 
-/** 细流光进度条：填充 + 表面高光持续扫过 */
+/**
+ * 本周连签进度条：**静态细线，无发光**（视觉弱化）。
+ * 原设计是"填充 + 高光持续扫过"的流光条，天天闪会钝化；
+ * 发光已挪到「里程碑达成那一刻」，这里只负责安静地表示进度。
+ */
 @Composable
 private fun WeekProgressBar(progress: Float, streak: Int) {
     val c = LocalS1Colors.current
-    val transition = rememberInfiniteTransition(label = "attSweep")
-    val sweep by transition.animateFloat(
-        initialValue = -1f,
-        targetValue = 2f,
-        animationSpec = infiniteRepeatable(tween(1300, easing = LinearEasing)),
-        label = "sweep"
-    )
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(5.dp)
+            .height(3.dp)
             .clip(RoundedCornerShape(99.dp))
-            .background(c.accent.copy(alpha = 0.12f))
+            .background(c.accent.copy(alpha = 0.10f))
     ) {
         if (streak > 0) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(progress.coerceIn(0.04f, 1f))
-                    .height(5.dp)
+                    .height(3.dp)
                     .clip(RoundedCornerShape(99.dp))
-                    .background(c.accent)
-                    .drawBehind {
-                        // 表面高光带，随 sweep 左右扫过
-                        val band = size.width * 0.4f
-                        val x = sweep * size.width
-                        drawRect(
-                            brush = Brush.linearGradient(
-                                listOf(
-                                    androidx.compose.ui.graphics.Color.Transparent,
-                                    androidx.compose.ui.graphics.Color.White.copy(alpha = 0.65f),
-                                    androidx.compose.ui.graphics.Color.Transparent
-                                ),
-                                start = androidx.compose.ui.geometry.Offset(x, 0f),
-                                end = androidx.compose.ui.geometry.Offset(x + band, 0f)
-                            )
-                        )
-                    }
+                    .background(c.accent.copy(alpha = 0.75f))
             )
         }
-    }
-}
-
-/** 连签里程碑徽章：7 / 30 / 100 天，达到即点亮（渐变实心），未达为灰底（细节 24） */
-@Composable
-private fun MilestoneBadges(streak: Int) {
-    val c = LocalS1Colors.current
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        listOf(7, 30, 100).forEachIndexed { i, milestone ->
-            val lit = streak >= milestone
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(
-                        if (lit) androidx.compose.ui.graphics.SolidColor(c.accent)
-                        else androidx.compose.ui.graphics.SolidColor(c.chipBg)
-                    )
-                    .padding(horizontal = 7.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    "连签$milestone",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (lit) androidx.compose.ui.graphics.Color.White else c.textSub.copy(alpha = 0.7f)
-                )
-            }
-            if (i < 2) Spacer(Modifier.width(6.dp))
-        }
-        Spacer(Modifier.width(6.dp))
-        Text(
-            when {
-                streak >= 100 -> "签到传说"
-                streak >= 30 -> "签到大师"
-                streak >= 7 -> "签到新手"
-                else -> "继续加油"
-            },
-            fontSize = 9.5.sp,
-            color = c.textSub.copy(alpha = 0.8f)
-        )
     }
 }

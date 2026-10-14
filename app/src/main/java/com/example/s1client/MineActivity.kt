@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
@@ -783,32 +784,44 @@ private fun Chevron() {
 @Composable
 private fun TopBar(onBack: () -> Unit, onGearClick: () -> Unit) {
     val c = LocalS1Colors.current
-    Row(
+    // 顶栏背景 headerGradient 在浅色主题下本身是浅色系，文字必须用深色；
+    // 原来写死"浅色主题用白字"会导致标题与返回箭头在浅底上彻底看不见。
+    // 这里统一跟随主题文字色，背景深浅两种情况都不会失配。
+    // 与首页顶栏**完全同构**：同一个 TopBarHeight 常量、内容垂直居中、左右对称。
+    // 原来这里写死 padding(top = 48.dp) 且 start/end 不对称（3dp/8dp），
+    // 而首页是 height(TopBarHeight) —— 两套算法导致侧滑切换时顶栏错位。
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(Brush.horizontalGradient(c.headerGradient))
-            .padding(top = 48.dp, bottom = 8.dp, start = 3.dp, end = 8.dp),
+            .statusBarsPadding()
+    ) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(TopBarHeight),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onBack) {
             Icon(
                 Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null,
-                tint = if (c.isDark) c.textMain else Color.White,
+                tint = c.textMain,
                 modifier = Modifier.size(22.dp)
             )
         }
         Text(
             "我的", fontSize = 17.sp, fontWeight = FontWeight.Bold,
-            color = if (c.isDark) c.textMain else Color.White,
+            color = c.textMain,
             modifier = Modifier.weight(1f)
         )
         IconButton(onClick = onGearClick) {
             Icon(
                 painterResource(R.drawable.ic_settings), contentDescription = null,
-                tint = if (c.isDark) c.textMain else Color.White,
+                tint = c.textMain,
                 modifier = Modifier.size(22.dp)
             )
         }
+    }
     }
 }
 
@@ -867,64 +880,63 @@ private fun UserCard(
                     )
                 }
             }
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(11.dp))
             Column(modifier = Modifier.weight(1f).padding(end = 30.dp)) {
-                // —— 用户名 —— 
-                Text(username, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = c.textMain)
 
-                // —— UID 行（头衔已移出，单独成标签）——
-                Text(
-                    if (loggedIn) "UID: $uid" else "点击登录",
-                    fontSize = 11.sp, color = c.textSub, modifier = Modifier.padding(top = 3.dp)
-                )
+                // ——— 第一组：名字与 UID 同行（名字是主角、编号是附属）———
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(username, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = c.textMain,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false))
+                    if (loggedIn && uid.isNotBlank()) {
+                        Text(
+                            uid, fontSize = 11.sp, color = c.textSub,
+                            modifier = Modifier.padding(start = 7.dp), maxLines = 1
+                        )
+                    } else if (!loggedIn) {
+                        Text(
+                            "点击登录", fontSize = 11.sp, color = c.textSub,
+                            modifier = Modifier.padding(start = 7.dp)
+                        )
+                    }
+                }
 
                 val sigText = signature.trim()
                 val titleText = groupTitle.trim()
 
-                // —— 自定义头衔：弱化成小标签（次要信息，不与签名抢戏）——
-                if (titleText.isNotEmpty()) {
+                // ——— 第二组：头衔（标签·弱）与签名（正文·重）同行 ———
+                if (titleText.isNotEmpty() || sigText.isNotEmpty()) {
                     Box(
                         modifier = Modifier
-                            .padding(top = 5.dp)
-                            .clip(RoundedCornerShape(5.dp))
+                            .padding(top = 9.dp)
+                            .fillMaxWidth()
+                            .height(1.dp)
                             .background(c.chipBg)
-                            .padding(horizontal = 5.dp, vertical = 1.dp)
-                    ) {
-                        Text(titleText, fontSize = 10.5.sp, color = c.textSub, maxLines = 1)
-                    }
-                }
-
-                // —— 个人签名：用户自己写的话，正文级呈现 ——
-                if (sigText.isNotEmpty()) {
-                    Text(
-                        sigText,
-                        fontSize = 13.sp,
-                        color = c.textMain.copy(alpha = 0.85f),
-                        lineHeight = 18.sp,
-                        maxLines = 2,
-                        modifier = Modifier.padding(top = 5.dp)
                     )
-                }
-
-                // —— 欢迎语：最弱的一层，压在卡片最底 ——
-                val days = JoinDays.daysSince(regDate) ?: 0
-                if (loggedIn && days > 0) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(top = 5.dp)
+                        modifier = Modifier.padding(top = 9.dp)
                     ) {
-                        Text(
-                            "欢迎加入 stage1 ",
-                            fontSize = 10.5.sp, color = c.textSub.copy(alpha = 0.75f)
-                        )
-                        Text(
-                            "$days",
-                            fontSize = 10.5.sp, color = c.accent, fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            " 天",
-                            fontSize = 10.5.sp, color = c.textSub.copy(alpha = 0.75f)
-                        )
+                        if (titleText.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(c.accent.copy(alpha = 0.13f))
+                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    titleText, fontSize = 10.5.sp, color = c.accent,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                        if (sigText.isNotEmpty()) {
+                            Text(
+                                sigText, fontSize = 13.sp, color = c.textMain.copy(alpha = 0.88f),
+                                lineHeight = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(start = if (titleText.isNotEmpty()) 8.dp else 0.dp)
+                            )
+                        }
                     }
                 }
             }
