@@ -80,7 +80,6 @@ import com.example.s1client.ui.ThemePickerSheet
 import com.example.s1client.ui.ThemeSwatch
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.ui.theme.S1Theme
-import com.example.s1client.data.store.BlockedAuthorManager
 import com.example.s1client.data.store.DataSaverStore
 import com.example.s1client.util.Haptic
 import com.example.s1client.data.store.ReadHistoryStore
@@ -97,12 +96,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * 设置中心（对标 s1er settings_screen 十组架构，去重后七组）：
+ * 设置中心（对标 s1er settings_screen，R6 去重后六组）：
  *   外观（主题/文字大小/字体） · 交互（震动/省流） · 发帖（小尾巴） ·
- *   屏蔽（版块屏蔽/用户黑名单） · 数据管理（清历史/清图片缓存/重置外观） · 关于 · 退出登录
+ *   数据管理（清历史/清图片缓存/重置外观） · 关于 · 退出登录
  *
- * 与既有功能去重：QuickActionsSheet 的省流/清缓存/关于/退出登录全部并入本页，
- * 「我的」页齿轮只进本页；黑名单管理从原快捷弹窗移入「屏蔽」组。
+ * R6 定位：**本页是全集**，头像右侧「快捷」弹窗只是其中 5 项（主题 / 文字大小 /
+ * 字体 / 交互震动 / 省流）的快捷副本。之前这几项只在弹窗里、设置页找不到，
+ * 「全部设置」名不副实、产生割裂感 —— 现在补回外观组，两边口径一致。
+ *
+ * 取消的组：屏蔽（版块屏蔽＝用户未做该功能、瀑布流也不需要；
+ * 用户黑名单＝已上移到「我的」页三功能格，此处不重复）。
  *
  * 图标铁律：单线条 outlined 图标，统一 strongIcon 色。
  */
@@ -130,8 +133,6 @@ fun SettingsScreen(onFinish: () -> Unit) {
     var showThemeSheet by remember { mutableStateOf(false) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
-    var showForumBlock by remember { mutableStateOf(false) }
-    var showBlockedAuthors by remember { mutableStateOf(false) }
     var showClearHistory by remember { mutableStateOf(false) }
     var showResetAppearance by remember { mutableStateOf(false) }
     var showTailEdit by remember { mutableStateOf(false) }
@@ -142,8 +143,25 @@ fun SettingsScreen(onFinish: () -> Unit) {
     var hapticEnabled by remember { mutableStateOf(Haptic.enabled) }
     val dataSaver by DataSaverStore.enabled.collectAsState()
     var tail by remember { mutableStateOf(SettingStore.postTail(context)) }
-    var hiddenForums by remember { mutableStateOf(SettingStore.hiddenForumIds(context)) }
     var cacheText by remember { mutableStateOf("计算中…") }
+
+    // —— 外观（R6 回归：让「全部设置」真的是全集，弹窗只是快捷副本）——
+    var fontSize by remember { mutableIntStateOf(SettingStore.fontSize(context)) }
+    var fontName by remember { mutableStateOf(SettingStore.customFontName(context)) }
+    val fontPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            SettingStore.importFont(context, uri)
+                .onSuccess {
+                    fontName = it
+                    S1Notify.show(context, "字体已导入：$it", S1Notify.Type.SUCCESS)
+                }
+                .onFailure {
+                    S1Notify.show(context, it.message ?: "导入失败", S1Notify.Type.ERROR)
+                }
+        }
+    }
 
     LaunchedEffect(Unit) {
         cacheText = withContext(Dispatchers.IO) { formatSize(dirSize(imageCacheDir(context))) }
@@ -179,6 +197,48 @@ fun SettingsScreen(onFinish: () -> Unit) {
         }
 
         // ═══ 外观 ═══
+        // R6 回归：这三项原本只存在于头像右侧的「快捷」弹窗，设置页里找不到，
+        // 于是「全部设置」名不副实、产生割裂感。这里补回，设置页＝全集，弹窗＝快捷副本。
+        GroupTitle("外观")
+        Group {
+            SettingRow(
+                Icons.Outlined.Palette, "主题",
+                sub = com.example.s1client.ui.themeNameShort(),
+                onClick = { showThemeSheet = true }
+            ) { Chevron() }
+
+            // 文字大小：行内 chips 即点即换（与快捷弹窗同一形态）
+            SettingRow(Icons.Outlined.FormatSize, "文字大小") {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SettingStore.FONT_SIZES.forEach { size ->
+                        val selected = size == fontSize
+                        Text(
+                            text = when (size) { 12 -> "小"; 14 -> "标准"; 16 -> "大"; else -> "超大" },
+                            fontSize = 11.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (selected) Color.White else c.textSub,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (selected) c.accent.copy(alpha = 0.85f) else c.chipBg
+                                )
+                                .clickable {
+                                    fontSize = size
+                                    SettingStore.setFontSize(context, size)
+                                }
+                                .padding(horizontal = 9.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            SettingRow(
+                Icons.Outlined.TextFields, "字体",
+                sub = fontName ?: "默认字体",
+                onClick = { fontPicker.launch(arrayOf("*/*")) }
+            ) { Chevron() }
+        }
+
         // ═══ 交互 ═══
         GroupTitle("交互")
         Group {
@@ -232,26 +292,9 @@ fun SettingsScreen(onFinish: () -> Unit) {
             }
         }
 
-        // ═══ 屏蔽 ═══
-        GroupTitle("屏蔽")
-        Group {
-            SettingRow(
-                Icons.Outlined.Block, "版块屏蔽",
-                sub = if (hiddenForums.isEmpty()) "不屏蔽任何版块" else "已屏蔽 ${hiddenForums.size} 个版块",
-                onClick = { showForumBlock = true }
-            ) {
-                Chevron()
-            }
-
-            val blockedCount = BlockedAuthorManager.allBlocked().size
-            SettingRow(
-                Icons.Outlined.Person, "用户黑名单",
-                sub = if (blockedCount == 0) "未屏蔽任何用户" else "已屏蔽 $blockedCount 位用户",
-                onClick = { showBlockedAuthors = true }
-            ) {
-                Chevron()
-            }
-        }
+        // R6：「屏蔽」组整体取消 ——
+        //   · 版块屏蔽：用户未做该功能、瀑布流也不需要；
+        //   · 用户黑名单：已上移到「我的」页三功能格，此处不再重复。
 
         // ═══ 数据管理 ═══
         GroupTitle("数据管理")
@@ -382,36 +425,6 @@ fun SettingsScreen(onFinish: () -> Unit) {
             }
         )
     }
-    if (showForumBlock) {
-        ForumBlockDialog(
-            hidden = hiddenForums,
-            onDismiss = { showForumBlock = false },
-            onToggle = { fid, hide ->
-                SettingStore.setForumHidden(context, fid, hide)
-                hiddenForums = SettingStore.hiddenForumIds(context)
-            },
-            onClearAll = {
-                SettingStore.clearHiddenForums(context)
-                hiddenForums = emptySet()
-                S1Notify.show(context, "已清空版块屏蔽", S1Notify.Type.SUCCESS)
-            }
-        )
-    }
-    if (showBlockedAuthors) {
-        BlockedAuthorsDialog(
-            blocked = BlockedAuthorManager.allBlocked(),
-            onDismiss = { showBlockedAuthors = false },
-            onUnblock = { uid ->
-                BlockedAuthorManager.unblock(uid)
-                S1Notify.show(context, "已取消屏蔽", S1Notify.Type.SUCCESS)
-            },
-            onClearAll = {
-                BlockedAuthorManager.allBlocked().keys.toList()
-                    .forEach { BlockedAuthorManager.unblock(it) }
-                S1Notify.show(context, "已清空黑名单", S1Notify.Type.SUCCESS)
-            }
-        )
-    }
     if (showTailEdit) {
         TailEditDialog(
             initial = tail.custom,
@@ -534,86 +547,6 @@ private fun tailPreview(custom: String, showDevice: Boolean): String {
     }
 }
 
-// ————————— 版块屏蔽弹窗（对标 s1er hidden_forums_screen：直接隐藏非置灰） —————————
-
-@Composable
-private fun ForumBlockDialog(
-    hidden: Set<String>,
-    onDismiss: () -> Unit,
-    onToggle: (String, Boolean) -> Unit,
-    onClearAll: () -> Unit
-) {
-    val c = LocalS1Colors.current
-    val forums = remember { ForumDataCache.getAllForums().filter { !it.fid.isNullOrBlank() } }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("版块屏蔽（${hidden.size}）", color = c.textMain) },
-        text = {
-            if (forums.isEmpty()) {
-                Text("论坛数据尚未加载，请先进入一次首页", color = c.textSub, fontSize = 14.sp)
-            } else {
-                LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
-                    items(forums.size) { i ->
-                        val forum = forums[i]
-                        val fid = forum.fid ?: return@items
-                        val isHidden = hidden.contains(fid)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onToggle(fid, !isHidden) }
-                                .padding(vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // 单线条复选框
-                            Box(
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .clip(RoundedCornerShape(5.dp))
-                                    .border(
-                                        1.5.dp,
-                                        if (isHidden) c.accent else c.textSub.copy(alpha = 0.4f),
-                                        RoundedCornerShape(5.dp)
-                                    )
-                                    .background(if (isHidden) c.accent.copy(alpha = 0.15f) else Color.Transparent),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (isHidden) {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = c.accent, modifier = Modifier.size(12.dp)
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.width(10.dp))
-                            Text(
-                                forum.name ?: fid,
-                                fontSize = 13.sp,
-                                color = if (isHidden) c.textSub else c.textMain,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                if (isHidden) "已屏蔽" else "显示中",
-                                fontSize = 10.5.sp,
-                                color = if (isHidden) c.accent else c.textSub.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            if (hidden.isNotEmpty()) {
-                TextButton(onClick = onClearAll) { Text("全部恢复", color = Color(0xFFFF3B30)) }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("关闭", color = c.textSub) }
-        }
-    )
-}
 
 // ————————— 小尾巴前缀编辑弹窗 —————————
 

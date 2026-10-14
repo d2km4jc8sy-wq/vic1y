@@ -35,11 +35,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Drafts
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.outlined.Tune
@@ -84,9 +82,8 @@ import com.example.s1client.ui.showUserCardDialog
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.data.store.AttendanceManager
-import com.example.s1client.data.store.DraftStore
+import com.example.s1client.data.store.BlockedAuthorManager
 import com.example.s1client.data.store.HiddenPostManager
-import com.example.s1client.data.store.PostBookmarkManager
 import com.example.s1client.util.ReminderUnread
 import com.example.s1client.util.S1Notify
 import com.example.s1client.util.ThemeManager
@@ -117,12 +114,18 @@ class MineActivity : ComponentActivity() {
 // 「我的」页 · A 秩序玻璃版 · R5 层级化
 //
 // 结构（自上而下，一级只放高频）：
-//   顶栏 → 身份卡(右侧按钮→二级弹窗) → 数据条(楼层收藏/草稿/历史) →
-//   浏览历史+签到 合并卡 → 内容组(帖子收藏/版块收藏/帖子/回复) →
-//   互动消息(私信/好友) → 论坛查阅(小黑屋/抹布贴) → 加入日期
+//   顶栏 → 身份卡(右侧按钮→二级弹窗) → 三功能格(私信/好友/黑名单，均带数字) →
+//   浏览历史+签到 合并卡 → 内容组(帖子收藏/帖子/回复) →
+//   论坛查阅(小黑屋/抹布贴) → 加入日期
+//
+// R6 变更（用户拍板）：
+//   ① 原数据条（楼层收藏/草稿/历史）是低频纯数字入口，换成三功能格，各带数量；
+//   ② 删「版块收藏」——用户未做该功能、瀑布流也不需要，整条数据链路一并移除；
+//   ③ 删「互动消息」组——私信/好友已上移到三功能格，此处不再重复；
+//   ④ 黑名单管理自设置页上移到三功能格。
 //
 // 二级 A：头像右侧弹窗 QuickSettingsSheet（主题/文字大小/字体/交互震动/省流）
-// 二级 B：设置页 SettingsActivity（齿轮进入，七组 14 项原样保留）
+// 二级 B：设置页 SettingsActivity（齿轮进入；外观组回归成全集，屏蔽组取消）
 //
 // 落地细节：25 stagger 入场 · 23 签到彩带 · 24 里程碑徽章(在 AttendanceContent 内) ·
 //           28 私信未读呼吸点 · 齿轮 → SettingsActivity
@@ -153,13 +156,13 @@ fun MineScreen(onFinish: () -> Unit) {
     // ===== 私信未读数（细节 28 呼吸点）=====
     var unreadCount by remember { mutableIntStateOf(0) }
 
-    // ===== 数据条：楼层收藏 / 草稿 / 历史（真实本地数据）=====
-    var bookmarkCount by remember { mutableIntStateOf(0) }
-    var draftCount by remember { mutableIntStateOf(0) }
-    var historyCount by remember { mutableIntStateOf(0) }
+    // ===== 三功能格（R6：替换原「楼层收藏/草稿/历史」数据条）=====
+    // 私信 = 未读数（本地）· 好友 = profile 的 friends 字段（服务端）· 黑名单 = 本地已屏蔽数
+    var friendCount by remember { mutableIntStateOf(0) }
+    var blockedCount by remember { mutableIntStateOf(0) }
 
-    // ===== 版块收藏数（R5 内容组第 4 行，服务端数据）=====
-    var forumFavCount by remember { mutableIntStateOf(0) }
+    // ===== 黑名单管理弹窗（R6：自设置页上移到一级页）=====
+    var showBlockedAuthors by remember { mutableStateOf(false) }
 
     LaunchedEffect(loggedIn, refresh) {
         if (loggedIn) {
@@ -167,12 +170,7 @@ fun MineScreen(onFinish: () -> Unit) {
         } else {
             unreadCount = 0
         }
-        bookmarkCount = runCatching { PostBookmarkManager.getAll().size }.getOrDefault(0)
-        draftCount = runCatching { DraftStore.listDrafts(context).size }.getOrDefault(0)
-        historyCount = runCatching { ReadHistoryStore.list(context).size }.getOrDefault(0)
-        forumFavCount = if (loggedIn) {
-            runCatching { com.example.s1client.data.store.ForumFavoriteStore.fetchAll(ForumDataCache.memberUid).size }.getOrDefault(0)
-        } else 0
+        blockedCount = runCatching { BlockedAuthorManager.allBlocked().size }.getOrDefault(0)
     }
 
     val username = remember {
@@ -181,11 +179,11 @@ fun MineScreen(onFinish: () -> Unit) {
     }
     val uid = remember { ForumDataCache.memberUid }
 
-    // 自动拉一次自己的 profile，缓存 regDate + customStatus
+    // 自动拉一次自己的 profile：缓存 regDate + customStatus，并取好友数（三功能格用）
+    // R6 说明：原来只在 regDate/signature 为空时才拉；现在每次进页都拉一次，
+    // 否则「好友」格的数字会一直是首次缓存值（加/删好友后不更新）。profile 请求很轻。
     LaunchedEffect(uid) {
-        if (ForumDataCache.isLoggedIn() &&
-            (ForumDataCache.memberRegDate.isBlank() || ForumDataCache.memberSignature.isBlank())
-        ) {
+        if (ForumDataCache.isLoggedIn()) {
             try {
                 val resp = withContext(Dispatchers.IO) {
                     RetrofitClient.api.getProfile(uid = uid)
@@ -196,6 +194,7 @@ fun MineScreen(onFinish: () -> Unit) {
                         variables?.space, variables?.extCredits, uid
                     )
                 }
+                friendCount = parsed.friends.trim().toIntOrNull() ?: 0
                 if (parsed.regDate.isNotBlank()) ForumDataCache.memberRegDate = parsed.regDate
                 if (parsed.customStatus.isNotBlank()) {
                     val raw = parsed.customStatus.trim()
@@ -286,18 +285,23 @@ fun MineScreen(onFinish: () -> Unit) {
             }
 
             if (loggedIn) {
-                // —— 数据条（真实本地数：楼层收藏 / 草稿 / 历史）——
+                // —— 三功能格（R6：替换原数据条）——
+                // 原「楼层收藏/草稿/历史」是纯数字、低频，占位不划算；
+                // 换成高频的人际入口：私信（未读角标）/ 好友（好友数）/ 黑名单（已屏蔽数）。
                 StaggerIn(1) {
-                    // 控件 10：数据条 = 静态柔彩配角框（一页只留身份卡一个旋转）
+                    // 控件 10：静态柔彩配角框（一页只留身份卡一个旋转）
                     FlowGlassCard(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
                         rotating = false,
                         soft = true
                     ) {
-                        StatsStrip(
-                            bookmarkCount = bookmarkCount,
-                            draftCount = draftCount,
-                            historyCount = historyCount
+                        SocialTripod(
+                            unreadCount = unreadCount,
+                            friendCount = friendCount,
+                            blockedCount = blockedCount,
+                            uid = uid,
+                            username = username,
+                            onBlocked = { showBlockedAuthors = true }
                         )
                     }
                 }
@@ -395,9 +399,8 @@ fun MineScreen(onFinish: () -> Unit) {
                     }
                 }
 
-                // —— 内容组（R5：版块收藏入列，收藏双轨对齐 s1er）——
+                // —— 内容组（R6：删掉「版块收藏」——用户未做该功能，瀑布流也不需要）——
                 StaggerIn(3) {
-                    // 去重（用户拍板）：历史/楼层收藏/草稿已在顶部数据条，清单只留不重复项
                     // 清单组也纳入静态柔彩框（用户拍板：幻彩里所有功能模块统一）
                     FlowGlassCard(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
@@ -408,12 +411,6 @@ fun MineScreen(onFinish: () -> Unit) {
                         listOf(
                             MenuItem("帖子收藏", Icons.Outlined.StarOutline) {
                                 context.startActivity(Intent(context, FavoriteListActivity::class.java))
-                            },
-                            MenuItem(
-                                "版块收藏", Icons.Outlined.Layers,
-                                value = if (forumFavCount > 0) "$forumFavCount" else null
-                            ) {
-                                context.startActivity(Intent(context, ForumFavoriteListActivity::class.java))
                             },
                             MenuItem("帖子", Icons.Outlined.Description) {
                                 context.startActivity(Intent(context, UserThreadListActivity::class.java).apply {
@@ -430,30 +427,9 @@ fun MineScreen(onFinish: () -> Unit) {
                     }
                 }
 
-                // —— 互动消息（R5：自原社交组拆出，天活级）——
-                StaggerIn(4) {
-                    FlowGlassCard(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
-                        rotating = false,
-                        soft = true
-                    ) {
-                    MenuGroup(
-                        listOf(
-                            MenuItem("私信", Icons.Outlined.MailOutline, badge = unreadCount) {
-                                context.startActivity(Intent(context, PmListActivity::class.java))
-                            },
-                            MenuItem("好友", iconRes = R.drawable.ic_account_circle) {
-                                context.startActivity(Intent(context, FriendListActivity::class.java).apply {
-                                    putExtra("uid", uid); putExtra("username", username)
-                                })
-                            }
-                        )
-                    )
-                    }
-                }
-
                 // —— 论坛查阅（R5：自原社交组拆出，月活级低频）——
-                StaggerIn(5) {
+                // R6：「互动消息」组已取消——私信/好友上移到顶部三功能格，此处不再重复。
+                StaggerIn(4) {
                     FlowGlassCard(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
                         rotating = false,
@@ -532,6 +508,24 @@ fun MineScreen(onFinish: () -> Unit) {
     if (showHiddenPostsDialog) {
         HiddenPostsDialog(onDismiss = { showHiddenPostsDialog = false })
     }
+    // R6：黑名单管理自设置页上移到一级页三功能格（复用 HomeDialogs 的现成弹窗）
+    if (showBlockedAuthors) {
+        BlockedAuthorsDialog(
+            blocked = BlockedAuthorManager.allBlocked(),
+            onDismiss = { showBlockedAuthors = false },
+            onUnblock = { blockedUid ->
+                BlockedAuthorManager.unblock(blockedUid)
+                blockedCount = BlockedAuthorManager.allBlocked().size
+                S1Notify.show(context, "已取消屏蔽", S1Notify.Type.SUCCESS)
+            },
+            onClearAll = {
+                BlockedAuthorManager.allBlocked().keys.toList()
+                    .forEach { BlockedAuthorManager.unblock(it) }
+                blockedCount = 0
+                S1Notify.show(context, "已清空黑名单", S1Notify.Type.SUCCESS)
+            }
+        )
+    }
 }
 
 // ————————— 控件 10 包装：幻彩主题用旋转流光边框卡，其他主题用静态玻璃卡 —————————
@@ -581,42 +575,112 @@ private fun StaggerIn(index: Int, content: @Composable () -> Unit) {
     ) { content() }
 }
 
-// ————————— 数据条：三个玻璃格 —————————
+// ————————— 三功能格：私信 / 好友 / 黑名单（各带数字）———————
 
+/**
+ * 三功能格（R6）：私信 / 好友 / 黑名单，取代原「楼层收藏 / 草稿 / 历史」数据条。
+ *
+ * 用户拍板：① 那三个是纯数字的低频入口，占位不划算，换成真正会点的人际入口；
+ * ② 每格都带数字 —— 私信＝未读数、好友＝好友数、黑名单＝已屏蔽数。
+ */
 @Composable
-private fun StatsStrip(bookmarkCount: Int, draftCount: Int, historyCount: Int) {
-    val c = LocalS1Colors.current
+private fun SocialTripod(
+    unreadCount: Int,
+    friendCount: Int,
+    blockedCount: Int,
+    uid: String,
+    username: String,
+    onBlocked: () -> Unit
+) {
     val context = LocalContext.current
-    // R3：三个数据卡全部可点（用户拍板：显示数目就必须能进去）
-    val targets = listOf(
-        "楼层收藏" to { context.startActivity(Intent(context, FavoriteListActivity::class.java)) },
-        "草稿" to { context.startActivity(Intent(context, DraftListActivity::class.java)) },
-        "历史" to { context.startActivity(Intent(context, ReadHistoryActivity::class.java)) }
-    )
-    val counts = listOf(bookmarkCount, draftCount, historyCount)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        targets.forEachIndexed { idx, (label, onClick) ->
-            Column(
+        TripodCell(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Outlined.MailOutline,
+            count = unreadCount,
+            label = "私信",
+            showDot = unreadCount > 0
+        ) { context.startActivity(Intent(context, PmListActivity::class.java)) }
+
+        TripodCell(
+            modifier = Modifier.weight(1f),
+            iconRes = R.drawable.ic_account_circle,
+            count = friendCount,
+            label = "好友"
+        ) {
+            context.startActivity(Intent(context, FriendListActivity::class.java).apply {
+                putExtra("uid", uid); putExtra("username", username)
+            })
+        }
+
+        TripodCell(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Outlined.Block,
+            count = blockedCount,
+            label = "黑名单",
+            onClick = onBlocked
+        )
+    }
+}
+
+/**
+ * 三功能格里的单格：图标（可带未读呼吸点）→ 数字 → 标签。
+ *
+ * [modifier] 由调用方传 `Modifier.weight(1f)`：weight 只能在 RowScope 里解析，
+ * 所以不能在函数体内写死（提取成独立函数后就拿不到外层 Row 的作用域了）。
+ */
+@Composable
+private fun TripodCell(
+    modifier: Modifier = Modifier,
+    count: Int,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    iconRes: Int? = null,
+    showDot: Boolean = false,
+    onClick: () -> Unit
+) {
+    val c = LocalS1Colors.current
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(c.glassCard)
+            .clickable(onClick = onClick)
+            .padding(vertical = 11.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(c.glassCard)
-                    .clickable { onClick() }
-                    .padding(vertical = 11.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(c.chipBg),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    "${counts[idx]}",
-                    fontSize = 17.sp, fontWeight = FontWeight.Bold, color = c.textMain
-                )
-                Text(label, fontSize = 10.5.sp, color = c.textSub)
+                if (icon != null) {
+                    androidx.compose.material3.Icon(
+                        icon, contentDescription = null,
+                        tint = c.strongIcon, modifier = Modifier.size(17.dp)
+                    )
+                } else if (iconRes != null) {
+                    androidx.compose.material3.Icon(
+                        painter = painterResource(iconRes), contentDescription = null,
+                        tint = c.strongIcon, modifier = Modifier.size(17.dp)
+                    )
+                }
+            }
+            // 细节 28：私信有未读时亮呼吸点（与菜单行一致）
+            if (showDot) {
+                BreathingDot(Modifier.align(Alignment.TopEnd))
             }
         }
+        Spacer(Modifier.height(5.dp))
+        Text("$count", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = c.textMain)
+        Text(label, fontSize = 10.5.sp, color = c.textSub)
     }
 }
 

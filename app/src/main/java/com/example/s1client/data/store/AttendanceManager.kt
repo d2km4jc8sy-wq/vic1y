@@ -101,7 +101,12 @@ object AttendanceManager {
             )
             val parsed = parseResponse(body)
             android.util.Log.d("Attendance", "sign parsed => ${parsed.outcome}: ${parsed.message}")
-            if (parsed.outcome == Outcome.SIGNED_NOW) recordSign(ctx)
+            // 「已签到」也要落本地：服务端都说了今天签过，本地不记的话每次进「我的」页
+            // 又会退回「去签到」，状态自相矛盾（真机验收时踩到）。
+            // recordSign 自带「今天已记过就 return」，所以重复点不会重复累加。
+            if (parsed.outcome == Outcome.SIGNED_NOW || parsed.outcome == Outcome.ALREADY_SIGNED) {
+                recordSign(ctx)
+            }
             parsed
         } catch (e: Exception) {
             android.util.Log.w("Attendance", "sign failed: ${e.message}")

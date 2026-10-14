@@ -43,15 +43,6 @@
             android:name=".FavoriteListActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
-        <!-- 版块收藏（R5：收藏双轨的 forum 轨，对标开源 s1er）及其下一级版块帖子列表 -->
-        <activity
-            android:name=".ForumFavoriteListActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
-        <activity
-            android:name=".ForumThreadListActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
         <activity
             android:name=".PostBookmarkListActivity"
             android:exported="false"
