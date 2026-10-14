@@ -467,21 +467,19 @@ private fun NoticeRow(item: NoticeItem, showHairline: Boolean = true) {
                 }
                 when {
                     tid != null -> {
-                        // 回复类提醒带 pid：先用 findpost 重定向定位楼层所在页，
-                        // 直接跳到那一页，省掉用户自己翻页
-                        scope.launch {
-                            val pid = item.pid?.takeIf { it.isNotBlank() }
-                            val page = if (pid != null) PostLocator.locatePostPage(tid, pid) else null
-                            android.util.Log.d("S1Locate", "click tid=$tid pid=$pid page=$page")
-                            context.startActivity(
-                                Intent(context, ThreadDetailActivity::class.java)
-                                    .putExtra("tid", tid)
-                                    .apply {
-                                        page?.let { putExtra("page", it) }
-                                        pid?.let { putExtra(ThreadDetailActivity.EXTRA_PID, it) }
-                                    }
-                            )
-                        }
+                        // 回复类提醒带 pid。**这里不再预解析页号**（改在详情页里做），
+                        // 原因照 s1er：定位属于"打开帖子"这件事的一部分 ——
+                        //   · 在详情页里先定位、再拉那一页，用户不会看到"先闪第 1 页再跳"；
+                        //   · 定位失败可以直接在详情页明确提示，而不是在这里静默丢掉页号、
+                        //     让用户看到一个停在第 1 页、什么都不说的界面。
+                        val pid = item.pid?.takeIf { it.isNotBlank() }
+                        context.startActivity(
+                            Intent(context, ThreadDetailActivity::class.java)
+                                .putExtra("tid", tid)
+                                .apply {
+                                    pid?.let { putExtra(ThreadDetailActivity.EXTRA_PID, it) }
+                                }
+                        )
                     }
                     uid != null -> runCatching {
                         showUserCardDialog(context as? androidx.activity.ComponentActivity ?: return@runCatching,

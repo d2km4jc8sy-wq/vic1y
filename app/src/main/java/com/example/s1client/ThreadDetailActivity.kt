@@ -53,6 +53,7 @@ import com.example.s1client.data.api.PollVoteRepository
 import com.example.s1client.ui.PollCard
 import androidx.recyclerview.widget.RecyclerView
 import com.example.s1client.data.store.ReadingProgressStore
+import com.example.s1client.util.PostLocator
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.viewpager2.widget.ViewPager2
 import coil.load
@@ -105,14 +106,33 @@ class ThreadDetailActivity : BaseActivity() {
     /** 本地阅读进度：进来时恢复、滚动时节流保存（点击帖子回到之前的进度） */
     private var lastProgressSaveAt = 0L
 
-    /** 本次是否已经从本地进度恢复过（避免恢复后立刻被保存覆盖） */
-    private var progressRestored = false
+    /**
+     * 本地阅读进度读出来的**绝对楼层**（1-based，跨页累计）。
+     *
+     * 口径照 s1er 的 ReadingRecord：权威字段是楼层而不是页码 ——
+     * 服务端的每页帖数(ppp)会变，只存页码的话换页数后落点会漂。
+     * 打开后由 [tryScrollToTarget] 消费，用完清零。
+     */
+    private var resumeFloor: Int = 0
 
-    /** 从本地进度里读出来的楼层 pid（打开后滚动定位用，用完即清） */
+    /** 从本地进度里读出来的楼层 pid（楼层算不出下标时的兜底，用完即清） */
     private var resumeFloorPid: String? = null
 
     /** 待滚动定位的楼层 id；定位成功后立即清空，避免重复执行 */
     private var pendingScrollPid: String? = null
+
+    /** 上次阅读时服务端自报的每页帖数（ppp）。进页面时还没拉到数据，
+     *  先用它把"绝对楼层"换算成页，拿到真实 ppp 后再纠正一次。 */
+    private var recordedPerPage: Int = 0
+
+    /**
+     * 首屏落定前**禁止写进度**。
+     *
+     * 必须有的闸门：ViewPager2 初始化时会先回调一次 `onPageSelected(0)`，
+     * 那一刻如果照常保存，就会把"第 1 页第 1 楼"写进库 ——
+     * 用户辛苦翻到第 8 页的进度会被自己的一次打开动作覆盖掉。
+     */
+    private var progressReady: Boolean = false
     internal var loadedMaxPage: Int = 0
     internal var hasMore: Boolean = true
     internal var isLoading: Boolean = false
@@ -211,16 +231,16 @@ class ThreadDetailActivity : BaseActivity() {
         tid = intent.getStringExtra("tid") ?: ""
         subject = intent.getStringExtra("subject") ?: ""
         isFavorited = intent.getBooleanExtra("favorited", false)
-        // 从提醒跳进来时带的楼层 id（PostLocator 已定位过页号）
+        // 从提醒跳进来时带的楼层 id。**页号不在这里解析**：
+        // 照 s1er，先在详情页里拿到 pid，再异步 locatePostPage → 直接拉那一页，
+        // 这样不会有"先闪一下第 1 页再跳"的过程，失败也能明确报错。
         pendingScrollPid = intent.getStringExtra(EXTRA_PID)?.takeIf { it.isNotBlank() }
-        // intent 没指定页码时，用本地记录的阅读进度恢复（用户要的"回到之前的进度"）
-        if (intent.getIntExtra("page", 1) <= 1 && pendingScrollPid == null) {
+        // 阅读进度（点击帖子回到之前的进度）：读绝对楼层 + 当时的每页帖数
+        if (pendingScrollPid == null) {
             ReadingProgressStore.get(this).load(tid)?.let { p ->
-                if (p.page > 1) {
-                    intent.putExtra("page", p.page)
-                    resumeFloorPid = p.floorPid
-                }
-                progressRestored = true
+                resumeFloor = p.floor
+                resumeFloorPid = p.floorPid
+                recordedPerPage = p.perPage
             }
         }
 
@@ -247,7 +267,11 @@ class ThreadDetailActivity : BaseActivity() {
         binding.vpPages.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 currentPage = position + 1
-                tryScrollToPendingPid()
+                tryScrollToTarget()
+                // 翻页本身就是"读到哪了"，必须立刻记一笔 ——
+                // 只靠竖向滚动的 onScrolled 存进度的话，用户左右翻页后直接返回
+                // 是**一次都没保存**，表现就是"阅读进度没实现"。
+                saveProgressFromPage(currentPage)
                 hideEndFooter()
                 updatePageIndicator()
                 loadRatings(currentPage)
@@ -324,31 +348,60 @@ class ThreadDetailActivity : BaseActivity() {
     }
 
     /**
-     * 滚动到指定楼层。**由 onPageSelected 触发**（彼时当前页列表已 attach）。
-     * 找不到该 pid（比如帖子被删、或被已读楼层过滤掉）就静默放弃 ——
-     * 停在正确的那一页本身就是主要收益，不必再弹提示打扰用户。
+     * 把当前页滚到目标位置 —— 两种目标二选一：
+     *   · [pendingScrollPid]  —— 提醒跳转带来的 pid，**找不到要明确报错**（s1er 会提示
+     *     "未找到目标楼层"；静默停在第 1 页就是用户说的"点了没反应"）
+     *   · [resumeFloor]       —— 本地阅读进度里的绝对楼层（尽力而为，失败不打扰）
+     *
+     * 触发点：onPageSelected / setPage 之后 / 换页布局完成后（post + postDelayed）
+     * 以及每次 onScrolled —— 换页后列表 attach 的时机不固定，靠时间点赌不可靠，
+     * 挂到滚动回调上才是确定性的。
      */
-    private fun tryScrollToPendingPid() {
-        val pid = pendingScrollPid ?: resumeFloorPid ?: return
+    private fun tryScrollToTarget(finalAttempt: Boolean = false) {
+        if (pendingScrollPid == null && resumeFloor <= 0) return
         val posts = pageAdapter.getPage(currentPage) ?: return
-        val target = posts.indexOfFirst { it.pid == pid }
-        if (target < 0) return
-        // 楼层下标 → 列表下标（第 1 页的投票卡占了一行）
-        val listIndex = pageAdapter.listIndexFromPostIndex(currentPage, target)
-        // attachedRv 只在 onPageScroll 回调后才被赋值，首屏定位时可能还是 null，
-        // 这时从 ViewPager2 的当前子视图里取 RecyclerView
+        if (posts.isEmpty()) return
+
+        val pid = pendingScrollPid
+        val postIndex: Int
+        if (pid != null) {
+            val idx = posts.indexOfFirst { it.pid == pid }
+            if (idx < 0) {
+                // 页码可能不对（帖被删楼 / ppp 变化），最后一次仍找不到就如实告诉用户
+                if (finalAttempt) {
+                    pendingScrollPid = null
+                    S1Notify.show(
+                        this,
+                        "未找到该楼层，已停在定位到的第 $currentPage 页",
+                        S1Notify.Type.ERROR
+                    )
+                }
+                return
+            }
+            postIndex = idx
+        } else {
+            val ppp = if (perPage > 0) perPage else PAGE_SIZE
+            val base = (currentPage - 1) * ppp + 1          // 本页第一楼的绝对楼层
+            postIndex = (resumeFloor - base).coerceIn(0, posts.size - 1)
+        }
+
+        val listIndex = pageAdapter.listIndexFromPostIndex(currentPage, postIndex)
         val rv = attachedRv ?: binding.vpPages.getChildAt(0) as? RecyclerView
         if (rv == null) {
-            // 列表还没 attach，交给 PageAdapter 记住的那一页 RV（换页后它会补一次）
+            // 列表还没 attach，交给 PageAdapter 记住的那一页 RV（onScrolled 里会补）
             pageAdapter.scrollToPositionInPage(currentPage, listIndex)
             return
         }
-        android.util.Log.d("S1Locate", "scroll page=$currentPage postIndex=$target listIndex=$listIndex")
+        android.util.Log.d(
+            "S1Locate",
+            "scroll page=$currentPage pid=$pid floor=$resumeFloor postIndex=$postIndex listIndex=$listIndex"
+        )
         pendingScrollPid = null
+        resumeFloor = 0
         resumeFloorPid = null
-        // 定位用**瞬时跳转**而不是 smoothScrollToPosition：目标可能在几十楼之外，
-        // 平滑滚动会一路掠过（好几秒），用户以为没跳。
         rv.post {
+            // 瞬时跳转：目标可能在几十楼外，smoothScrollToPosition 会一路掠过（好几秒），
+            // 用户会以为没跳过去。
             (rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager)
                 ?.scrollToPositionWithOffset(listIndex, 0)
                 ?: rv.scrollToPosition(listIndex)
@@ -629,46 +682,70 @@ class ThreadDetailActivity : BaseActivity() {
     /** 从某楼菜单进入多选模式：预选当前楼，显示底部分享条、隐藏原回复条 */
     internal fun loadFirstPage() {
         isLoading = true
-        // 起始页：intent 指定优先（阅读进度恢复 / 提醒楼层定位都会往里塞），
-        // 没指定才是第 1 页。原来这里写死 fetchOnePage(1)，导致塞了 page 也不生效。
-        val startPage = intent.getIntExtra("page", 1).coerceIn(1, 9999)
-        loadPollIfAny()
         binding.progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
-                // ⚠️ 必须拉 startPage 而不是写死 1：
-                // 之前这里写 fetchOnePage(1)，却把结果 setPage 到 startPage ——
-                // 于是「提醒跳转」「阅读进度恢复」都是：页码显示第 N 页、内容却是第 1 页，
-                // 目标 pid 在这一页里根本不存在 → 永远跳不过去（表现就是"跳转失败"）。
-                val posts = fetchOnePage(startPage)
-                // fetchOnePage 刚算出的总页数要在主线程同步进 UI（预留槽位 + 刷新页码）
+                // —— 起始页的判定顺序（照 s1er 的 resolveThreadInitialPage）——
+                //   ① intent 显式指定 page
+                //   ② 带 pid（提醒跳转）→ 先 locatePostPage 定位，失败明确报错
+                //   ③ 本地阅读进度 → 由"绝对楼层 + 上次的每页帖数"推页
+                //   ④ 都没有 → 第 1 页
+                var startPage = intent.getIntExtra("page", 0).takeIf { it >= 1 } ?: 0
+
+                if (startPage == 0 && pendingScrollPid != null) {
+                    val pid = pendingScrollPid!!
+                    val p = PostLocator.locatePostPage(tid, pid)
+                    android.util.Log.d("S1Locate", "open tid=$tid pid=$pid page=$p")
+                    if (p == null) {
+                        // 不静默回落成第 1 页 —— 用户需要知道"没定位到"
+                        pendingScrollPid = null
+                        toast("定位楼层失败，已回到第 1 页", S1Notify.Type.ERROR)
+                    }
+                    startPage = p ?: 1
+                }
+                if (startPage == 0) {
+                    startPage = if (resumeFloor > 1) {
+                        val ppp = if (recordedPerPage > 0) recordedPerPage else PAGE_SIZE
+                        ((resumeFloor - 1) / ppp) + 1
+                    } else 1
+                }
+
+                var posts = fetchOnePage(startPage)
                 syncPageSocketsOnMain()
                 if (posts.isEmpty()) { toast("加载失败", S1Notify.Type.ERROR); return@launch }
-                hasMore = morePagesToLoad()
 
-                if (authorId.isNullOrEmpty()) {
-                    val opPost = posts.firstOrNull { it.first == "1" }
-                    authorId = opPost?.authorId
+                // —— 拿到真实 ppp 后纠正一次页码 ——
+                // 上次的每页帖数可能和服务端现在的不一样，用旧值算出的页会偏。
+                // s1er 也是在第一页返回后按 live ppp 重新校正目标页。
+                if (resumeFloor > 1 && pendingScrollPid == null && perPage > 0) {
+                    val want = ((resumeFloor - 1) / perPage) + 1
+                    if (want != startPage && want <= totalPages.coerceAtLeast(1)) {
+                        val p2 = fetchOnePage(want)
+                        syncPageSocketsOnMain()
+                        if (p2.isNotEmpty()) { posts = p2; startPage = want }
+                    }
                 }
-                // 楼主头像/昵称放顶栏（小红书式），楼层里不再重复作者行
+
+                hasMore = morePagesToLoad()
+                if (authorId.isNullOrEmpty()) authorId = posts.firstOrNull { it.first == "1" }?.authorId
                 bindTopAuthor(posts.firstOrNull { it.first == "1" })
 
                 val ratingsReady = preloadRatings(startPage)
                 // 必须显式写页码：syncPageSocketsOnMain 已把 maxPage 推到总页数，
-                // 用 addPage（写进 maxPage+1）会把首页内容写到错误的页码上
+                // 用 addPage（写进 maxPage+1）会把内容写到错误的页码上
                 pageAdapter.setPage(startPage, posts)
                 loadedMaxPage = startPage
                 currentPage = startPage
-                // ⚠️ ViewPager2 的 currentItem 默认是 0（第 1 页）。不手动切过去的话，
-                // 它显示的是第 1 页的空槽 → 触发 onPageMissing(1) 又把第 1 页拉一遍，
-                // 用户看到的是「跳了页但停在开头」。
+                progressReady = true
+                // ⚠️ ViewPager2 的 currentItem 默认是 0（第 1 页）。不手动切过去的话
+                // 它显示的是第 1 页空槽 → onPageMissing(1) 又把第 1 页拉一遍，
+                // 表现就是"跳了页但停在开头"。
                 if (startPage > 1) binding.vpPages.setCurrentItem(startPage - 1, false)
-                // 首屏数据就绪后再试一次定位：onPageSelected 在 ViewPager2 初始化时
-                // 就触发了，彼时 getPage(1) 还是 null，那次尝试必然落空
-                tryScrollToPendingPid()
-                // 保险：换页是异步布局的，post 一次 + 延迟一次，确保列表 attach 后还能补定位
-                binding.vpPages.post { tryScrollToPendingPid() }
-                binding.vpPages.postDelayed({ tryScrollToPendingPid() }, 400)
+
+                tryScrollToTarget()
+                binding.vpPages.post { tryScrollToTarget() }
+                binding.vpPages.postDelayed({ tryScrollToTarget(finalAttempt = true) }, 600)
+
                 updatePageIndicator()
                 if (ratingsReady) ratingFetchedPages.add(startPage)
                 pageAdapter.getPage(startPage)?.let { loadPowers(it) }
@@ -697,7 +774,7 @@ class ThreadDetailActivity : BaseActivity() {
                 pageAdapter.setPage(page, posts)
                 loadedMaxPage = page
                 // 预加载到的正是目标页时，立刻定位（用户还没翻过来）
-                tryScrollToPendingPid()
+                tryScrollToTarget()
                 if (ratingsReady) ratingFetchedPages.add(page)
                 pageAdapter.getPage(page)?.let { loadPowers(it) }
             } finally {
@@ -768,6 +845,13 @@ class ThreadDetailActivity : BaseActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    override fun onPause() {
+        super.onPause()
+        // 离开前落一次进度（照 s1er 的 `_flushProgressBeforeLeave`）。
+        // 只靠滚动节流保存是不够的：用户翻完页直接返回时，节流窗口可能还没到。
+        if (tid.isNotBlank()) saveProgressFromViewport()
+    }
+
     override fun onResume() {
         super.onResume()
         binding.progressBar.refreshThemeColors()
@@ -801,6 +885,9 @@ class ThreadDetailActivity : BaseActivity() {
         endDetectorAttached[rv] = true
         rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(r: RecyclerView, dx: Int, dy: Int) {
+                // 列表 attach 的时机不固定，把"补定位"挂在滚动回调上是确定性的
+                // （比纯靠 postDelayed 赌时间靠谱）
+                tryScrollToTarget()
                 checkEndFooter(r)
                 saveProgressThrottled(r)
             }
@@ -810,20 +897,53 @@ class ThreadDetailActivity : BaseActivity() {
     }
 
     /**
-     * 节流保存阅读进度：页 + 视口第一条楼层 pid + 滚动偏移。
-     * 2 秒节流 —— 滚动监听每帧都会回调，不节流会把 SQLite 写爆。
+     * 节流保存阅读进度（滚动时调用）。2 秒节流 —— 滚动监听每帧都回调，
+     * 不节流会把 SQLite 写爆。
      */
     private fun saveProgressThrottled(rv: RecyclerView) {
         val now = System.currentTimeMillis()
         if (now - lastProgressSaveAt < 2000) return
         lastProgressSaveAt = now
+        saveProgressFromViewport()
+    }
+
+    /**
+     * 按**当前视口**保存：绝对楼层 = (页-1)*每页帖数 + 视口第一楼在本页的下标 + 1。
+     * 口径照 s1er 的 ReadingRecord —— 权威字段是楼层而不是页码。
+     */
+    private fun saveProgressFromViewport() {
+        val rv = attachedRv ?: return
         val lm = rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager ?: return
-        val first = lm.findFirstVisibleItemPosition()
-        // 列表下标 → 楼层下标（第 1 页有投票卡时要 -1），否则会记住"投票卡"当成楼层
-        val postIndex = pageAdapter.postIndexFromListIndex(currentPage, first)
-        val floorPid = pageAdapter.getPage(currentPage)?.getOrNull(postIndex)?.pid
-        val offset = rv.computeVerticalScrollOffset()
-        ReadingProgressStore.get(this).save(tid, currentPage, floorPid, offset)
+        val firstListIndex = lm.findFirstVisibleItemPosition()
+        if (firstListIndex < 0) return
+        // 列表下标 → 楼层下标（第 1 页的投票卡占了一行）
+        val postIndex = pageAdapter.postIndexFromListIndex(currentPage, firstListIndex)
+        saveProgress(currentPage, postIndex)
+    }
+
+    /**
+     * 只按页码保存（翻页时调用）。
+     * 这一刻新页的列表还没 layout，拿不到"视口第一楼"，就记成这一页的第一楼 ——
+     * 比"什么都不存"强得多（用户左右翻页后直接返回时的唯一一次记录）。
+     */
+    private fun saveProgressFromPage(page: Int) {
+        saveProgress(page, 0)
+    }
+
+    private fun saveProgress(page: Int, postIndexInPage: Int) {
+        if (!progressReady) return
+        if (tid.isBlank() || page < 1) return
+        val ppp = if (perPage > 0) perPage else PAGE_SIZE
+        val floor = (page - 1) * ppp + postIndexInPage + 1
+        val pid = pageAdapter.getPage(page)?.getOrNull(postIndexInPage)?.pid
+        ReadingProgressStore.get(this).save(
+            tid = tid,
+            page = page,
+            floor = floor,
+            perPage = ppp,
+            floorPid = pid,
+            scrollOffset = attachedRv?.computeVerticalScrollOffset() ?: 0
+        )
     }
 
     internal fun showEndFooter() {

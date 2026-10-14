@@ -650,58 +650,68 @@ fun ConicFlowBorderCard(
         }
     }
     val angle = infAngle ?: staticAngle.value
-    // 环上的取色：**优先用 headerGradient**（顶栏渐变那两个色是按"要在底色上醒目"
-    // 挑的），再配封面流光两色。
-    // 原来用 accentCyan —— 幻彩浅色板里它是 #7FB8D8 淡蓝，叠在粉紫底 + 低透明度上
-    // 直接融进背景，是"彩边不明显"的另一半原因。
-    val ringBase = buildList {
-        c.headerGradient.forEach { add(it) }
-        add(c.flowCoverColors[0])
-        add(c.flowCoverColors.getOrElse(1) { c.accent })
-        if (c.headerGradient.size < 2) add(c.accent)
-    }
+    // 取色走共用 helper（与瀑布流卡框同一套幻彩语言）
+    val ringBase = com.example.s1client.ui.theme.s1RingColors(c)
     val colors = (ringBase + ringBase.first()).map { it.copy(alpha = borderAlpha) }
     val shape = RoundedCornerShape(cornerRadius)
 
     Box(modifier = modifier) {
-        // 边框层：matchParentSize 跟随内容层尺寸（内容层是唯一 wrap-content 子级，
-        // 由它撑起外层 Box —— 之前两层都 matchParentSize 会导致 Box 坍缩成 0×0）
-        Canvas(Modifier.matchParentSize().clip(shape)) {
-            // 兜底描边：即使某个色相在当前底色上偏浅（如浅色板里的淡青），
-            // 也始终有一条可辨认的边界 —— 可读性优先于"纯靠渐变"。
-            drawRoundRect(
-                color = c.textMain.copy(alpha = 0.12f),
-                cornerRadius = CornerRadius(cornerRadius.toPx()),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
-            )
-            val w = size.width; val h = size.height
-            val path = Path().apply {
+        // 内容层：**不加 borderWidth 内边距**。
+        // 之前的实现给内容层留出边框厚度，导致幻彩主题下每张卡都比常规主题高
+        // 2×borderWidth（3dp → 6dp），六张卡累计几十 dp，把「我的」页最后一块挤出屏幕 ——
+        // 也就是用户看到的"下方缺了一块 / 两个主题布局不一样"。
+        // 现在内容层与常规主题**尺寸完全一致**，彩边改为画在边界内侧的描边环（见下）。
+        Box(
+            modifier = Modifier
+                .clip(shape)
+                .background(c.glassCard),
+            content = content
+        )
+
+        // 边框层：与内容层同尺寸（matchParentSize 不参与测量），**画在最上层**，
+        // 形状 = 外圆角矩形 − 内圆角矩形（Path 差集），因此厚度完全由 borderWidth 决定，
+        // 且不占布局空间。
+        Canvas(Modifier.matchParentSize()) {
+            val bw = borderWidth.toPx()
+            val outer = Path().apply {
                 addRoundRect(
                     androidx.compose.ui.geometry.RoundRect(
-                        0f, 0f, w, h,
+                        0f, 0f, size.width, size.height,
                         CornerRadius(cornerRadius.toPx())
                     )
                 )
             }
-            clipPath(path) {
-                rotate(angle, pivot = Offset(w / 2f, h / 2f)) {
-                    // 画一个足够大的旋转色轮，保证任何角度都盖满
-                    val big = maxOf(w, h) * 2.2f
+            val inner = Path().apply {
+                addRoundRect(
+                    androidx.compose.ui.geometry.RoundRect(
+                        bw, bw, size.width - bw, size.height - bw,
+                        CornerRadius((cornerRadius - borderWidth).coerceAtLeast(0.dp).toPx())
+                    )
+                )
+            }
+            val ring = Path().apply {
+                op(outer, inner, androidx.compose.ui.graphics.PathOperation.Difference)
+            }
+            clipPath(ring) {
+                rotate(angle, pivot = Offset(size.width / 2f, size.height / 2f)) {
+                    // 画一个足够大的旋转色轮，保证任何角度都盖满环
+                    val big = maxOf(size.width, size.height) * 2.2f
                     drawRect(
                         brush = Brush.sweepGradient(colors),
-                        topLeft = Offset(w / 2f - big / 2f, h / 2f - big / 2f),
+                        topLeft = Offset(
+                            size.width / 2f - big / 2f,
+                            size.height / 2f - big / 2f
+                        ),
                         size = Size(big, big)
                     )
                 }
             }
+            // 兜底描边：即使某个色相在当前底色上偏浅，也始终有一条可辨认的边界
+            drawRoundRect(
+                color = c.textMain.copy(alpha = 0.10f),
+                cornerRadius = CornerRadius(cornerRadius.toPx()),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
+            )
         }
-        // 内容层：wrap-content（撑起外层），留出边框厚度，内部玻璃卡底
-        Box(
-            modifier = Modifier
-                .padding(borderWidth)
-                .clip(RoundedCornerShape(cornerRadius - borderWidth))
-                .background(c.glassCard),
-            content = content
-        )
     }
 }

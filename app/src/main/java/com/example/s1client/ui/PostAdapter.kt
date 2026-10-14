@@ -155,6 +155,8 @@ class PostAdapter(
                         poll = p,
                         tid = tid,
                         onSubmit = { ids -> onPollVote?.invoke(ids) },
+                        // 照 s1er：能投票还要"已登录"，未登录只给提示不给提交
+                        isLoggedIn = ForumDataCache.isLoggedIn(),
                         modifier = Modifier
                             // 与 item_post 的外边距一致：左右 10dp、上下 8dp
                             .padding(horizontal = 10.dp, vertical = 8.dp)

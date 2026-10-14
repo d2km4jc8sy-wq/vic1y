@@ -381,22 +381,25 @@ fun XhsPostCard(
           .fillMaxWidth()
           .then(
               if (coverStyle == 5) {
-                  // 幻彩整卡外框（方案② 静态柔彩）：五色带 40% 环绕整卡（含 meta），
-                  // 与设置页同语言；封面/meta 同面板直角拼接，内角弧不复存在
+                  // 幻彩整卡外框：与「我的」页卡框**共用同一套取色**（s1RingColors），
+                  // 封面/meta 同面板直角拼接，内角弧不复存在。
+                  //
+                  // 之前这里是一组写死的五色带（绿/黄/紫/青，40% 透明度、2dp），
+                  // 用户反馈"瀑布流幻彩卡片边框太细、主题不突出" —— 两个原因：
+                  //   ① 与主题色板无关，幻彩那种紫粉调完全没体现；
+                  //   ② 2dp/40% 在浅色底上几乎看不出是一圈边。
+                  // 现在：主题色板取色 + 4dp + 90% 不透明度。
                   Modifier.drawWithContent {
                       drawContent()
-                      val band = listOf(
-                          Color(0xFF4FCF70), Color(0xFFFAD648), Color(0xFFA767E5),
-                          Color(0xFF12BCFE), Color(0xFF44CE7B)
-                      )
+                      val band = com.example.s1client.ui.theme.s1RingColors(s1)
                       drawRoundRect(
                           brush = Brush.linearGradient(
-                              band.map { it.copy(alpha = 0.4f) },
+                              band.map { it.copy(alpha = 0.9f) },
                               start = Offset.Zero,
                               end = Offset(size.width, size.height)
                           ),
                           cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner.dp.toPx()),
-                          style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                          style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4.dp.toPx())
                       )
                   }
               } else if (gTop != null) {

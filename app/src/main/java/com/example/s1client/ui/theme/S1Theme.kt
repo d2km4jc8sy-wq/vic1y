@@ -245,6 +245,21 @@ private val IridescentPresets = listOf(
     )
 )
 
+/**
+ * 幻彩描边取色 —— **「我的」页卡框与瀑布流卡框共用**，保证同一套幻彩语言。
+ *
+ * 取 [S1Colors.headerGradient]（顶栏渐变，本来就是按"要在当前底色上醒目"挑的）
+ * 再配封面流光两色；**刻意不用 accentCyan** —— 幻彩浅色板里它是 #7FB8D8 淡蓝，
+ * 叠在粉紫底 + 低透明度上会直接融进背景（这是"彩边不明显"的一半原因）。
+ */
+fun s1RingColors(c: S1Colors): List<Color> {
+    val base = ArrayList<Color>(4)
+    base.addAll(c.headerGradient)
+    if (c.flowCoverColors.isNotEmpty()) base.add(c.flowCoverColors[0])
+    base.add(c.accent)
+    return if (base.isEmpty()) listOf(c.accent) else base
+}
+
 private fun buildIridescentPalette(seed: Int): S1Colors {
     val p = IridescentPresets[seed.coerceIn(0, IridescentPresets.lastIndex)]
     return S1Colors(

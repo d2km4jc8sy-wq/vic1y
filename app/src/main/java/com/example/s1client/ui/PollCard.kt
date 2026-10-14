@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.s1client.data.model.PollOption
@@ -22,21 +23,26 @@ import com.example.s1client.ui.theme.LocalS1Colors
 import kotlinx.coroutines.launch
 
 /**
- * 投票卡 —— 数据模型与投票协议照搬开源 s1er（models/poll.dart + poll_card.dart），
- * 视觉按本项目宪法重做：一个容器一个主角、间距走斐波那契、单线条。
+ * 投票卡 —— 数据模型、投票协议与**渲染语义照搬开源 s1er**
+ * （models/poll.dart + widgets/poll_card.dart），视觉按本项目宪法收敛。
  *
- * 状态机（与 s1er 一致）：
- *   canVote      → 可投票（未过期、未投过、论坛允许）
- *   showResults  → 显示票数与百分比（visiblepoll=1，或已不能投）
- *   hasUserVoted → 本地缓存里记着我投过哪几项（API 不返回这个字段）
+ * ⚠️ 上一版最大的错：把"投票态"和"结果态"做成了**二选一**
+ * （`if (showResults) 结果行 else 投票行`）。于是 `visiblepoll=1` 的帖
+ * （未投票也能看结果）只剩百分比、**没有选项框 → 根本没法投**。
  *
- * 交互：单选直接提交；多选先勾选、点「投票」提交，超过 maxChoices 时 toast 提示。
+ * s1er 的 `_PollOptionTile` 是**同时**渲染的：
+ *   - `canSelect` → 画单选圆框 / 多选方框
+ *   - `showResults` → 同一行右侧给百分比、行下给进度条与票数
+ * 所以这里改成一份选项行同时承载「可选框 + 结果」，判定条件与 s1er 逐条对齐：
+ *   canInteract = poll.canVote && isLoggedIn
+ *   showResults = poll.showResults（visiblepoll=1 或已不能投）
  */
 @Composable
 fun PollCard(
     poll: ThreadPoll,
     tid: String,
     onSubmit: suspend (List<String>) -> String?,
+    isLoggedIn: Boolean,
     modifier: Modifier = Modifier
 ) {
     val c = LocalS1Colors.current
@@ -50,7 +56,8 @@ fun PollCard(
     var errorMsg by remember(poll) { mutableStateOf<String?>(null) }
 
     val showResults = poll.showResults || voted.isNotEmpty() || justVoted
-    val canVote = poll.canVote && voted.isEmpty() && !justVoted
+    // 与 s1er 一致：能投票 = 帖还没结束 + 已登录
+    val canInteract = poll.canVote && isLoggedIn
 
     Column(
         modifier = modifier
@@ -59,132 +66,63 @@ fun PollCard(
             .background(c.glassCard)
             .padding(13.dp)
     ) {
-        // —— 标题行：投票 + 剩余时间/人数 —— 
+        // —— 标题行：投票 + 单选/多选 + 剩余时间 ——
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "投票", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = c.accent
-            )
+            Text("投票", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = c.accent)
             Spacer(Modifier.width(8.dp))
-            Text(
-                poll.voteModeLabel, fontSize = 11.sp, color = c.textSub
-            )
+            Text(poll.voteModeLabel, fontSize = 11.sp, color = c.textSub)
             Spacer(Modifier.weight(1f))
-            Text(
-                poll.remainTimeLabel, fontSize = 11.sp, color = c.textSub
-            )
+            Text(poll.remainTimeLabel, fontSize = 11.sp, color = c.textSub)
         }
 
         Spacer(Modifier.height(8.dp))
 
         poll.options.forEach { opt ->
-            val isMine = opt.id in voted
-            val isPicked = opt.id in selected
-            val barColor = parsePollColor(opt.colorHex, c.accent)
-
-            if (showResults) {
-                // —— 结果态：文字 + 进度条 + 百分比（我投的高亮描边）——
-                val anim by animateFloatAsState(
-                    targetValue = (opt.percent / 100.0).toFloat().coerceIn(0f, 1f),
-                    label = "pollBar"
-                )
-                Column(Modifier.padding(vertical = 5.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (isMine) {
-                            Box(
-                                Modifier
-                                    .size(5.dp)
-                                    .clip(CircleShape)
-                                    .background(c.accent)
-                            )
-                            Spacer(Modifier.width(5.dp))
+            PollOptionRow(
+                option = opt,
+                selected = opt.id in selected,
+                canSelect = canInteract,
+                multiple = poll.multiple,
+                showResults = showResults,
+                enabled = !submitting,
+                onToggle = {
+                    selected = if (poll.multiple) {
+                        when {
+                            opt.id in selected -> selected - opt.id
+                            selected.size >= poll.maxChoices -> {
+                                errorMsg = "最多选择 ${poll.maxChoices} 项"
+                                selected
+                            }
+                            else -> selected + opt.id
                         }
-                        Text(
-                            opt.text, fontSize = 13.sp,
-                            color = if (isMine) c.textMain else c.textMain.copy(alpha = 0.85f),
-                            fontWeight = if (isMine) FontWeight.Medium else FontWeight.Normal,
-                            modifier = Modifier.weight(1f), maxLines = 2
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "${opt.percent.toInt()}%", fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold, color = barColor
-                        )
-                    }
-                    Spacer(Modifier.height(5.dp))
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(c.chipBg)
-                    ) {
-                        Box(
-                            Modifier
-                                .fillMaxWidth(anim)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(if (isMine) c.accent else barColor.copy(alpha = 0.55f))
-                        )
-                    }
+                    } else setOf(opt.id)
                 }
-            } else {
-                // —— 投票态：单选行 / 多选勾选 ——
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(11.dp))
-                        .background(if (isPicked) c.accent.copy(alpha = 0.10f) else Color.Transparent)
-                        .clickable(enabled = !submitting) {
-                            selected = if (poll.multiple) {
-                                if (isPicked) selected - opt.id
-                                else if (selected.size >= poll.maxChoices) {
-                                    errorMsg = "最多选择 ${poll.maxChoices} 项"
-                                    selected
-                                } else selected + opt.id
-                            } else setOf(opt.id)
-                        }
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(17.dp)
-                            .clip(if (poll.multiple) RoundedCornerShape(5.dp) else CircleShape)
-                            .border(
-                                1.5.dp,
-                                if (isPicked) c.accent else c.textSub.copy(alpha = 0.5f),
-                                if (poll.multiple) RoundedCornerShape(5.dp) else CircleShape
-                            )
-                            .background(if (isPicked) c.accent else Color.Transparent),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isPicked) {
-                            Text(
-                                "✓", fontSize = 9.sp, color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        opt.text, fontSize = 13.sp, color = c.textMain,
-                        modifier = Modifier.weight(1f), maxLines = 2
-                    )
-                }
-            }
+            )
         }
 
-        // —— 底部：提交按钮 / 已投提示 / 人数 ——
-        if (canVote) {
+        // —— 底部：已投提示 / 参与人数 / 提交 ——
+        Spacer(Modifier.height(8.dp))
+
+        if (voted.isNotEmpty() || justVoted) {
+            Text(
+                "已标注您投过的选项",
+                fontSize = 11.sp, color = c.accent,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
             Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "${poll.votersCount} 人已投票", fontSize = 11.sp, color = c.textSub,
-                    modifier = Modifier.weight(1f)
-                )
-                errorMsg?.let {
-                    Text(it, fontSize = 11.sp, color = Color(0xFFB4483F))
-                }
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "共 ${poll.votersCount} 人参与",
+                fontSize = 11.sp, color = c.textSub,
+                modifier = Modifier.weight(1f)
+            )
+            errorMsg?.let {
+                Text(it, fontSize = 11.sp, color = Color(0xFFB4483F))
+            }
+            if (canInteract) {
                 Spacer(Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
@@ -192,6 +130,7 @@ fun PollCard(
                         .background(if (submitting || selected.isEmpty()) c.chipBg else c.accent)
                         .clickable(enabled = !submitting && selected.isNotEmpty()) {
                             submitting = true
+                            errorMsg = null
                             scope.launch {
                                 val err = onSubmit(selected.toList())
                                 submitting = false
@@ -213,12 +152,132 @@ fun PollCard(
                     )
                 }
             }
-        } else if (showResults) {
-            Spacer(Modifier.height(8.dp))
+        }
+
+        if (poll.canVote && !isLoggedIn) {
+            Spacer(Modifier.height(5.dp))
+            Text("登录后可参与投票", fontSize = 11.sp, color = c.textSub)
+        }
+    }
+}
+
+/**
+ * 单个选项行 —— 结构与 s1er 的 `_PollOptionTile` 对齐：
+ *   [选项框]? 选项文字 [我的投票]? [百分比]?
+ *   [进度条]
+ *   [票数]（右对齐）
+ *
+ * 选项框与进度条**可以同时出现**（能投票 + 可看结果时就是这种组合）。
+ */
+@Composable
+private fun PollOptionRow(
+    option: PollOption,
+    selected: Boolean,
+    canSelect: Boolean,
+    multiple: Boolean,
+    showResults: Boolean,
+    enabled: Boolean,
+    onToggle: () -> Unit
+) {
+    val c = LocalS1Colors.current
+    val isMine = option.isUserVote
+    val highlight = isMine || (selected && canSelect)
+    val barColor = parsePollColor(option.colorHex, c.accent)
+    val boxShape = if (multiple) RoundedCornerShape(5.dp) else CircleShape
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(11.dp))
+            .background(if (highlight) c.accent.copy(alpha = 0.08f) else Color.Transparent)
+            .clickable(enabled = canSelect && enabled) { onToggle() }
+            .padding(horizontal = 8.dp, vertical = 8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (canSelect) {
+                Box(
+                    modifier = Modifier
+                        .size(17.dp)
+                        .clip(boxShape)
+                        .border(
+                            1.5.dp,
+                            if (selected) c.accent else c.textSub.copy(alpha = 0.5f),
+                            boxShape
+                        )
+                        .background(if (selected) c.accent else Color.Transparent),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selected) {
+                        Text(
+                            "✓", fontSize = 9.sp, color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+            } else if (isMine) {
+                // 不能投票时，只给"我投过这项"一个小圆点（不抢文字）
+                Box(
+                    Modifier
+                        .size(5.dp)
+                        .clip(CircleShape)
+                        .background(c.accent)
+                )
+                Spacer(Modifier.width(5.dp))
+            }
+
             Text(
-                "${poll.votersCount} 人已投票" +
-                    if (voted.isNotEmpty() || justVoted) " · 已参与" else "",
-                fontSize = 11.sp, color = c.textSub
+                option.text, fontSize = 13.sp,
+                color = if (highlight) c.textMain else c.textMain.copy(alpha = 0.85f),
+                fontWeight = if (highlight) FontWeight.Medium else FontWeight.Normal,
+                modifier = Modifier.weight(1f), maxLines = 2
+            )
+
+            if (isMine) {
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    "我的投票", fontSize = 10.sp, color = c.accent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(c.accent.copy(alpha = 0.13f))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                )
+            }
+
+            if (showResults) {
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "${option.percent.toInt()}%", fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold, color = barColor
+                )
+            }
+        }
+
+        if (showResults) {
+            val anim by animateFloatAsState(
+                targetValue = (option.percent / 100.0).toFloat().coerceIn(0f, 1f),
+                label = "pollBar"
+            )
+            Spacer(Modifier.height(5.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(c.chipBg)
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(anim)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(if (isMine) c.accent else barColor.copy(alpha = 0.55f))
+                )
+            }
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "${option.votes} 票", fontSize = 10.sp, color = c.textSub,
+                modifier = Modifier.align(Alignment.End)
             )
         }
     }
