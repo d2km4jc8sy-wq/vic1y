@@ -65,7 +65,14 @@ object NoticeJsonParser {
     private fun NoticeJsonItem.toNoticeItem(feed: String): NoticeItem {
         val note = note.orEmpty()
         val text = stripHtml(note)
-        val href = firstHref(note)
+        // Discuz 的回复提醒里，note 通常是：
+        //   <a href="home.php?mod=space&uid=579037">郁哲</a> 回复了您的帖子
+        //   <a href="forum.php?mod=redirect&goto=findpost&ptid=2291675&pid=70368274">《动物园之星2》</a>
+        // **第一个 href 是用户主页、没有 tid**。原来只取第一个，导致 tid 恒为 null、
+        // 所有回复提醒都跳不动。现在遍历全部链接，优先挑能抠出 tid 的那个。
+        val hrefs = allHrefs(note)
+        val href = hrefs.firstOrNull { extractTid(it) != null } ?: hrefs.firstOrNull()
+        val postLink = matchPostLink(note)
         return NoticeItem(
             avatar = avatarUrl(authorid),
             author = author?.trim()?.takeIf { it.isNotEmpty() } ?: SYSTEM_AUTHOR,
@@ -73,7 +80,7 @@ object NoticeJsonParser {
             time = formatTime(dateline),
             type = detectType(feed, text),
             targetUrl = href,
-            tid = extractTid(href ?: note),
+            tid = postLink.first.ifEmpty { extractTid(href ?: note).orEmpty() },
             id = id?.trim().orEmpty(),
             isNew = isNew?.trim() == "1"
         )
@@ -103,16 +110,44 @@ object NoticeJsonParser {
             .replace("&quot;", "\"")
             .trim()
 
-    private fun firstHref(html: String): String? =
+    /** 取 note 里的**全部**链接。注意不能只取第一个 —— 见下方注释。 */
+    private fun allHrefs(html: String): List<String> =
         Regex("""href\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
-            .find(html)?.groupValues?.get(1)
-            ?.takeIf { it.isNotBlank() }
+            .findAll(html)
+            .map { it.groupValues[1].replace("&amp;", "&").trim() }
+            .filter { it.isNotBlank() }
+            .toList()
 
     /**
      * 从链接里抠 tid。两种写法都见过，等号不能省：
      *   `forum.php?mod=redirect&goto=findpost&ptid=99&pid=88`
      *   `thread-123-1-1.html`
      */
+    /**
+     * 从 note 里抠帖子链接。**正则与字段顺序直接照搬开源 s1er**
+     * （api_service.dart 的 `_findPostLinkRe` + `NoticeItem.fromJson` 逻辑），
+     * 不另造轮子：
+     *   r'goto=findpost&(?:amp;)?(?:ptid=(\d+)&(?:amp;)?pid=(\d+)|pid=(\d+)&(?:amp;)?ptid=(\d+))'
+     * 它比"先抽 href 再找 tid"更可靠，因为 Discuz 的回复提醒里
+     * **第一个 href 是用户主页、没有 tid**，而帖子链接是 findpost 那个；
+     * 同时它兼容 ptid/pid 顺序颠倒与 `&amp;` 实体两种写法。
+     * @return tid to pid（任一可能为空）
+     */
+    private fun matchPostLink(html: String): Pair<String, String> {
+        val m = POST_LINK_RE.find(html)
+            ?: return Regex("""thread-(\d+)""", RegexOption.IGNORE_CASE)
+                .find(html)?.let { r -> r.groupValues[1] to "" }
+            ?: return "" to ""
+        val tid = m.groupValues[1].ifEmpty { m.groupValues[4] }
+        val pid = m.groupValues[2].ifEmpty { m.groupValues[3] }
+        return tid to pid
+    }
+
+    private val POST_LINK_RE = Regex(
+        """goto=findpost&(?:amp;)?(?:ptid=(\d+)&(?:amp;)?pid=(\d+)|pid=(\d+)&(?:amp;)?ptid=(\d+))""",
+        RegexOption.IGNORE_CASE
+    )
+
     private fun extractTid(s: String): String? {
         Regex("""(?:ptid|tid)\s*=\s*(\d+)""", RegexOption.IGNORE_CASE)
             .find(s)?.groupValues?.get(1)?.let { return it }

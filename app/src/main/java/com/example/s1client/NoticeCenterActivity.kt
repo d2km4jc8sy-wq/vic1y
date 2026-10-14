@@ -56,6 +56,7 @@ import com.example.s1client.ui.design.GlassBar
 import com.example.s1client.ui.design.HeartRed
 import com.example.s1client.ui.design.ChipBg
 import com.example.s1client.ui.design.TextMain
+import com.example.s1client.ui.showUserCardDialog
 import com.example.s1client.ui.design.TextSub
 import com.example.s1client.util.PmParser
 
@@ -456,13 +457,21 @@ private fun NoticeRow(item: NoticeItem, showHairline: Boolean = true) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                if (item.tid != null) {
-                    context.startActivity(
+                // 三级兜底：① 有 tid → 帖子详情 ② 没 tid 但能抠出 uid → 用户名片 ③ 都没有才提示
+                val tid = item.tid?.takeIf { it.isNotBlank() && it != "0" }
+                val uid = item.targetUrl?.let { url ->
+                    Regex("""uid=(\d+)""").find(url)?.groupValues?.get(1)
+                }
+                when {
+                    tid != null -> context.startActivity(
                         Intent(context, ThreadDetailActivity::class.java)
-                            .putExtra("tid", item.tid)
+                            .putExtra("tid", tid)
                     )
-                } else {
-                    S1Notify.show(context, "该提醒暂不支持跳转")
+                    uid != null -> runCatching {
+                        showUserCardDialog(context as? androidx.activity.ComponentActivity ?: return@runCatching,
+                            uid, ForumDataCache.memberUsername)
+                    }
+                    else -> S1Notify.show(context, "该提醒没有可跳转的内容")
                 }
             }
             .padding(horizontal = 13.dp, vertical = 8.dp),
