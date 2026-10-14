@@ -49,10 +49,14 @@ data class ThreadDetailVariables(
     @SerializedName("thread") val thread: ThreadDetail?,
     @SerializedName("postlist") val postList: List<Post>?,
     @SerializedName("formhash") val formhash: String?,
-    /** 投票帖的投票数据。**用 JSONObject 而非 data class** —— Discuz 的
-     *  polloptions 是以任意 key 的 Map 返回的，直接建 data class 会丢字段，
-     *  交由 PollModels.PollOption 按 key 排序解析（与 s1er 的做法一致）。 */
-    @SerializedName("special_poll") val specialPoll: org.json.JSONObject? = null
+    /**
+     * 投票帖的投票数据。**必须是 Gson 的 JsonObject，不能用 org.json.JSONObject** ——
+     * Gson 默认不会把 JSON 填进 JSONObject（它按反射找 nameValuePairs 字段，结果拿到空对象），
+     * 表现为「投票帖解析出来永远是空」。改用 com.google.gson.JsonObject 由 Gson 原生填充，
+     * 再在 PollModels 里按 key 排序解析（Discuz 的 polloptions 是任意 key 的 Map，
+     * 直接建 data class 会丢字段）。
+     */
+    @SerializedName("special_poll") val specialPoll: com.google.gson.JsonObject? = null
 )
 
 data class ThreadDetail(

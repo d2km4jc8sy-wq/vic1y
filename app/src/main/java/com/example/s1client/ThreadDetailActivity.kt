@@ -353,13 +353,20 @@ class ThreadDetailActivity : BaseActivity() {
         lifecycleScope.launch {
             try {
                 val r = withContext(Dispatchers.IO) {
-                    RetrofitClient.api.getThreadDetail(tid = tid, page = 1)
+                    RetrofitClient.api.getThreadDetail(
+                        tid = tid, page = intent.getIntExtra("page", 1).coerceIn(1, 9999)
+                    )
                 }
                 val special = r.variables?.thread?.special
                 val pollJson = r.variables?.specialPoll
+                android.util.Log.d(
+                    "S1Poll",
+                    "tid=$tid special=$special hasPoll=${pollJson != null} " +
+                        "keys=${pollJson?.keySet()}"
+                )
                 if (special?.trim() == "1" && pollJson != null) {
                     val parsed = com.example.s1client.data.model.ThreadPoll
-                        .fromJson(pollJson)
+                        .fromGson(pollJson)
                         .withUserVotes(PollVoteRepository.remembered(tid))
                     if (parsed.options.isNotEmpty()) {
                         threadPoll = parsed
@@ -616,6 +623,9 @@ class ThreadDetailActivity : BaseActivity() {
     /** 从某楼菜单进入多选模式：预选当前楼，显示底部分享条、隐藏原回复条 */
     internal fun loadFirstPage() {
         isLoading = true
+        // 起始页：intent 指定优先（阅读进度恢复 / 提醒楼层定位都会往里塞），
+        // 没指定才是第 1 页。原来这里写死 fetchOnePage(1)，导致塞了 page 也不生效。
+        val startPage = intent.getIntExtra("page", 1).coerceIn(1, 9999)
         loadPollIfAny()
         binding.progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
@@ -636,8 +646,9 @@ class ThreadDetailActivity : BaseActivity() {
                 val ratingsReady = preloadRatings(1)
                 // 必须显式写页码：syncPageSocketsOnMain 已把 maxPage 推到总页数，
                 // 用 addPage（写进 maxPage+1）会把首页内容写到错误的页码上
-                pageAdapter.setPage(1, posts)
-                loadedMaxPage = 1
+                pageAdapter.setPage(startPage, posts)
+                loadedMaxPage = startPage
+                currentPage = startPage
                 // 首屏数据就绪后再试一次定位：onPageSelected 在 ViewPager2 初始化时
                 // 就触发了，彼时 getPage(1) 还是 null，那次尝试必然落空
                 tryScrollToPendingPid()

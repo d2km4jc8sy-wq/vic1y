@@ -1,5 +1,7 @@
 package com.example.s1client.data.model
 
+import org.json.JSONObject
+
 /**
  * 投票数据模型 —— **字段与判定逻辑照搬开源 s1er 的 `models/poll.dart`**，
  * 只把 Dart 语法翻译成 Kotlin，不重新发明字段名或判定规则。
@@ -81,6 +83,10 @@ data class ThreadPoll(
          * 从 JSON 里解析。**选项要按 key 排序**（Discuz 的 polloptions 是
          * 以任意顺序的 Map 返回的，不排序会导致选项顺序每次不一样）。
          */
+        fun fromGson(json: com.google.gson.JsonObject): ThreadPoll {
+            return fromJson(JSONObject(json.toString()))
+        }
+
         fun fromJson(json: org.json.JSONObject): ThreadPoll {
             val options = mutableListOf<PollOption>()
             val raw = json.optJSONObject("polloptions")

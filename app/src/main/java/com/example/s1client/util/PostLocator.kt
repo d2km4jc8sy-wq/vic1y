@@ -41,11 +41,14 @@ object PostLocator {
             // 关键：不跟随 302，否则读不到 Location 头
             RetrofitClient.httpClient.newBuilder().followRedirects(false).build()
                 .newCall(req).execute().use { resp ->
-                    parsePageFromLocation(resp.header("Location"))
+                    val loc = resp.header("Location")
+                    android.util.Log.d("S1Locate", "tid=$tid pid=$pid code=${resp.code} location=$loc")
+                    parsePageFromLocation(loc)
                 }
         } catch (_: Exception) {
             null
         }
+        android.util.Log.d("S1Locate", "tid=$tid pid=$pid resolved=$page")
         if (page != null && page >= 1) cache[key] = page
         page
     }

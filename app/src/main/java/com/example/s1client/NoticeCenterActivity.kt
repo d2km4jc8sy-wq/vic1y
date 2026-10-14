@@ -472,6 +472,7 @@ private fun NoticeRow(item: NoticeItem, showHairline: Boolean = true) {
                         scope.launch {
                             val pid = item.pid?.takeIf { it.isNotBlank() }
                             val page = if (pid != null) PostLocator.locatePostPage(tid, pid) else null
+                            android.util.Log.d("S1Locate", "click tid=$tid pid=$pid page=$page")
                             context.startActivity(
                                 Intent(context, ThreadDetailActivity::class.java)
                                     .putExtra("tid", tid)
