@@ -65,7 +65,7 @@ class PostBookmarkListActivity : ComponentActivity() {
 }
 
 @Composable
-private fun PostBookmarkListScreen(onFinish: () -> Unit) {
+internal fun PostBookmarkListScreen(onFinish: () -> Unit, embedded: Boolean = false) {
     val c = LocalS1Colors.current
     val context = LocalContext.current
     var bookmarks by remember { mutableStateOf(PostBookmarkManager.getAll()) }
@@ -76,10 +76,15 @@ private fun PostBookmarkListScreen(onFinish: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(c.bgTop, c.bgBottom)))
+            .then(
+                if (embedded) Modifier
+                else Modifier.background(Brush.verticalGradient(listOf(c.bgTop, c.bgBottom)))
+            )
     ) {
         Column {
-            TopBar(title = "楼层收藏", onBack = onFinish)
+            if (!embedded) {
+                TopBar(title = "楼层收藏", onBack = onFinish)
+            }
 
             if (bookmarks.isEmpty()) {
                 Box(
