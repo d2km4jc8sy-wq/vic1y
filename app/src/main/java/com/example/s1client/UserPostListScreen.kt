@@ -49,7 +49,17 @@ fun UserPostListScreen(
     onBack: () -> Unit,
     load: suspend () -> List<UserPostItem>,
     /** 外部触发重载（例如收藏页回到前台时刷新）；值一变就重新加载 */
-    reloadTick: Int = 0
+    reloadTick: Int = 0,
+    /**
+     * 是否显示每条记录的作者。收藏列表传 false ——
+     * Discuz 收藏页不返回作者，页面只能给出标题 / 版块名 / 收藏时间。
+     */
+    showAuthor: Boolean = true,
+    /**
+     * 嵌入模式：宿主已经画了背景、状态栏与顶栏，这里就只出列表。
+     * 「我的收藏」用它当「主题」分段；独立页面（如「我的主题」）保持默认 false。
+     */
+    embedded: Boolean = false
 ) {
     val context = LocalContext.current
     var loading by remember { mutableStateOf(true) }
@@ -72,52 +82,58 @@ fun UserPostListScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(BgColor, BgColorBottom)))
-            .statusBarsPadding()
+            .then(
+                if (embedded) Modifier
+                else Modifier
+                    .background(Brush.verticalGradient(listOf(BgColor, BgColorBottom)))
+                    .statusBarsPadding()
+            )
     ) {
-        // ===== 顶栏（玻璃 + 底边亮线） =====
-        // drawBehind 闭包不是组合上下文，颜色要在组合期先取出来
-        val topBarLine = GlassFloatLine
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .background(GlassBar)
-                .drawBehind {
-                    drawLine(
-                        color = topBarLine,
-                        start = Offset(0f, size.height),
-                        end = Offset(size.width, size.height),
-                        strokeWidth = 1.dp.toPx()
-                    )
-                }
-        ) {
+        if (!embedded) {
+            // ===== 顶栏（玻璃 + 底边亮线） =====
+            // drawBehind 闭包不是组合上下文，颜色要在组合期先取出来
+            val topBarLine = GlassFloatLine
             Box(
                 modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .clickable { onBack() },
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .background(GlassBar)
+                    .drawBehind {
+                        drawLine(
+                            color = topBarLine,
+                            start = Offset(0f, size.height),
+                            end = Offset(size.width, size.height),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
             ) {
-                Icon(
-                    Icons.Default.ArrowBack,
-                    contentDescription = "返回",
-                    tint = TextMain,
-                    modifier = Modifier.size(20.dp)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .clickable { onBack() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.ArrowBack,
+                        contentDescription = "返回",
+                        tint = TextMain,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Text(
+                    text = title,
+                    color = TextMain,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = 56.dp)
                 )
             }
-            Text(
-                text = title,
-                color = TextMain,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 56.dp)
-            )
         }
 
         // ===== 内容 =====
@@ -152,6 +168,7 @@ fun UserPostListScreen(
                             post = item.toPost(authorId, authorName),
                             isRead = false,
                             subtitle = item.message.takeIf { it.isNotBlank() },
+                            showAuthor = showAuthor,
                             onClick = {
                                 if (item.tid.isNotBlank()) {
                                     context.startActivity(

@@ -61,6 +61,13 @@ fun ThreadRow(
     isRead: Boolean = false,
     /** 标题下的正文/摘要。只有「我的主题 / 我的回帖」这类有正文的页面才传，搜索页不传 */
     subtitle: String? = null,
+    /**
+     * 是否显示头像与作者名。
+     * 收藏列表传 false：Discuz 收藏页不返回每条收藏的作者（解析出来是空串），
+     * 硬塞收藏者身份会导致整张表都显示成同一个人；关掉后靠标题前的版块名
+     * 与末尾的收藏时间承载信息。
+     */
+    showAuthor: Boolean = true,
     onClick: () -> Unit,
     onAvatarClick: (() -> Unit)? = null,
     onLongPress: (() -> Unit)? = null
@@ -178,44 +185,46 @@ fun ThreadRow(
                 val seed = author?.ifBlank { "?" } ?: "?"
                 val avatarBrush = remember(seed) { Brush.linearGradient(getAvatarGradient(seed)) }
 
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(avatarBrush)
-                        .then(
-                            if (onAvatarClick != null) Modifier.clickable { onAvatarClick() }
-                            else Modifier
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = seed.firstOrNull()?.toString()?.uppercase() ?: "?",
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (avatarUrlStr != null) {
-                        AsyncImage(
-                            model = avatarUrlStr,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize()
+                if (showAuthor) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(avatarBrush)
+                            .then(
+                                if (onAvatarClick != null) Modifier.clickable { onAvatarClick() }
+                                else Modifier
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = seed.firstOrNull()?.toString()?.uppercase() ?: "?",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (avatarUrlStr != null) {
+                            AsyncImage(
+                                model = avatarUrlStr,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+
+                    if (!author.isNullOrBlank()) {
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = author,
+                            color = TextSub,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
-                }
 
-                if (!author.isNullOrBlank()) {
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = author,
-                        color = TextSub,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Spacer(Modifier.width(10.dp))
                 }
-
-                Spacer(Modifier.width(10.dp))
                 Text(
                     text = timeText,
                     color = TextSub,
