@@ -1,5 +1,7 @@
 package com.example.s1client
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.content.Intent
 import android.os.Bundle
 import com.example.s1client.util.S1Notify
@@ -8,6 +10,9 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -37,6 +42,7 @@ import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.data.model.PmListItem
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.util.NoticeItem
+import com.example.s1client.util.NoticeJsonParser
 import com.example.s1client.util.NoticeParser
 import com.example.s1client.util.ReminderUnread
 import com.example.s1client.util.applyS1Theme
@@ -73,6 +79,32 @@ class NoticeCenterActivity : ComponentActivity() {
 /** 调试开关：把原始 HTML 与解析结果落盘到应用私有目录（验证解析用，日常关闭） */
 private const val DUMP_HTML = false
 
+/** 一级分段取值（提醒 / 私信） */
+private const val SEG_NOTICE = 0
+private const val SEG_PM = 1
+
+/** 「全部」档：概览，三档各取第 1 页（要看全部历史请进具体档位翻页） */
+private const val FEED_ALL = "all"
+
+/**
+ * 二级筛选档位 —— 对应 Mobile API 的 `view` 参数。
+ * 实测 mypost / interactive / system 三个值接口都接受；
+ * 「评分」不做独立档：JSON 没有 type 字段，只能靠正文文本猜，跨页会漏。
+ */
+private val NOTICE_FEEDS = listOf(
+    "全部" to FEED_ALL,
+    "帖子" to NoticeJsonParser.FEED_MYPOST,
+    "@我" to NoticeJsonParser.FEED_INTERACTIVE,
+    "系统" to NoticeJsonParser.FEED_SYSTEM
+)
+
+/** HTML 兜底路径下各档位给条目打的默认 type */
+private fun defaultTypeOf(view: String): String = when (view) {
+    NoticeJsonParser.FEED_INTERACTIVE -> "at"
+    NoticeJsonParser.FEED_SYSTEM -> "system"
+    else -> "reply"
+}
+
 private sealed class ReminderRowItem {
     abstract val key: String
 
@@ -87,15 +119,14 @@ private sealed class ReminderRowItem {
 
 @Composable
 fun ReminderCenterScreen(onBack: () -> Unit) {
-    val subTabs = listOf(
-        "全部" to "all",
-        "回复我" to "mypost",
-        "@我" to "interactive",
-        "私信" to "pm",
-        "系统" to "system"
-    )
-    var tab by remember { mutableStateOf(0) }
+    // 一级分段：提醒 / 私信（iOS 形制，≤4 段）
+    var segment by remember { mutableIntStateOf(SEG_NOTICE) }
+    // 二级筛选（只在「提醒」档出现）：全部 / 帖子 / @我 / 系统
+    var feedIdx by remember { mutableIntStateOf(0) }
+    var page by remember { mutableIntStateOf(1) }
+    var totalPages by remember { mutableIntStateOf(1) }
     var loading by remember { mutableStateOf(true) }
+    var appending by remember { mutableStateOf(false) }
     var items by remember { mutableStateOf<List<ReminderRowItem>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember { mutableStateOf(0) }
@@ -105,67 +136,91 @@ fun ReminderCenterScreen(onBack: () -> Unit) {
     // 客户端已看过的私信 uid（点开会话即记入），让红点可消失、角标随之归零
     var localSeenPm by remember { mutableStateOf<Set<String>>(ReminderUnread.loadSeenPmUids(context)) }
 
-    suspend fun fetchNotices(view: String, defaultType: String): List<NoticeItem> {
-        val url = "https://stage1st.com/2b/home.php?mod=space&do=notice" +
-            if (view.isNotEmpty()) "&view=$view" else ""
-        val html = RetrofitClient.fetchHtml(url)
-        if (DUMP_HTML) runCatching {
-            val f = File(context.getExternalFilesDir(null), "notice_${view.ifEmpty { "all" }}.html")
-            f.writeText(html)
+    val feedKey = NOTICE_FEEDS[feedIdx].second
+
+    /**
+     * 单档提醒的一页：**JSON 优先、HTML 兜底**（口径同 s1er getNoticeList）。
+     * JSON 带 count/perpage，总页数准确、能翻页取到全部提醒；
+     * HTML 只是兜底，拿不到总页数，只能按「本页是否满」估。
+     */
+    suspend fun loadNoticePage(view: String, page: Int): Pair<List<NoticeItem>, Int> {
+        try {
+            val resp = withContext(Dispatchers.IO) {
+                RetrofitClient.api.getNoticeList(view = view, page = page)
+            }
+            if (NoticeJsonParser.isLoginRequired(resp)) throw IllegalStateException("请先登录后查看提醒")
+            val p = NoticeJsonParser.parse(resp, view, page)
+            return p.items to p.totalPages
+        } catch (e: Exception) {
+            if (e is IllegalStateException) throw e
+            val url = "https://stage1st.com/2b/home.php?mod=space&do=notice&view=$view"
+            val html = withContext(Dispatchers.IO) { RetrofitClient.fetchHtml(url) }
+            if (DUMP_HTML) runCatching {
+                File(context.getExternalFilesDir(null), "notice_$view.html").writeText(html)
+            }
+            if (NoticeParser.isLoginPage(html)) throw IllegalStateException("请先登录后查看提醒")
+            val parsed = NoticeParser.parse(html, defaultTypeOf(view))
+            return parsed to (if (parsed.size >= 20) page + 1 else page)
         }
-        if (NoticeParser.isLoginPage(html)) throw IllegalStateException("请先登录后查看提醒")
-        val parsed = NoticeParser.parse(html, defaultType)
-        if (DUMP_HTML) runCatching {
-            val f = File(context.getExternalFilesDir(null), "notice_${view.ifEmpty { "all" }}_parsed.txt")
-            f.writeText(
-                "count=${parsed.size}\n" + parsed.take(5).joinToString("\n") {
-                    "type=${it.type} tid=${it.tid} author=${it.author} time=${it.time} content=${it.content.take(40)}"
-                }
-            )
+    }
+
+    /** 「全部」＝三档各取第 1 页合并成概览；要看全部历史请进具体档位翻页 */
+    suspend fun loadAllFeeds(): List<NoticeItem> {
+        val out = mutableListOf<NoticeItem>()
+        for (v in listOf(
+            NoticeJsonParser.FEED_MYPOST,
+            NoticeJsonParser.FEED_INTERACTIVE,
+            NoticeJsonParser.FEED_SYSTEM
+        )) {
+            out += loadNoticePage(v, 1).first
         }
-        return parsed
+        return out
     }
 
     suspend fun fetchPmList(): List<PmListItem> {
-        val html = RetrofitClient.fetchHtml("https://stage1st.com/2b/home.php?mod=space&do=pm")
+        val html = withContext(Dispatchers.IO) {
+            RetrofitClient.fetchHtml("https://stage1st.com/2b/home.php?mod=space&do=pm")
+        }
         return PmParser.parsePmList(html)
     }
 
-    LaunchedEffect(tab, reloadKey) {
+    LaunchedEffect(segment, feedKey, page, reloadKey) {
         if (!loggedIn) {
             loading = false
+            appending = false
             items = emptyList()
             error = null
             return@LaunchedEffect
         }
-        loading = true
+        val first = page == 1
+        if (first) loading = true else appending = true
         error = null
         try {
-            val list: List<ReminderRowItem> = when (subTabs[tab].second) {
-                "all" -> {
-                    val notices = listOf(
-                        fetchNotices("mypost", "reply"),
-                        fetchNotices("interactive", "at"),
-                        fetchNotices("system", "system")
-                    ).flatten().map { ReminderRowItem.Notice(it) }
-                    val pms = fetchPmList().map { ReminderRowItem.Pm(it, localSeenPm.contains(it.touid)) }
-                    notices + pms
+            val rows: List<ReminderRowItem> = when {
+                segment == SEG_PM -> {
+                    totalPages = 1
+                    fetchPmList().map { ReminderRowItem.Pm(it, localSeenPm.contains(it.touid)) }
                 }
-                "mypost" -> fetchNotices("mypost", "reply").map { ReminderRowItem.Notice(it) }
-                "interactive" -> fetchNotices("interactive", "at").map { ReminderRowItem.Notice(it) }
-                "system" -> fetchNotices("system", "system").map { ReminderRowItem.Notice(it) }
-                "pm" -> fetchPmList().map { ReminderRowItem.Pm(it, localSeenPm.contains(it.touid)) }
-                else -> emptyList()
+                feedKey == FEED_ALL -> {
+                    // 概览：三档各取第 1 页
+                    totalPages = 1
+                    loadAllFeeds().map { ReminderRowItem.Notice(it) }
+                }
+                else -> {
+                    val (list, tp) = loadNoticePage(feedKey, page)
+                    totalPages = tp
+                    list.map { ReminderRowItem.Notice(it) }
+                }
             }
-            items = list
+            items = if (first) rows else items + rows
 
-            // 已加载到的通知 id 记为已读；私信只有在「全部/私信」页才批量建立基线
-            val noticeIds = list.mapNotNull {
+            // 已加载到的通知 id 记为已读；私信档批量建立已读基线
+            val noticeIds = rows.mapNotNull {
                 (it as? ReminderRowItem.Notice)?.data?.id?.takeIf { id -> id.isNotBlank() }
             }
             ReminderUnread.markSeen(context, noticeIds)
-            if (subTabs[tab].second == "all" || subTabs[tab].second == "pm") {
-                val pmUids = list.mapNotNull {
+            if (segment == SEG_PM) {
+                val pmUids = rows.mapNotNull {
                     (it as? ReminderRowItem.Pm)?.data?.touid?.takeIf { u -> u.isNotBlank() }
                 }
                 pmUids.forEach { ReminderUnread.markPmSeen(context, it) }
@@ -173,9 +228,10 @@ fun ReminderCenterScreen(onBack: () -> Unit) {
             }
         } catch (e: Exception) {
             error = e.message ?: "加载失败"
-            items = emptyList()
+            if (first) items = emptyList()
         }
         loading = false
+        appending = false
     }
 
     Column(
@@ -212,27 +268,21 @@ fun ReminderCenterScreen(onBack: () -> Unit) {
             )
         }
 
-        // ===== 标签行：全部 / 回复我 / @我 / 私信 / 系统 =====
-        TabRow(
-            selectedTabIndex = tab,
-            containerColor = GlassBar,
-            contentColor = AccentPink,
-            divider = {}
-        ) {
-            subTabs.forEachIndexed { i, (label, _) ->
-                Tab(
-                    selected = tab == i,
-                    onClick = { tab = i },
-                    text = {
-                        Text(
-                            label,
-                            color = if (tab == i) AccentPink else TextSub,
-                            fontSize = 13.sp,
-                            fontWeight = if (tab == i) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
-                )
-            }
+        // ===== 一级分段（iOS 形制）：提醒 / 私信 =====
+        IosSegmented(
+            options = listOf("提醒", "私信"),
+            selected = segment,
+            onSelect = { segment = it; page = 1 },
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp)
+        )
+
+        // ===== 二级筛选 chips（只在「提醒」档出现）：全部 / 帖子 / @我 / 系统 =====
+        if (segment == SEG_NOTICE) {
+            FeedChips(
+                options = NOTICE_FEEDS.map { it.first },
+                selected = feedIdx,
+                onSelect = { feedIdx = it; page = 1 }
+            )
         }
 
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -270,7 +320,103 @@ fun ReminderCenterScreen(onBack: () -> Unit) {
                             }
                         }
                     }
+                    // 触底自动加载下一页：只有「提醒档的具体分类」才有多页
+                    if (segment == SEG_NOTICE && feedKey != FEED_ALL && page < totalPages) {
+                        item {
+                            LaunchedEffect(page, feedKey) {
+                                if (!appending && !loading) page++
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 13.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    color = AccentPink,
+                                    modifier = Modifier.size(21.dp)
+                                )
+                            }
+                        }
+                    }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * iOS 形制的分段控件：灰底容器 + 高亮滑块。
+ * 高 34dp、内缩 2dp、圆角 8dp —— 走斐波那契/整数化比例（宪法第 15 条）。
+ * 配色基于 TextMain 的透明度，深浅主题都自适应。
+ */
+@Composable
+private fun IosSegmented(
+    options: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(34.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(TextMain.copy(alpha = 0.08f))
+            .padding(2.dp)
+    ) {
+        options.forEachIndexed { i, label ->
+            val sel = i == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (sel) TextMain.copy(alpha = 0.85f) else Color.Transparent)
+                    .clickable { onSelect(i) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    label,
+                    fontSize = 13.sp,
+                    fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (sel) BgColor else TextMain
+                )
+            }
+        }
+    }
+}
+
+/** 横向滚动的筛选 chips：高 34dp、圆角 17dp、间距 8dp（斐波那契） */
+@Composable
+private fun FeedChips(
+    options: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 13.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        options.forEachIndexed { i, label ->
+            val sel = i == selected
+            Box(
+                modifier = Modifier
+                    .height(34.dp)
+                    .clip(RoundedCornerShape(17.dp))
+                    .background(if (sel) AccentPink else TextMain.copy(alpha = 0.08f))
+                    .clickable { onSelect(i) }
+                    .padding(horizontal = 13.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    label,
+                    fontSize = 13.sp,
+                    fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (sel) Color.White else TextSub
+                )
             }
         }
     }
@@ -306,6 +452,15 @@ private fun NoticeRow(item: NoticeItem) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.Top
     ) {
+        // 未读竖条：服务端 new=1 才亮（HTML 兜底路径拿不到，恒为透明）
+        Box(
+            modifier = Modifier
+                .padding(end = 9.dp)
+                .width(3.dp)
+                .height(38.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(if (item.isNew) AccentPink else Color.Transparent)
+        )
         AsyncImage(
             model = NoticeParser.resolveUrl(item.avatar),
             contentDescription = null,

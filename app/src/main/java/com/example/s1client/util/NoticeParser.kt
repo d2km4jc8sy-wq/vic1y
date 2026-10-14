@@ -21,7 +21,12 @@ data class NoticeItem(
     /** 从 targetUrl 里抠出的 tid（能跳帖）；没有则为 null */
     val tid: String?,
     /** 通知唯一 id（来自 dl 的 notice 属性），用于本地已读锚点 */
-    val id: String = ""
+    val id: String = "",
+    /**
+     * 服务端判定的未读（Mobile API JSON 的 `new=1`）。
+     * HTML 兜底路径拿不到这个标记，恒为 false（不影响功能，只是未读高亮不显示）。
+     */
+    val isNew: Boolean = false
 )
 
 object NoticeParser {
