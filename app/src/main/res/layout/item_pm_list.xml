@@ -18,7 +18,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="13dp"
-        android:paddingEnd="14dp"
+        android:paddingEnd="13dp"
         android:paddingTop="13dp"
         android:paddingBottom="13dp">
 

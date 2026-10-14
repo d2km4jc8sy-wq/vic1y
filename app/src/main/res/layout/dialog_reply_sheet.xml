@@ -5,10 +5,10 @@
     android:orientation="vertical"
     android:background="@drawable/bg_glass_sheet"
     android:elevation="12dp"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
-    android:paddingTop="14dp"
-    android:paddingBottom="12dp">
+    android:paddingStart="13dp"
+    android:paddingEnd="13dp"
+    android:paddingTop="13dp"
+    android:paddingBottom="13dp">
 
     <TextView
         android:id="@+id/tvSheetTitle"
@@ -27,7 +27,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:background="@drawable/bg_quote_card"
-        android:padding="12dp"
+        android:padding="13dp"
         android:layout_marginBottom="10dp"
         android:visibility="gone">
 

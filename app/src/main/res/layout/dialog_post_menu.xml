@@ -7,10 +7,10 @@
     android:background="@drawable/bg_glass_sheet_top"
     android:elevation="24dp"
     android:outlineProvider="background"
-    android:paddingStart="12dp"
-    android:paddingEnd="12dp"
-    android:paddingTop="4dp"
-    android:paddingBottom="22dp">
+    android:paddingStart="13dp"
+    android:paddingEnd="13dp"
+    android:paddingTop="3dp"
+    android:paddingBottom="21dp">
 
     <!-- 顶部抓手条（颜色在代码里按主题取 tertiary 降透明度注入） -->
     <View
