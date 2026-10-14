@@ -15,6 +15,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MailOutline
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
@@ -114,15 +116,15 @@ class MineActivity : ComponentActivity() {
 // 「我的」页 · A 秩序玻璃版 · R5 层级化
 //
 // 结构（自上而下，一级只放高频）：
-//   顶栏 → 身份卡(右侧按钮→二级弹窗) → 三功能格(私信/好友/黑名单，均带数字) →
+//   顶栏 → 身份卡(右侧按钮→二级弹窗) → 顶格(提醒/好友，带数字、**无图标**) →
 //   浏览历史+签到 合并卡 → 内容组(帖子收藏/帖子/回复) →
-//   论坛查阅(小黑屋/抹布贴) → 加入日期
+//   屏蔽与隐藏(小黑屋/黑名单/抹布贴) → 加入日期
 //
-// R6 变更（用户拍板）：
-//   ① 原数据条（楼层收藏/草稿/历史）是低频纯数字入口，换成三功能格，各带数量；
-//   ② 删「版块收藏」——用户未做该功能、瀑布流也不需要，整条数据链路一并移除；
-//   ③ 删「互动消息」组——私信/好友已上移到三功能格，此处不再重复；
-//   ④ 黑名单管理自设置页上移到三功能格。
+// R7 变更（用户拍板）：
+//   ① 顶格定稿为「提醒 / 好友」两格、无图标、各带数字（宪法第 15 条：一容器一主角）；
+//   ② 「提醒」的未读＝通知+私信合计，点击进 NoticeCenterActivity（本身已含私信轨）；
+//   ③ 黑名单移出顶格，并入「屏蔽与隐藏」组（与论坛封禁、隐藏帖子同类）；
+//   ④ 沿用 R6 的：删版块收藏（用户未做该功能）、删互动消息组（避免重复入口）。
 //
 // 二级 A：头像右侧弹窗 QuickSettingsSheet（主题/文字大小/字体/交互震动/省流）
 // 二级 B：设置页 SettingsActivity（齿轮进入；外观组回归成全集，屏蔽组取消）
@@ -298,10 +300,8 @@ fun MineScreen(onFinish: () -> Unit) {
                         SocialTripod(
                             unreadCount = unreadCount,
                             friendCount = friendCount,
-                            blockedCount = blockedCount,
                             uid = uid,
-                            username = username,
-                            onBlocked = { showBlockedAuthors = true }
+                            username = username
                         )
                     }
                 }
@@ -427,8 +427,10 @@ fun MineScreen(onFinish: () -> Unit) {
                     }
                 }
 
-                // —— 论坛查阅（R5：自原社交组拆出，月活级低频）——
-                // R6：「互动消息」组已取消——私信/好友上移到顶部三功能格，此处不再重复。
+                // —— 屏蔽与隐藏（R7：原「论坛查阅」改名 + 黑名单自顶格并入）——
+                // 用户梳理的语义：小黑屋＝论坛封禁的用户（只读查阅）、
+                // 黑名单＝我自己屏蔽的人（可增删）、抹布贴＝我隐藏的帖子（可恢复）。
+                // 原组名「论坛查阅」有歧义（容易被理解成查帖子/收藏/发帖记录）。
                 StaggerIn(4) {
                     FlowGlassCard(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
@@ -445,7 +447,11 @@ fun MineScreen(onFinish: () -> Unit) {
                                     S1Notify.show(context, "请先登录后查看小黑屋", S1Notify.Type.INFO)
                                 }
                             },
-                            MenuItem("抹布贴", Icons.Outlined.Block) { showHiddenPostsDialog = true }
+                            MenuItem(
+                                "黑名单", Icons.Outlined.Block,
+                                value = if (blockedCount > 0) "$blockedCount" else null
+                            ) { showBlockedAuthors = true },
+                            MenuItem("抹布贴", Icons.Outlined.VisibilityOff) { showHiddenPostsDialog = true }
                         )
                     )
                     }
@@ -575,22 +581,23 @@ private fun StaggerIn(index: Int, content: @Composable () -> Unit) {
     ) { content() }
 }
 
-// ————————— 三功能格：私信 / 好友 / 黑名单（各带数字）———————
+// ————————— 顶格：提醒 / 好友（各带数字，无图标）———————
 
 /**
- * 三功能格（R6）：私信 / 好友 / 黑名单，取代原「楼层收藏 / 草稿 / 历史」数据条。
+ * 顶格（R7 定稿）：提醒 / 好友，取代原「楼层收藏 / 草稿 / 历史」数据条。
  *
- * 用户拍板：① 那三个是纯数字的低频入口，占位不划算，换成真正会点的人际入口；
- * ② 每格都带数字 —— 私信＝未读数、好友＝好友数、黑名单＝已屏蔽数。
+ * 用户拍板：
+ *   ① 那三个是纯数字的低频入口，占位不划算，换成真正会点的人际入口；
+ *   ② 每格都带数字 —— 提醒＝未读数（通知+私信合计）、好友＝好友数；
+ *   ③ 顶格用「方案 A」：**无图标**，数字是唯一主角（宪法第 15 条：一容器一主角）；
+ *   ④ 黑名单移出顶格，并入下面的「屏蔽与隐藏」组（关联度更高）。
  */
 @Composable
 private fun SocialTripod(
     unreadCount: Int,
     friendCount: Int,
-    blockedCount: Int,
     uid: String,
-    username: String,
-    onBlocked: () -> Unit
+    username: String
 ) {
     val context = LocalContext.current
     Row(
@@ -599,17 +606,16 @@ private fun SocialTripod(
             .padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        // 提醒：走提醒中心（本身已包含私信轨），未读＝通知+私信合计
         TripodCell(
             modifier = Modifier.weight(1f),
-            icon = Icons.Outlined.MailOutline,
             count = unreadCount,
-            label = "私信",
+            label = "提醒",
             showDot = unreadCount > 0
-        ) { context.startActivity(Intent(context, PmListActivity::class.java)) }
+        ) { context.startActivity(Intent(context, NoticeCenterActivity::class.java)) }
 
         TripodCell(
             modifier = Modifier.weight(1f),
-            iconRes = R.drawable.ic_account_circle,
             count = friendCount,
             label = "好友"
         ) {
@@ -617,72 +623,52 @@ private fun SocialTripod(
                 putExtra("uid", uid); putExtra("username", username)
             })
         }
-
-        TripodCell(
-            modifier = Modifier.weight(1f),
-            icon = Icons.Outlined.Block,
-            count = blockedCount,
-            label = "黑名单",
-            onClick = onBlocked
-        )
     }
 }
 
 /**
- * 三功能格里的单格：图标（可带未读呼吸点）→ 数字 → 标签。
+ * 顶格里的单格：**数字 → 标签**，无图标。
  *
- * [modifier] 由调用方传 `Modifier.weight(1f)`：weight 只能在 RowScope 里解析，
- * 所以不能在函数体内写死（提取成独立函数后就拿不到外层 Row 的作用域了）。
+ * 比例（宪法第 15 条）：数字 21sp : 标签 13sp ≈ 1.615 ≈ φ；
+ * 间距 5dp、上下内边距 13dp —— 斐波那契。
+ *
+ * [modifier] 由调用方传 `Modifier.weight(1f)`：weight 只在 RowScope 里解析，
+ * 提取成独立函数后拿不到外层 Row 的作用域，不能在函数体内写死。
  */
 @Composable
 private fun TripodCell(
     modifier: Modifier = Modifier,
     count: Int,
     label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    iconRes: Int? = null,
     showDot: Boolean = false,
     onClick: () -> Unit
 ) {
     val c = LocalS1Colors.current
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(13.dp))
             .background(c.glassCard)
             .clickable(onClick = onClick)
-            .padding(vertical = 11.dp),
+            .padding(vertical = 13.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Box(
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(c.chipBg),
-                contentAlignment = Alignment.Center
-            ) {
-                if (icon != null) {
-                    androidx.compose.material3.Icon(
-                        icon, contentDescription = null,
-                        tint = c.strongIcon, modifier = Modifier.size(17.dp)
-                    )
-                } else if (iconRes != null) {
-                    androidx.compose.material3.Icon(
-                        painter = painterResource(iconRes), contentDescription = null,
-                        tint = c.strongIcon, modifier = Modifier.size(17.dp)
-                    )
-                }
-            }
-            // 细节 28：私信有未读时亮呼吸点（与菜单行一致）
+        Box(contentAlignment = Alignment.TopEnd) {
+            Text(
+                "$count",
+                fontSize = 21.sp,
+                fontWeight = FontWeight.Bold,
+                color = c.textMain
+            )
+            // 细节 28：有未读时数字右上角亮呼吸点
             if (showDot) {
-                BreathingDot(Modifier.align(Alignment.TopEnd))
+                BreathingDot(Modifier.align(Alignment.TopEnd).offset(x = 8.dp))
             }
         }
         Spacer(Modifier.height(5.dp))
-        Text("$count", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = c.textMain)
-        Text(label, fontSize = 10.5.sp, color = c.textSub)
+        Text(label, fontSize = 13.sp, color = c.textSub)
     }
 }
+
 
 // ————————— 菜单组：单色单线图标 + 分隔线 —————————
 
