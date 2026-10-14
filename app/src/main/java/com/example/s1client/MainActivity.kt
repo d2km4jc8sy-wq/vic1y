@@ -164,20 +164,9 @@ internal fun tickHaptic(context: android.content.Context) {
 }
 
 class MainActivity : ComponentActivity() {
-    companion object {
-        /** 跳首页并切到指定版块（收藏页点版块名用） */
-        const val EXTRA_OPEN_FID = "open_fid"
-    }
-
     private val postViewModel: PostViewModel by viewModels()
     /** 每次回到首页 +1，触发未读提醒数重新拉取（驱动底栏「提醒」图标变状态） */
     private val homeResumeSignal = androidx.compose.runtime.mutableStateOf(0)
-
-    /**
-     * 待切换的版块 fid。来自「我的收藏」点版块名的跳转（intent extra `open_fid`），
-     * 首页消费后立刻清空，避免旋转/回前台时重复跳页。
-     */
-    private val pendingOpenFid = androidx.compose.runtime.mutableStateOf("")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // 宪法 11：返回键二次确认退出，杜绝"无提示闪退"的错觉
@@ -202,19 +191,12 @@ class MainActivity : ComponentActivity() {
         setupS1EdgeToEdge(hasGlassBottomBar = true)
         RetrofitClient.init(this)
         com.example.s1client.data.cache.ForumDataCache.init(this)
-        intent?.getStringExtra(EXTRA_OPEN_FID)?.let { pendingOpenFid.value = it }
         setContent {
             S1Theme {
-                XhsHomeScreen(postViewModel, homeResumeSignal, pendingOpenFid)
+                XhsHomeScreen(postViewModel, homeResumeSignal)
             }
         }
         registerDebugThreadProbe()
-    }
-
-    /** 首页已在栈里时（收藏页用 CLEAR_TOP|SINGLE_TOP 跳过来）走这里 */
-    override fun onNewIntent(intent: android.content.Intent) {
-        super.onNewIntent(intent)
-        intent.getStringExtra(EXTRA_OPEN_FID)?.let { pendingOpenFid.value = it }
     }
 
     /**
@@ -280,12 +262,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun XhsHomeScreen(
-    viewModel: PostViewModel,
-    resumeSignal: androidx.compose.runtime.State<Int>,
-    /** 待切换的版块 fid（收藏页点版块名跳进来时由 MainActivity 写入，用完即清） */
-    openFid: androidx.compose.runtime.MutableState<String>
-) {
+fun XhsHomeScreen(viewModel: PostViewModel, resumeSignal: androidx.compose.runtime.State<Int>) {
     // 主题变化 → 系统栏同步（首页底部是玻璃底栏，所以传 true）。
     // 必须放在这里而不是主题选择器里：选择器是 BottomSheet，拿不到 Activity。
     com.example.s1client.ui.S1SystemBarSync(hasGlassBottomBar = true)
@@ -400,19 +377,6 @@ fun XhsHomeScreen(
     // 首页不再另开一套界面
 
     // 进入 / 滑到某版面时确保它有数据（已缓存则直接复用，不重复请求）
-    // 从「我的收藏」点版块名进来：切到该版块 tab，消费后立刻清空（避免旋转/回前台重复跳）
-    LaunchedEffect(openFid.value) {
-        val fid = openFid.value
-        if (fid.isNotBlank()) {
-            val idx = tabs.indexOfFirst { it.fid == fid }
-            if (idx >= 0 && idx != pagerState.currentPage) {
-                pagerState.scrollToPage(idx)
-                tabs.getOrNull(idx)?.let { viewModel.ensureLoaded(it.fid) }
-            }
-            openFid.value = ""
-        }
-    }
-
     LaunchedEffect(tabs, pagerState.currentPage) {
         tabs.getOrNull(pagerState.currentPage)?.let { viewModel.ensureLoaded(it.fid) }
     }

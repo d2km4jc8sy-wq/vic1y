@@ -2,7 +2,6 @@ package com.example.s1client.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -43,10 +41,13 @@ import java.util.Locale
  * 数字 21sp : 标签 13sp ≈ φ、格间距与内边距走斐波那契（宪法第 15 条），
  * 与「我的」页顶格同一套比例，视觉上成一家。
  *
- * 三个格按需出现：**数值为 0 或取不到就整格隐藏**，不留空位。
- * 收藏接口不返回作者，所以这里没有作者行（版块名与指标承担信息）。
+ * 两个格按需出现：**数值为 0 或取不到就整格隐藏**，不留空位。
  *
- * @param onForumClick 点版块名跳转；为 null 时标签不可点
+ * 这里**没有版块名也没有作者**：实测 S1 的 myfavthread 接口只返回
+ * {dateline, favid, id, idtype, replies, title}，两者都不给；
+ * 而且详情页顶部本来就是固定头像 ID、不显版块分类，为它大改版式不划算
+ * ——所以用户拍板「剔除，不需要」。
+ *
  * @param onLongPress 长按 = 取消收藏
  */
 @Composable
@@ -54,7 +55,6 @@ fun FavoriteRow(
     item: UserPostItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onForumClick: (() -> Unit)? = null,
     onLongPress: () -> Unit
 ) {
     val views = item.views.trim().toIntOrNull() ?: 0
@@ -82,50 +82,15 @@ fun FavoriteRow(
     ) {
         Column(modifier = Modifier.padding(13.dp)) {
 
-            // —— 标题行：竖杠 + 版块名 + 标题（标签不独占一行，否则右侧空着不好看）——
-            Row(verticalAlignment = Alignment.Top) {
-                if (item.forum.isNotBlank()) {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 5.dp)
-                            .width(3.dp)
-                            .height(13.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(AccentPink)
-                    )
-                    Spacer(Modifier.width(5.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(AccentPink.copy(alpha = 0.13f))
-                            .then(
-                                if (onForumClick != null) Modifier.clickable { onForumClick() }
-                                else Modifier
-                            )
-                            .padding(horizontal = 7.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            item.forum,
-                            color = AccentPink,
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
-                }
-
-                Text(
-                    item.subject,
-                    color = TextMain,
-                    fontSize = 14.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    lineHeight = 21.sp,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            Text(
+                item.subject,
+                color = TextMain,
+                fontSize = 14.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                lineHeight = 21.sp,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
 
             if (metrics.isNotEmpty()) {
                 Box(

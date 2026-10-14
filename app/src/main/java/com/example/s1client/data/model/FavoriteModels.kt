@@ -33,14 +33,9 @@ data class FavoriteJsonItem(
     /** idtype = thread / forum，用来区分收藏的是帖子还是版块 */
     @SerializedName("idtype") val idtype: String?,
     @SerializedName("tid") val tid: String?,
-    @SerializedName("fid") val fid: String?,
     @SerializedName("id") val id: String?,
     @SerializedName("title") val title: String?,
     @SerializedName("subject") val subject: String?,
-    /** 版块名（s1er 取 fname，回退 forumname） */
-    @SerializedName("fname") val fname: String?,
-    @SerializedName("forumname") val forumname: String?,
-    @SerializedName("views") val views: String?,
     @SerializedName("replies") val replies: String?,
     @SerializedName("dateline") val dateline: String?,
     @SerializedName("dbdateline") val dbdateline: String?

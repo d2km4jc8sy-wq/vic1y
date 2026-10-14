@@ -270,8 +270,7 @@ private fun TopBar(title: String, onBack: () -> Unit) {
  *
  * 三个能力：
  *   · 触底自动加载下一页（count/perpage 驱动）；
- *   · 长按卡片 = 取消收藏（带确认弹窗，符合宪法「破坏性操作要确认」）；
- *   · 点版块名 = 跳首页并切到该版块（fid 由 ForumDataCache 按名称反查）。
+ *   · 长按卡片 = 取消收藏（带确认弹窗，符合宪法「破坏性操作要确认」）。
  */
 @Composable
 private fun FavoriteThreadList(loggedIn: Boolean, reloadTick: Int) {
@@ -334,23 +333,6 @@ private fun FavoriteThreadList(loggedIn: Boolean, reloadTick: Int) {
                                     putExtra("subject", item.subject)
                                 }
                             )
-                        },
-                        onForumClick = {
-                            val fid = ForumDataCache.getAllForums()
-                                .firstOrNull { it.name == item.forum }?.fid
-                            if (fid.isNullOrBlank()) {
-                                S1Notify.show(context, "未找到该版块", S1Notify.Type.INFO)
-                            } else {
-                                context.startActivity(
-                                    Intent(context, MainActivity::class.java).apply {
-                                        putExtra("open_fid", fid)
-                                        addFlags(
-                                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                                                Intent.FLAG_ACTIVITY_SINGLE_TOP
-                                        )
-                                    }
-                                )
-                            }
                         },
                         onLongPress = { removing = item }
                     )
