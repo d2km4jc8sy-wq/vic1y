@@ -305,8 +305,11 @@ class ThreadDetailActivity : BaseActivity() {
      */
     private fun tryScrollToPendingPid() {
         val pid = pendingScrollPid ?: return
-        val rv = attachedRv ?: return
-        // 从 PageAdapter 持有的当前页数据里反查楼层下标
+        // attachedRv 只在 onPageScroll 回调后才被赋值，首屏定位时可能还是 null，
+        // 这时从 ViewPager2 的当前子视图里取 RecyclerView
+        val rv = attachedRv
+            ?: binding.vpPages.getChildAt(0) as? RecyclerView
+            ?: return
         val posts = pageAdapter.getPage(currentPage) ?: return
         val target = posts.indexOfFirst { it.pid == pid }
         if (target >= 0) {
@@ -558,6 +561,9 @@ class ThreadDetailActivity : BaseActivity() {
                 // 用 addPage（写进 maxPage+1）会把首页内容写到错误的页码上
                 pageAdapter.setPage(1, posts)
                 loadedMaxPage = 1
+                // 首屏数据就绪后再试一次定位：onPageSelected 在 ViewPager2 初始化时
+                // 就触发了，彼时 getPage(1) 还是 null，那次尝试必然落空
+                tryScrollToPendingPid()
                 updatePageIndicator()
                 if (ratingsReady) ratingFetchedPages.add(1)
                 pageAdapter.getPage(1)?.let { loadPowers(it) }
@@ -585,6 +591,8 @@ class ThreadDetailActivity : BaseActivity() {
                 // 用 addPage 会把这一页的内容写到错误的页码上。
                 pageAdapter.setPage(page, posts)
                 loadedMaxPage = page
+                // 预加载到的正是目标页时，立刻定位（用户还没翻过来）
+                tryScrollToPendingPid()
                 if (ratingsReady) ratingFetchedPages.add(page)
                 pageAdapter.getPage(page)?.let { loadPowers(it) }
             } finally {
