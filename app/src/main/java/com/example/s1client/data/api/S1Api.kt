@@ -131,6 +131,20 @@ interface S1Api {
         @Query("ajaxtarget") ajaxtarget: String = "fwin_content_k_favorite"
     ): ResponseBody
 
+    // ============ 提醒列表（v3 JSON，含分页） ============
+    // 基准：s1er `api_service.getNoticeList` —— **优先 JSON、HTML 兜底**，与它保持一致。
+    // 相比 HTML 抓取，JSON 的 Variables 带 count / perpage，可算出总页数从而翻页取全部提醒。
+    // view：mypost=帖子提醒 / interactive=互动(@我) / system=系统（实测三个值接口都接受）
+    @GET("api/mobile/index.php")
+    suspend fun getNoticeList(
+        @Query("mobile") mobile: String = "no",
+        @Query("version") version: String = "3",
+        @Query("module") module: String = "mynotelist",
+        @Query("view") view: String,
+        @Query("type") type: String = "post",
+        @Query("page") page: Int = 1
+    ): NoticeListResponse
+
     // ============ 每日签到 ============
     // Discuz「每日签到」插件，GET 且带 formhash；**会产生服务端写入**，
     // 所以只在用户明确点击时调用一次，失败不自动重试。
