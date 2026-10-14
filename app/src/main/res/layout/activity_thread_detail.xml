@@ -134,10 +134,13 @@
             android:visibility="gone" />
 
         <!-- 投票卡槽：只有 special==1 的投票帖才会往里塞 ComposeView -->
+        <!-- 投票卡槽：高度必须有上限。原来 wrap_content，投票卡的 ComposeView
+             内容一高就把下面 weight=1 的 ViewPager2 挤成 0 —— 表现为
+             「只显示楼主、无法投票」。上限 300dp + 内部滚动。 -->
         <FrameLayout
             android:id="@+id/pollSlot"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="300dp"
             android:visibility="gone" />
 
         <FrameLayout

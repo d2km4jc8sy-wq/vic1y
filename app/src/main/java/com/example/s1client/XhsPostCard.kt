@@ -10,6 +10,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.example.s1client.ui.EdgePageBar
 import com.example.s1client.ui.RopeRefreshView
 import com.example.s1client.data.store.BlacklistManager
+import com.example.s1client.data.store.CoverCacheStore
 import com.example.s1client.util.Haptic
 import com.example.s1client.util.S1Notify
 import com.example.s1client.data.store.BlockedAuthorManager
@@ -55,6 +56,8 @@ import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -283,7 +286,17 @@ fun XhsPostCard(
     val timeText = post.timeText ?: ""
     val isHot = replies >= 300
     // 省流模式：不加载封面图，一律用风格文字封面
-    val showImage = !dataSaver && !post.coverUrl.isNullOrBlank()
+    // 瀑布流封面图：接口不返回 attachmentImagePreviewList 内容，改为懒加载解析
+    // 帖子详情 HTML 的首楼第一张内容图（本项目差异化功能，s1er 没有）。
+    // 只在 coverUrl 为空时触发；有值直接复用，不再发请求。
+    // 封面优先级：接口给的 > 本地缓存（用户进过详情页才会写入）> 无图
+    // 服务端只对约 1/4 帖子返回预览图，所以本地缓存是「看得越多封面越全」的关键
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var cachedCover by remember(post.tid) {
+        mutableStateOf(CoverCacheStore.get(ctx).get(post.tid))
+    }
+    val effectiveCover = post.coverUrl ?: cachedCover
+    val showImage = !dataSaver && !effectiveCover.isNullOrBlank()
     val context = androidx.compose.ui.platform.LocalContext.current
     val s1 = LocalS1Colors.current
     // 按压缩放：interactionSource 与点击共用，按下才有反馈
@@ -426,7 +439,7 @@ fun XhsPostCard(
             .clip(cardShape)
             .defaultMinSize(minHeight = 96.dp)
         ) {
-            val cover = post.coverUrl
+            val cover = effectiveCover
             if (showImage && !cover.isNullOrBlank()) {
                 // 有图：图片填满顶部，仅圆角上沿；不再压黑色遮罩
                 Box(
@@ -452,7 +465,7 @@ fun XhsPostCard(
             if (showImage) {
                 Text(
                     text = title,
-                    color = if (read) TextMain.copy(alpha = 0.55f) else TextMain,
+                    color = if (read) TextMain.copy(alpha = 0.42f) else TextMain,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 3,
@@ -610,7 +623,7 @@ fun XhsPostCard(
                     if (s1.isDark) Color.White else FlowCoverText
                 } else if (isDarkCover) Color.White else s1.textMain
                 // 已读：保持原色相，只降不透明度（不动封面、不动卡片底色）
-                val titleColor = if (read) baseTitleColor.copy(alpha = baseTitleColor.alpha * 0.6f)
+                val titleColor = if (read) baseTitleColor.copy(alpha = baseTitleColor.alpha * 0.42f)
                                  else baseTitleColor
 
                 Box(

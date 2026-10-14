@@ -368,6 +368,18 @@ internal suspend fun ThreadDetailActivity.fetchOnePage(page: Int): List<Post> = 
                 }
             }
             val posts = r.variables?.postList ?: emptyList()
+            // 瀑布流封面缓存：服务端只对约 1/4 帖子返回 attachmentImagePreviewList，
+            // 用户进详情页看到图就顺手记下来，下次瀑布流这张卡就有封面（零额外请求）
+            if (page == 1) {
+                posts.firstOrNull { it.first == "1" }?.message?.let { msg ->
+                    com.example.s1client.util.CoverResolver
+                        .pickFirstContentImage(msg)
+                        ?.let { url ->
+                            com.example.s1client.data.store.CoverCacheStore
+                                .get(applicationContext).put(tid, url)
+                        }
+                }
+            }
             // take() 返回新列表副本；subList 只是原列表视图，上游修改会连带变化。
             //
             // 关键：截断上限必须用**本次响应自报的 ppp**，不能写死 PAGE_SIZE(40)。
