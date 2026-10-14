@@ -4,6 +4,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.content.Intent
 import android.os.Bundle
+import com.example.s1client.util.PostLocator
+import kotlinx.coroutines.launch
 import com.example.s1client.util.S1Notify
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -441,6 +443,7 @@ private fun RowHairline() {
 @Composable
 private fun NoticeRow(item: NoticeItem, showHairline: Boolean = true) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     Column {
     val typeColor = when (item.type) {
         "reply" -> Color(0xFFFF6B6B)
@@ -463,10 +466,22 @@ private fun NoticeRow(item: NoticeItem, showHairline: Boolean = true) {
                     Regex("""uid=(\d+)""").find(url)?.groupValues?.get(1)
                 }
                 when {
-                    tid != null -> context.startActivity(
-                        Intent(context, ThreadDetailActivity::class.java)
-                            .putExtra("tid", tid)
-                    )
+                    tid != null -> {
+                        // 回复类提醒带 pid：先用 findpost 重定向定位楼层所在页，
+                        // 直接跳到那一页，省掉用户自己翻页
+                        scope.launch {
+                            val pid = item.pid?.takeIf { it.isNotBlank() }
+                            val page = if (pid != null) PostLocator.locatePostPage(tid, pid) else null
+                            context.startActivity(
+                                Intent(context, ThreadDetailActivity::class.java)
+                                    .putExtra("tid", tid)
+                                    .apply {
+                                        page?.let { putExtra("page", it) }
+                                        pid?.let { putExtra(ThreadDetailActivity.EXTRA_PID, it) }
+                                    }
+                            )
+                        }
+                    }
                     uid != null -> runCatching {
                         showUserCardDialog(context as? androidx.activity.ComponentActivity ?: return@runCatching,
                             uid, ForumDataCache.memberUsername)

@@ -20,6 +20,11 @@ data class NoticeItem(
     val targetUrl: String?,
     /** 从 targetUrl 里抠出的 tid（能跳帖）；没有则为 null */
     val tid: String?,
+    /**
+     * 楼层 id（回复提醒里定位到具体某一楼用）。实现方式照搬开源 s1er 的
+     * `locatePostPage`：拿 tid+pid 请求 findpost 重定向，从 Location 头解析页号。
+     */
+    val pid: String? = null,
     /** 通知唯一 id（来自 dl 的 notice 属性），用于本地已读锚点 */
     val id: String = "",
     /**

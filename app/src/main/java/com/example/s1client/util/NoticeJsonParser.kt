@@ -81,6 +81,7 @@ object NoticeJsonParser {
             type = detectType(feed, text),
             targetUrl = href,
             tid = postLink.first.ifEmpty { extractTid(href ?: note).orEmpty() },
+            pid = postLink.second.ifEmpty { null },
             id = id?.trim().orEmpty(),
             isNew = isNew?.trim() == "1"
         )

@@ -85,11 +85,19 @@ import com.example.s1client.ui.design.TextSub
 
 class ThreadDetailActivity : BaseActivity() {
 
+    companion object {
+        /** 需要滚动定位到的楼层 id（从提醒跳转进来时用） */
+        const val EXTRA_PID = "pid"
+    }
+
     internal lateinit var binding: ActivityThreadDetailBinding
     internal var tid: String = ""
     internal var subject: String = ""
     internal var isFavorited: Boolean = false
     internal var currentPage: Int = 1
+
+    /** 待滚动定位的楼层 id；定位成功后立即清空，避免重复执行 */
+    private var pendingScrollPid: String? = null
     internal var loadedMaxPage: Int = 0
     internal var hasMore: Boolean = true
     internal var isLoading: Boolean = false
@@ -188,6 +196,8 @@ class ThreadDetailActivity : BaseActivity() {
         tid = intent.getStringExtra("tid") ?: ""
         subject = intent.getStringExtra("subject") ?: ""
         isFavorited = intent.getBooleanExtra("favorited", false)
+        // 从提醒跳进来时带的楼层 id（PostLocator 已定位过页号）
+        pendingScrollPid = intent.getStringExtra(EXTRA_PID)?.takeIf { it.isNotBlank() }
 
         binding.btnBack.setOnClickListener { handleBack() }
         if (tid.isEmpty()) { finish(); return }
@@ -212,6 +222,7 @@ class ThreadDetailActivity : BaseActivity() {
         binding.vpPages.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 currentPage = position + 1
+                tryScrollToPendingPid()
                 hideEndFooter()
                 updatePageIndicator()
                 loadRatings(currentPage)
@@ -284,6 +295,23 @@ class ThreadDetailActivity : BaseActivity() {
                 isFavorited = fav
                 updateFavoriteButton()
             }
+        }
+    }
+
+    /**
+     * 滚动到指定楼层。**由 onPageSelected 触发**（彼时当前页列表已 attach）。
+     * 找不到该 pid（比如帖子被删、或被已读楼层过滤掉）就静默放弃 ——
+     * 停在正确的那一页本身就是主要收益，不必再弹提示打扰用户。
+     */
+    private fun tryScrollToPendingPid() {
+        val pid = pendingScrollPid ?: return
+        val rv = attachedRv ?: return
+        // 从 PageAdapter 持有的当前页数据里反查楼层下标
+        val posts = pageAdapter.getPage(currentPage) ?: return
+        val target = posts.indexOfFirst { it.pid == pid }
+        if (target >= 0) {
+            pendingScrollPid = null
+            rv.post { rv.smoothScrollToPosition(target) }
         }
     }
 
