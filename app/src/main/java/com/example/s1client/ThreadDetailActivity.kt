@@ -330,17 +330,28 @@ class ThreadDetailActivity : BaseActivity() {
      */
     private fun tryScrollToPendingPid() {
         val pid = pendingScrollPid ?: resumeFloorPid ?: return
-        // attachedRv 只在 onPageScroll 回调后才被赋值，首屏定位时可能还是 null，
-        // 这时从 ViewPager2 的当前子视图里取 RecyclerView
-        val rv = attachedRv
-            ?: binding.vpPages.getChildAt(0) as? RecyclerView
-            ?: return
         val posts = pageAdapter.getPage(currentPage) ?: return
         val target = posts.indexOfFirst { it.pid == pid }
-        if (target >= 0) {
-            pendingScrollPid = null
-            resumeFloorPid = null
-            rv.post { rv.smoothScrollToPosition(target) }
+        if (target < 0) return
+        // 楼层下标 → 列表下标（第 1 页的投票卡占了一行）
+        val listIndex = pageAdapter.listIndexFromPostIndex(currentPage, target)
+        // attachedRv 只在 onPageScroll 回调后才被赋值，首屏定位时可能还是 null，
+        // 这时从 ViewPager2 的当前子视图里取 RecyclerView
+        val rv = attachedRv ?: binding.vpPages.getChildAt(0) as? RecyclerView
+        if (rv == null) {
+            // 列表还没 attach，交给 PageAdapter 记住的那一页 RV（换页后它会补一次）
+            pageAdapter.scrollToPositionInPage(currentPage, listIndex)
+            return
+        }
+        android.util.Log.d("S1Locate", "scroll page=$currentPage postIndex=$target listIndex=$listIndex")
+        pendingScrollPid = null
+        resumeFloorPid = null
+        // 定位用**瞬时跳转**而不是 smoothScrollToPosition：目标可能在几十楼之外，
+        // 平滑滚动会一路掠过（好几秒），用户以为没跳。
+        rv.post {
+            (rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager)
+                ?.scrollToPositionWithOffset(listIndex, 0)
+                ?: rv.scrollToPosition(listIndex)
         }
     }
 
@@ -352,10 +363,10 @@ class ThreadDetailActivity : BaseActivity() {
     private fun loadPollIfAny() {
         lifecycleScope.launch {
             try {
+                // 投票数据是整个帖子的属性，与页码无关，固定拉第 1 页的响应
+                // （用户可能从阅读进度直接恢复到第 N 页，那时 tid 的 poll 仍在 Variables 里）
                 val r = withContext(Dispatchers.IO) {
-                    RetrofitClient.api.getThreadDetail(
-                        tid = tid, page = intent.getIntExtra("page", 1).coerceIn(1, 9999)
-                    )
+                    RetrofitClient.api.getThreadDetail(tid = tid, page = 1)
                 }
                 val special = r.variables?.thread?.special
                 val pollJson = r.variables?.specialPoll
@@ -370,7 +381,8 @@ class ThreadDetailActivity : BaseActivity() {
                         .withUserVotes(PollVoteRepository.remembered(tid))
                     if (parsed.options.isNotEmpty()) {
                         threadPoll = parsed
-                        showPollCard(parsed)
+                        // 投票卡是**楼层列表里的一行**（第 1 页主楼之后），不再塞顶层卡槽
+                        pageAdapter.setPoll(parsed)
                     }
                 }
             } catch (_: Exception) {
@@ -379,26 +391,19 @@ class ThreadDetailActivity : BaseActivity() {
         }
     }
 
-    /** 用 ComposeView 在楼层列表上方渲染投票卡 */
-    private fun showPollCard(poll: com.example.s1client.data.model.ThreadPoll) {
-        binding.pollSlot.visibility = android.view.View.VISIBLE
-        binding.pollSlot.removeAllViews()
-        val cv = androidx.compose.ui.platform.ComposeView(this).apply {
-            setContent {
-                com.example.s1client.ui.theme.S1Theme {
-                    PollCard(
-                        poll = poll,
-                        tid = tid,
-                        onSubmit = { ids ->
-                            PollVoteRepository.votePoll(tid, ids)?.also { msg ->
-                                toast(msg, S1Notify.Type.ERROR)
-                            }
-                        }
-                    )
-                }
-            }
+    /**
+     * 提交投票。返回 null = 成功（PollCard 会把结果态切出来）。
+     *
+     * 成功后照 s1er 刷新一次投票数据（票数/百分比要更新），并把选择记进本地缓存 ——
+     * Discuz 的 API **不返回"我投了哪项"**，只能本地记，否则下次进来又变成未投票。
+     */
+    private suspend fun submitPollVote(ids: List<String>): String? {
+        val err = PollVoteRepository.votePoll(tid, ids)
+        if (err == null) {
+            S1Notify.show(this, "投票成功", S1Notify.Type.SUCCESS)
+            loadPollIfAny()
         }
-        binding.pollSlot.addView(cv)
+        return err
     }
 
     internal fun setupPageAdapter() {
@@ -426,7 +431,8 @@ class ThreadDetailActivity : BaseActivity() {
             powerProvider = { uid -> com.example.s1client.data.store.PowerRepository.get(uid) },
             onPostQuoteJump = { floor -> floor?.toIntOrNull()?.let { goToFloor(it) } },
             bookmarkProvider = { pid -> com.example.s1client.data.store.PostBookmarkManager.isBookmarked(pid) },
-            onPageMissing = { page -> onPageMissing(page) }
+            onPageMissing = { page -> onPageMissing(page) },
+            onPollVote = { ids -> submitPollVote(ids) }
         )
         // 多选分享：把选中判定与切换回调注入 PageAdapter，供各页 PostAdapter 取用
         pageAdapter.shareIsSelected = { p -> p.pid != null && shareSelected.contains(p.pid) }
@@ -630,7 +636,11 @@ class ThreadDetailActivity : BaseActivity() {
         binding.progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
-                val posts = fetchOnePage(1)
+                // ⚠️ 必须拉 startPage 而不是写死 1：
+                // 之前这里写 fetchOnePage(1)，却把结果 setPage 到 startPage ——
+                // 于是「提醒跳转」「阅读进度恢复」都是：页码显示第 N 页、内容却是第 1 页，
+                // 目标 pid 在这一页里根本不存在 → 永远跳不过去（表现就是"跳转失败"）。
+                val posts = fetchOnePage(startPage)
                 // fetchOnePage 刚算出的总页数要在主线程同步进 UI（预留槽位 + 刷新页码）
                 syncPageSocketsOnMain()
                 if (posts.isEmpty()) { toast("加载失败", S1Notify.Type.ERROR); return@launch }
@@ -643,19 +653,26 @@ class ThreadDetailActivity : BaseActivity() {
                 // 楼主头像/昵称放顶栏（小红书式），楼层里不再重复作者行
                 bindTopAuthor(posts.firstOrNull { it.first == "1" })
 
-                val ratingsReady = preloadRatings(1)
+                val ratingsReady = preloadRatings(startPage)
                 // 必须显式写页码：syncPageSocketsOnMain 已把 maxPage 推到总页数，
                 // 用 addPage（写进 maxPage+1）会把首页内容写到错误的页码上
                 pageAdapter.setPage(startPage, posts)
                 loadedMaxPage = startPage
                 currentPage = startPage
+                // ⚠️ ViewPager2 的 currentItem 默认是 0（第 1 页）。不手动切过去的话，
+                // 它显示的是第 1 页的空槽 → 触发 onPageMissing(1) 又把第 1 页拉一遍，
+                // 用户看到的是「跳了页但停在开头」。
+                if (startPage > 1) binding.vpPages.setCurrentItem(startPage - 1, false)
                 // 首屏数据就绪后再试一次定位：onPageSelected 在 ViewPager2 初始化时
                 // 就触发了，彼时 getPage(1) 还是 null，那次尝试必然落空
                 tryScrollToPendingPid()
+                // 保险：换页是异步布局的，post 一次 + 延迟一次，确保列表 attach 后还能补定位
+                binding.vpPages.post { tryScrollToPendingPid() }
+                binding.vpPages.postDelayed({ tryScrollToPendingPid() }, 400)
                 updatePageIndicator()
-                if (ratingsReady) ratingFetchedPages.add(1)
-                pageAdapter.getPage(1)?.let { loadPowers(it) }
-                if (hasMore) preloadPage(2)
+                if (ratingsReady) ratingFetchedPages.add(startPage)
+                pageAdapter.getPage(startPage)?.let { loadPowers(it) }
+                if (hasMore) preloadPage(startPage + 1)
             } finally {
                 binding.progressBar.visibility = View.GONE
                 isLoading = false
@@ -802,7 +819,9 @@ class ThreadDetailActivity : BaseActivity() {
         lastProgressSaveAt = now
         val lm = rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager ?: return
         val first = lm.findFirstVisibleItemPosition()
-        val floorPid = pageAdapter.getPage(currentPage)?.getOrNull(first)?.pid
+        // 列表下标 → 楼层下标（第 1 页有投票卡时要 -1），否则会记住"投票卡"当成楼层
+        val postIndex = pageAdapter.postIndexFromListIndex(currentPage, first)
+        val floorPid = pageAdapter.getPage(currentPage)?.getOrNull(postIndex)?.pid
         val offset = rv.computeVerticalScrollOffset()
         ReadingProgressStore.get(this).save(tid, currentPage, floorPid, offset)
     }

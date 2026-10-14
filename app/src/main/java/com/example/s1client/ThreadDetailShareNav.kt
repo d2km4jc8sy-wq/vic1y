@@ -261,7 +261,10 @@ internal fun ThreadDetailActivity.goToFloor(floor: Int) {
             binding.vpPages.setCurrentItem(targetPage - 1, false)
             // 切页后该页 RecyclerView 才完成绑定；延迟到绑定完成再滚（用按页定位，不依赖 attachedRv）
             binding.vpPages.postDelayed({
-                pageAdapter.scrollToPositionInPage(targetPage, indexInPage)
+                pageAdapter.scrollToPositionInPage(
+                    targetPage,
+                    pageAdapter.listIndexFromPostIndex(targetPage, indexInPage)
+                )
             }, 220)
         }
 

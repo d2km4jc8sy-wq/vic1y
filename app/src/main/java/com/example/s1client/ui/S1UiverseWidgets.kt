@@ -650,19 +650,30 @@ fun ConicFlowBorderCard(
         }
     }
     val angle = infAngle ?: staticAngle.value
-    val colors = listOf(
-        c.flowCoverColors[1].copy(alpha = borderAlpha),
-        c.accent.copy(alpha = borderAlpha),
-        c.flowCoverColors[0].copy(alpha = borderAlpha),
-        c.accentCyan.copy(alpha = borderAlpha),
-        c.flowCoverColors[1].copy(alpha = borderAlpha)
-    )
+    // 环上的取色：**优先用 headerGradient**（顶栏渐变那两个色是按"要在底色上醒目"
+    // 挑的），再配封面流光两色。
+    // 原来用 accentCyan —— 幻彩浅色板里它是 #7FB8D8 淡蓝，叠在粉紫底 + 低透明度上
+    // 直接融进背景，是"彩边不明显"的另一半原因。
+    val ringBase = buildList {
+        c.headerGradient.forEach { add(it) }
+        add(c.flowCoverColors[0])
+        add(c.flowCoverColors.getOrElse(1) { c.accent })
+        if (c.headerGradient.size < 2) add(c.accent)
+    }
+    val colors = (ringBase + ringBase.first()).map { it.copy(alpha = borderAlpha) }
     val shape = RoundedCornerShape(cornerRadius)
 
     Box(modifier = modifier) {
         // 边框层：matchParentSize 跟随内容层尺寸（内容层是唯一 wrap-content 子级，
         // 由它撑起外层 Box —— 之前两层都 matchParentSize 会导致 Box 坍缩成 0×0）
         Canvas(Modifier.matchParentSize().clip(shape)) {
+            // 兜底描边：即使某个色相在当前底色上偏浅（如浅色板里的淡青），
+            // 也始终有一条可辨认的边界 —— 可读性优先于"纯靠渐变"。
+            drawRoundRect(
+                color = c.textMain.copy(alpha = 0.12f),
+                cornerRadius = CornerRadius(cornerRadius.toPx()),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
+            )
             val w = size.width; val h = size.height
             val path = Path().apply {
                 addRoundRect(

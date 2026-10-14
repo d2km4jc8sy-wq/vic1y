@@ -528,9 +528,12 @@ fun FlowGlassCard(
         com.example.s1client.ui.ConicFlowBorderCard(
             modifier = modifier,
             cornerRadius = 16.dp,
-            borderWidth = if (soft) 1.5.dp else 2.5.dp,
+            // ⚠️ 之前这里写死 1.5/2.5dp + 40% 透明度，**把所有调用点的彩边都压没了**
+            //（"我的"页 6 张卡全是 soft=true）。组件默认值再粗也没用，被这里覆盖。
+            // 现改为斐波那契：主角 5dp / 配角 3dp；配角只降厚度不降到看不见（0.9 透明度）。
+            borderWidth = if (soft) 3.dp else 5.dp,
             rotating = rotating,
-            borderAlpha = if (soft) 0.4f else 1f,
+            borderAlpha = if (soft) 0.9f else 1f,
             pulseKey = pulseKey
         ) { content() }
     } else {

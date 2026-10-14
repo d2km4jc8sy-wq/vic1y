@@ -284,7 +284,11 @@ internal fun ThreadDetailActivity.jumpToNewReply(newPid: String) {
                     binding.vpPages.setCurrentItem(target - 1, true)
                     binding.vpPages.postDelayed({
                         val last = (pageAdapter.getPage(target)?.size ?: 1) - 1
-                        pageAdapter.scrollToPositionInPage(target, if (last > 0) last else 0)
+                        val postIdx = if (last > 0) last else 0
+                        pageAdapter.scrollToPositionInPage(
+                            target,
+                            pageAdapter.listIndexFromPostIndex(target, postIdx)
+                        )
                     }, 400)
                 }
             } finally {

@@ -47,6 +47,9 @@ import com.example.s1client.databinding.ItemPostBinding
 import com.example.s1client.util.ImageDownloader
 import com.example.s1client.util.PostContentParser
 import com.example.s1client.util.TimeUtil
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.google.android.material.imageview.ShapeableImageView
 import com.google.android.material.shape.CornerFamily
 import com.google.android.material.shape.ShapeAppearanceModel
@@ -86,8 +89,19 @@ class PostAdapter(
     /** pid 是否已在选中集合 */
     private val isShareSelected: (Post) -> Boolean = { false },
     /** 点按卡片的回调（勾选/取消），由 Activity 注入 */
-    private val onShareToggle: ((Post) -> Unit)? = null
-) : RecyclerView.Adapter<PostAdapter.VH>() {
+    private val onShareToggle: ((Post) -> Unit)? = null,
+    /**
+     * 投票卡（可空）。**照 s1er 的版式**：它不是顶部的独立区块，而是楼层列表里的
+     * 一行，插在第 1 页主楼（楼层下标 0）之后 —— 也就是列表下标 1。
+     * s1er: `if (_showsPollOnPage(state) && index == 1) PollCard(...)`。
+     *
+     * 必须是 var：投票数据通常比楼层晚到（两个请求），到货后由 PageAdapter.setPoll
+     * 原地更新并 notifyItemInserted / notifyItemChanged。
+     */
+    var poll: com.example.s1client.data.model.ThreadPoll? = null,
+    /** 投票提交：返回 null 表示成功，非 null 是错误文案（由 Activity 注入，内部走 IO） */
+    private val onPollVote: (suspend (List<String>) -> String?)? = null
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     // 单楼展开状态改由 util.ExpandedFloors 统一管理（按 tid|pid 持久化），此处不再维护内存集合
 
@@ -100,29 +114,72 @@ class PostAdapter(
 
     inner class VH(val binding: ItemPostBinding) : RecyclerView.ViewHolder(binding.root)
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+    /** 投票卡的 ViewHolder：整块就是一个 ComposeView，内容高度自适应（不再被顶层卡槽压扁） */
+    inner class PollVH(val composeView: androidx.compose.ui.platform.ComposeView)
+        : RecyclerView.ViewHolder(composeView)
+
+    private val showPoll: Boolean
+        get() = poll != null && posts.isNotEmpty()
+
+    /** 列表下标 → 楼层下标（投票卡那一行要扣掉） */
+    private fun postIndexOf(listIndex: Int): Int =
+        if (showPoll && listIndex > POLL_LIST_INDEX) listIndex - 1 else listIndex
+
+    override fun getItemViewType(position: Int): Int =
+        if (showPoll && position == POLL_LIST_INDEX) TYPE_POLL else TYPE_POST
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        if (viewType == TYPE_POLL) {
+            return PollVH(androidx.compose.ui.platform.ComposeView(parent.context).apply {
+                layoutParams = ViewGroup.MarginLayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+                // RecyclerView 里的 ComposeView 必须显式释放，否则滑出屏幕后 composition 泄漏
+                setViewCompositionStrategy(
+                    androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnDetachedFromWindow
+                )
+            })
+        }
         val binding = ItemPostBinding.inflate(
             LayoutInflater.from(parent.context), parent, false)
         return VH(binding)
     }
 
-    override fun onBindViewHolder(holder: VH, position: Int) {
-        val post = posts[position]
-        val ctx = holder.itemView.context
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        if (holder is PollVH) {
+            val p = poll ?: return
+            holder.composeView.setContent {
+                com.example.s1client.ui.theme.S1Theme {
+                    PollCard(
+                        poll = p,
+                        tid = tid,
+                        onSubmit = { ids -> onPollVote?.invoke(ids) },
+                        modifier = Modifier
+                            // 与 item_post 的外边距一致：左右 10dp、上下 8dp
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                    )
+                }
+            }
+            return
+        }
+        val h = holder as VH
+        val post = posts[postIndexOf(position)]
+        val ctx = h.itemView.context
         val density = ctx.resources.displayMetrics.density
         val emojiSize = (18 * density).toInt()
 
         val authorName = post.author ?: "未知"
-        holder.binding.tvPostAuthor.text = authorName
+        h.binding.tvPostAuthor.text = authorName
 
         // 战斗力：金色小 pill，按 uid 从 Profile API 缓存取（楼层 JSON 无此字段）；
         // 取不到用 INVISIBLE 占位，避免 GONE→VISIBLE 引发重绘闪动。
         val powerStr = powerProvider(post.authorId)
         if (powerStr != null) {
-            holder.binding.tvPower.visibility = View.VISIBLE
-            holder.binding.tvPower.text = "⚔ $powerStr"
+            h.binding.tvPower.visibility = View.VISIBLE
+            h.binding.tvPower.text = "⚔ $powerStr"
         } else {
-            holder.binding.tvPower.visibility = View.GONE
+            h.binding.tvPower.visibility = View.GONE
         }
 
         // 自己发的楼层昵称用强调色高亮（移动版 API 不回用户组，管理等用户组高亮暂时做不了）
@@ -133,62 +190,62 @@ class PostAdapter(
             if (isSelf) com.example.s1client.R.attr.s1Accent
             else com.example.s1client.R.attr.s1TextSecondary,
             nameColorTv, true)
-        holder.binding.tvPostAuthor.setTextColor(nameColorTv.data)
-        holder.binding.tvPostAuthor.typeface =
+        h.binding.tvPostAuthor.setTextColor(nameColorTv.data)
+        h.binding.tvPostAuthor.typeface =
             if (isSelf) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
 
         val timeStr = TimeUtil.formatSmart(post.dateline)
-        holder.binding.tvPostTime.text = timeStr
+        h.binding.tvPostTime.text = timeStr
 
         val isFirst = post.first == "1"
         if (isFirst) {
             // 楼主层：时间挪到标题下的 meta 行，底部操作行不再重复显示
-            holder.binding.llOpMeta.visibility = View.VISIBLE
-            holder.binding.tvOpTime.text = timeStr
-            holder.binding.tvPostTime.visibility = View.GONE
+            h.binding.llOpMeta.visibility = View.VISIBLE
+            h.binding.tvOpTime.text = timeStr
+            h.binding.tvPostTime.visibility = View.GONE
         } else {
-            holder.binding.llOpMeta.visibility = View.GONE
-            holder.binding.tvPostTime.visibility =
+            h.binding.llOpMeta.visibility = View.GONE
+            h.binding.tvPostTime.visibility =
                 if (timeStr.isBlank()) View.GONE else View.VISIBLE
         }
 
         // 楼主层的作者信息已经上移到顶栏，楼层内不再重复
-        holder.binding.llAuthorRow.visibility = if (isFirst) View.GONE else View.VISIBLE
+        h.binding.llAuthorRow.visibility = if (isFirst) View.GONE else View.VISIBLE
         if (isFirst) {
-            holder.binding.tvPostFloor.text = "楼主"
+            h.binding.tvPostFloor.text = "楼主"
             if (subject.isNotBlank()) {
-                holder.binding.tvPostTitle.text = subject
-                holder.binding.tvPostTitle.visibility = View.VISIBLE
+                h.binding.tvPostTitle.text = subject
+                h.binding.tvPostTitle.visibility = View.VISIBLE
             } else {
-                holder.binding.tvPostTitle.visibility = View.GONE
+                h.binding.tvPostTitle.visibility = View.GONE
             }
         } else {
-            holder.binding.tvPostTitle.visibility = View.GONE
+            h.binding.tvPostTitle.visibility = View.GONE
             val floorNum = post.position ?: (position + 1).toString()
-            holder.binding.tvPostFloor.text = floorNum + "楼"
+            h.binding.tvPostFloor.text = floorNum + "楼"
         }
 
         val letter = authorName.firstOrNull()?.toString() ?: "?"
-        holder.binding.tvPostAvatarLetter.text = letter
-        holder.binding.tvPostAvatarLetter.background = makeCircleGradient(authorName.hashCode())
+        h.binding.tvPostAvatarLetter.text = letter
+        h.binding.tvPostAvatarLetter.background = makeCircleGradient(authorName.hashCode())
 
-        holder.binding.ivPostAvatar.alpha = 0f
+        h.binding.ivPostAvatar.alpha = 0f
         post.authorId?.let { buildAvatarUrl(it) }?.let { url ->
-            holder.binding.ivPostAvatar.load(url) {
+            h.binding.ivPostAvatar.load(url) {
                 listener(
-                    onSuccess = { _, _ -> holder.binding.ivPostAvatar.alpha = 1f },
-                    onError = { _, _ -> holder.binding.ivPostAvatar.alpha = 0f }
+                    onSuccess = { _, _ -> h.binding.ivPostAvatar.alpha = 1f },
+                    onError = { _, _ -> h.binding.ivPostAvatar.alpha = 0f }
                 )
             }
         }
 
         if (shareSelectMode) {
-            holder.binding.avatarClickArea.setOnClickListener(null)
+            h.binding.avatarClickArea.setOnClickListener(null)
             // 关闭可点击性，避免头像区吞掉整卡点按（否则勾选不生效）
-            holder.binding.avatarClickArea.isClickable = false
-            holder.binding.avatarClickArea.isFocusable = false
+            h.binding.avatarClickArea.isClickable = false
+            h.binding.avatarClickArea.isFocusable = false
         } else {
-            holder.binding.avatarClickArea.setOnClickListener {
+            h.binding.avatarClickArea.setOnClickListener {
                 onAvatarClick?.invoke(post)
             }
         }
@@ -198,10 +255,10 @@ class PostAdapter(
         val actionTv = TypedValue()
         ctx.theme.resolveAttribute(com.example.s1client.R.attr.s1ActionIcon, actionTv, true)
         val actionTint = android.content.res.ColorStateList.valueOf(actionTv.data)
-        holder.binding.btnRate.imageTintList = actionTint
-        holder.binding.btnQuote.imageTintList = actionTint
-        holder.binding.btnFavoritePost.imageTintList = actionTint
-        holder.binding.btnMore.imageTintList = actionTint
+        h.binding.btnRate.imageTintList = actionTint
+        h.binding.btnQuote.imageTintList = actionTint
+        h.binding.btnFavoritePost.imageTintList = actionTint
+        h.binding.btnMore.imageTintList = actionTint
 
         // ===== 楼层卡片化：圆角卡片底 + 描边；选中态切换为强调色描边 + 浅填充 =====
         val cardTv = TypedValue()
@@ -214,7 +271,7 @@ class PostAdapter(
 
         if (shareSelectMode) {
             // 选中高亮直接画在 background（绘制在子 View 之下，绝不遮挡右上角勾选徽标）
-            holder.binding.root.background = GradientDrawable().apply {
+            h.binding.root.background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = 16 * density
                 setStroke((2 * density).toInt(), accent)   // 加粗到 2dp 更醒目
@@ -224,39 +281,39 @@ class PostAdapter(
                     android.graphics.Color.green(accent),
                     android.graphics.Color.blue(accent)))
             }
-            holder.binding.llActions.visibility = View.GONE
-            holder.binding.ivSelectBadge.visibility = View.VISIBLE
+            h.binding.llActions.visibility = View.GONE
+            h.binding.ivSelectBadge.visibility = View.VISIBLE
             if (isShareSelected(post)) {
                 // 选中：accent 实心圆盘 + 白色对勾（白色底衬透出对勾，清晰落在卡片右上角）
-                holder.binding.ivSelectBadge.setImageResource(R.drawable.ic_check_circle)
-                holder.binding.ivSelectBadge.setColorFilter(accent)
+                h.binding.ivSelectBadge.setImageResource(R.drawable.ic_check_circle)
+                h.binding.ivSelectBadge.setColorFilter(accent)
             } else {
                 // 未选：tertiary 圆环（白色底衬透出空心圈，像未勾选的复选框）
-                holder.binding.ivSelectBadge.setImageResource(R.drawable.ic_circle_outline)
+                h.binding.ivSelectBadge.setImageResource(R.drawable.ic_circle_outline)
                 val tertiaryTv = TypedValue()
                 ctx.theme.resolveAttribute(
                     com.example.s1client.R.attr.s1TextTertiary, tertiaryTv, true)
-                holder.binding.ivSelectBadge.setColorFilter(tertiaryTv.data)
+                h.binding.ivSelectBadge.setColorFilter(tertiaryTv.data)
             }
-            holder.binding.root.isClickable = true
-            holder.binding.root.setOnClickListener { onShareToggle?.invoke(post) }
-            holder.binding.ivSelectBadge.setOnClickListener { onShareToggle?.invoke(post) }
+            h.binding.root.isClickable = true
+            h.binding.root.setOnClickListener { onShareToggle?.invoke(post) }
+            h.binding.ivSelectBadge.setOnClickListener { onShareToggle?.invoke(post) }
             // 复用 ViewHolder 时清掉旧的非多选态链接点击，否则正文仍会吞掉整卡点按
-            holder.binding.tvPostMessage.movementMethod = null
+            h.binding.tvPostMessage.movementMethod = null
         } else {
             // 普通态：s1BgCard 圆角底 + 1dp 描边，徽标隐藏
-            holder.binding.root.background = GradientDrawable().apply {
+            h.binding.root.background = GradientDrawable().apply {
                 setColor(cardTv.data)
                 cornerRadius = 16 * density
                 setStroke((1 * density).toInt(), borderTv.data)
             }
-            holder.binding.ivSelectBadge.visibility = View.GONE
-            holder.binding.root.setOnClickListener(null)
-            holder.binding.llActions.visibility = View.VISIBLE
+            h.binding.ivSelectBadge.visibility = View.GONE
+            h.binding.root.setOnClickListener(null)
+            h.binding.llActions.visibility = View.VISIBLE
         }
 
         // 按压缩放反馈（不消费事件，点击/长按不受影响）
-        holder.binding.root.setOnTouchListener { v, e ->
+        h.binding.root.setOnTouchListener { v, e ->
             when (e.actionMasked) {
                 MotionEvent.ACTION_DOWN ->
                     v.animate().scaleX(0.985f).scaleY(0.985f).setDuration(110).start()
@@ -266,41 +323,41 @@ class PostAdapter(
             false
         }
 
-        holder.binding.btnRate.setOnClickListener { onRateClick?.invoke(post) }
-        holder.binding.btnQuote.setOnClickListener { onQuoteClick?.invoke(post) }
-        holder.binding.btnFavoritePost.setOnClickListener { onFavoriteClick?.invoke(post) }
-        holder.binding.btnMore.setOnClickListener { onMoreClick?.invoke(post) }
+        h.binding.btnRate.setOnClickListener { onRateClick?.invoke(post) }
+        h.binding.btnQuote.setOnClickListener { onQuoteClick?.invoke(post) }
+        h.binding.btnFavoritePost.setOnClickListener { onFavoriteClick?.invoke(post) }
+        h.binding.btnMore.setOnClickListener { onMoreClick?.invoke(post) }
 
         // 评分行：数据来自网页版 HTML 的 ratelog（移动版 API 没有）。
         // 没加载到用 INVISIBLE 占位，避免 GONE→VISIBLE 把下方整段往下推造成闪动。
         val rate = rateProvider(post.pid)
         if (rate != null) {
-            holder.binding.llRating.visibility = View.VISIBLE
-            holder.binding.tvRatingInfo.text = rate.summary
+            h.binding.llRating.visibility = View.VISIBLE
+            h.binding.tvRatingInfo.text = rate.summary
             if (shareSelectMode) {
                 // 多选模式：评分行不可点，整卡点按统一走勾选
-                holder.binding.llRating.isClickable = false
-                holder.binding.llRating.setOnClickListener(null)
+                h.binding.llRating.isClickable = false
+                h.binding.llRating.setOnClickListener(null)
             } else {
-                holder.binding.llRating.setOnClickListener { onRatingRowClick?.invoke(post) }
+                h.binding.llRating.setOnClickListener { onRatingRowClick?.invoke(post) }
             }
         } else {
-            holder.binding.llRating.visibility = View.GONE
-            holder.binding.llRating.setOnClickListener(null)
+            h.binding.llRating.visibility = View.GONE
+            h.binding.llRating.setOnClickListener(null)
         }
 
         // 操作行外露：引用 / 评分 / 收藏 常驻（评分行汇总仅在确有评分时出现，
         // 但发起评分的按钮对任意楼层都可用，所以这里常驻可见）
-        holder.binding.btnQuote.visibility = View.VISIBLE
-        holder.binding.btnFavoritePost.visibility = View.VISIBLE
-        holder.binding.btnRate.visibility = View.VISIBLE
+        h.binding.btnQuote.visibility = View.VISIBLE
+        h.binding.btnFavoritePost.visibility = View.VISIBLE
+        h.binding.btnRate.visibility = View.VISIBLE
 
         // 楼层收藏：固定用书签图标，**不做实心/空心状态变化**。
         // 理由（用户拍板）：楼层收藏与帖子收藏都用星星会让人分不清自己在收藏什么，
         // 而实心/空心切换又要求用户"看着图标找状态"，反而更费解。
         // 现在：书签 = 收藏这条楼层；星星 = 收藏整个帖子。形状不同，含义就一目了然，
         // 是否已收藏由点击后的 toast 告知即可。
-        holder.binding.btnFavoritePost.setImageResource(R.drawable.ic_bookmark_outline)
+        h.binding.btnFavoritePost.setImageResource(R.drawable.ic_bookmark_outline)
 
         val parsed = PostContentParser.parse(post.message)
 
@@ -333,13 +390,13 @@ class PostAdapter(
             else -> null
         }
         if (foldMsg != null) {
-            val hint = holder.binding.tvPostMessage
-            holder.binding.llTopImages.visibility = View.GONE
-            holder.binding.llImages.visibility = View.GONE
-            holder.binding.llRating.visibility = View.GONE
-            holder.binding.tvPostTitle.visibility = View.GONE
-            holder.binding.llOpMeta.visibility = View.GONE
-            holder.binding.tvPostFloor.text = if (isFirst) "楼主" else "${post.position ?: (position + 1)}楼"
+            val hint = h.binding.tvPostMessage
+            h.binding.llTopImages.visibility = View.GONE
+            h.binding.llImages.visibility = View.GONE
+            h.binding.llRating.visibility = View.GONE
+            h.binding.tvPostTitle.visibility = View.GONE
+            h.binding.llOpMeta.visibility = View.GONE
+            h.binding.tvPostFloor.text = if (isFirst) "楼主" else "${post.position ?: (position + 1)}楼"
             val spannable = android.text.SpannableString(foldMsg)
             val secTv = TypedValue()
             ctx.theme.resolveAttribute(
@@ -355,9 +412,9 @@ class PostAdapter(
                 com.example.s1client.data.store.ExpandedFloors.expand(tid, post.pid)
                 notifyItemChanged(position)
             }
-            holder.binding.llQuote.visibility = View.GONE
-            holder.binding.tvPower.visibility = View.GONE
-            holder.binding.tvExpand.visibility = View.GONE
+            h.binding.llQuote.visibility = View.GONE
+            h.binding.tvPower.visibility = View.GONE
+            h.binding.tvExpand.visibility = View.GONE
             return
         }
 
@@ -407,37 +464,37 @@ class PostAdapter(
                 spansToLoad.add(Pair(i, url))
             }
         }
-        holder.binding.tvPostMessage.text = ssb
+        h.binding.tvPostMessage.text = ssb
 
         // 独立引用卡片：正文已剔除引用段，这里单独渲染被引内容；点击跳转到被引楼层
         val qText = parsed.quoteText.replace("\uFFFC", "").trim()
         if (qText.isNotBlank()) {
-            holder.binding.llQuote.visibility = View.VISIBLE
+            h.binding.llQuote.visibility = View.VISIBLE
             val qFloor = parsed.quoteFloor
-            holder.binding.tvQuoteAuthor.text = if (qFloor != null) "引用 · ${qFloor}楼" else "引用"
-            holder.binding.tvQuoteBody.text = qText
+            h.binding.tvQuoteAuthor.text = if (qFloor != null) "引用 · ${qFloor}楼" else "引用"
+            h.binding.tvQuoteBody.text = qText
             if (shareSelectMode) {
-                holder.binding.llQuote.isClickable = false
-                holder.binding.llQuote.setOnClickListener(null)
+                h.binding.llQuote.isClickable = false
+                h.binding.llQuote.setOnClickListener(null)
             } else if (qFloor != null) {
-                holder.binding.llQuote.isClickable = true
-                holder.binding.llQuote.setOnClickListener { onPostQuoteJump?.invoke(qFloor) }
+                h.binding.llQuote.isClickable = true
+                h.binding.llQuote.setOnClickListener { onPostQuoteJump?.invoke(qFloor) }
             } else {
-                holder.binding.llQuote.isClickable = false
-                holder.binding.llQuote.setOnClickListener(null)
+                h.binding.llQuote.isClickable = false
+                h.binding.llQuote.setOnClickListener(null)
             }
         } else {
-            holder.binding.llQuote.visibility = View.GONE
+            h.binding.llQuote.visibility = View.GONE
         }
 
         // 长文折叠：同步测自然行数（用卡片可用宽度），首帧即定稿，
         // 避免 GONE→VISIBLE 在布局完成后再切换造成的「闪一下」。
-        val tvMessage = holder.binding.tvPostMessage
+        val tvMessage = h.binding.tvPostMessage
         val contentWpx = ((ctx.resources.displayMetrics.widthPixels / density) - 48f) * density
         tvMessage.maxLines = 12
         tvMessage.ellipsize = TextUtils.TruncateAt.END
-        holder.binding.tvExpand.setOnClickListener(null)
-        holder.binding.tvExpand.visibility = View.GONE
+        h.binding.tvExpand.setOnClickListener(null)
+        h.binding.tvExpand.visibility = View.GONE
         val textWidth = (contentWpx - tvMessage.compoundPaddingLeft - tvMessage.compoundPaddingRight).toInt()
         val naturalLines = if (textWidth > 0) kotlin.runCatching {
             val layout = android.text.StaticLayout.Builder.obtain(
@@ -450,31 +507,31 @@ class PostAdapter(
         if (naturalLines > 12) {
             tvMessage.maxLines = 12
             tvMessage.ellipsize = TextUtils.TruncateAt.END
-            holder.binding.tvExpand.visibility = View.VISIBLE
-            holder.binding.tvExpand.text = "展开全文 ›"
+            h.binding.tvExpand.visibility = View.VISIBLE
+            h.binding.tvExpand.text = "展开全文 ›"
             var expanded = false
-            holder.binding.tvExpand.setOnClickListener {
+            h.binding.tvExpand.setOnClickListener {
                 expanded = !expanded
                 tvMessage.maxLines = if (expanded) Int.MAX_VALUE else 12
                 tvMessage.ellipsize = if (expanded) null else TextUtils.TruncateAt.END
-                holder.binding.tvExpand.text =
+                h.binding.tvExpand.text =
                     if (expanded) "收起 ‹" else "展开全文 ›"
             }
         } else {
             tvMessage.maxLines = Int.MAX_VALUE
             tvMessage.ellipsize = null
-            holder.binding.tvExpand.visibility = View.GONE
+            h.binding.tvExpand.visibility = View.GONE
         }
 
         // ===== 链接识别：URL 自动高亮成强调色 + 可点击跳浏览器 =====
         val accentLinkTv = TypedValue()
         ctx.theme.resolveAttribute(com.example.s1client.R.attr.s1Accent, accentLinkTv, true)
-        holder.binding.tvPostMessage.setLinkTextColor(accentLinkTv.data)
+        h.binding.tvPostMessage.setLinkTextColor(accentLinkTv.data)
         // 选区高亮色：用 20% 强调色，拖拽选区才看得见；点链接高亮也不会太刺眼
-        holder.binding.tvPostMessage.highlightColor =
+        h.binding.tvPostMessage.highlightColor =
             (accentLinkTv.data and 0x00FFFFFF.toInt()) or 0x33000000.toInt()
-        if (!shareSelectMode && LinkifyCompat.addLinks(holder.binding.tvPostMessage, Linkify.WEB_URLS)) {
-            holder.binding.tvPostMessage.movementMethod = LinkMovementMethod.getInstance()
+        if (!shareSelectMode && LinkifyCompat.addLinks(h.binding.tvPostMessage, Linkify.WEB_URLS)) {
+            h.binding.tvPostMessage.movementMethod = LinkMovementMethod.getInstance()
         }
         // 正文长按 = 系统文本选择（拖拽复制部分段落）；整卡长按不再复制（避免误触）
 
@@ -487,14 +544,14 @@ class PostAdapter(
                 override fun onStart(placeholder: Drawable?) {}
                 override fun onError(error: Drawable?) {
                     // 本地没命中、网络也挂了，再试一次 CDN
-                    if (emojiSrc != url) loadEmoji(ctx, ssb, startPos, emojiSize, url, holder, position)
+                    if (emojiSrc != url) loadEmoji(ctx, ssb, startPos, emojiSize, url, h, position)
                 }
                 override fun onSuccess(result: Drawable) {
                     result.setBounds(0, 0, emojiSize, emojiSize)
                     ssb.setSpan(ImageSpan(result, ImageSpan.ALIGN_BASELINE),
                         startPos, startPos + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    if (holder.bindingAdapterPosition == position) {
-                        holder.binding.tvPostMessage.text = ssb
+                    if (h.bindingAdapterPosition == position) {
+                        h.binding.tvPostMessage.text = ssb
                     }
                 }
             }
@@ -504,8 +561,8 @@ class PostAdapter(
         }
 
         // ===== 图片：楼主层置顶（像小红书那样放最上面），其余楼层放正文下方 =====
-        val topContainer = holder.binding.llTopImages
-        val container = holder.binding.llImages
+        val topContainer = h.binding.llTopImages
+        val container = h.binding.llImages
         topContainer.removeAllViews()
         container.removeAllViews()
         val allUrls = parsed.imageUrls
@@ -643,21 +700,21 @@ class PostAdapter(
         }
 
         // 整卡长按不再复制（避免误触）；正文选区已在上方开启
-        holder.binding.root.setOnLongClickListener(null)
+        h.binding.root.setOnLongClickListener(null)
 
-        Log.d("S1FLICK", "BIND pos=$position pid=${post.pid} pow=${visName(holder.binding.tvPower.visibility)} rate=${visName(holder.binding.llRating.visibility)} exp=${visName(holder.binding.tvExpand.visibility)} img=${visName(holder.binding.llImages.visibility)} top=${visName(holder.binding.llTopImages.visibility)}")
+        Log.d("S1FLICK", "BIND pos=$position pid=${post.pid} pow=${visName(h.binding.tvPower.visibility)} rate=${visName(h.binding.llRating.visibility)} exp=${visName(h.binding.tvExpand.visibility)} img=${visName(h.binding.llImages.visibility)} top=${visName(h.binding.llTopImages.visibility)}")
 
         // 诊断：监听 item 整体高度变化，直接抓住 bind 之后哪项把下方顶下去了
         val ll = View.OnLayoutChangeListener { _, _, _, _, b, _, _, _, ob ->
             if (ob > 0 && b != ob) {
-                Log.d("S1LAYOUT", "HEIGHT ${ob}->${b} pid=${post.pid} pow=${visName(holder.binding.tvPower.visibility)} rate=${visName(holder.binding.llRating.visibility)} exp=${visName(holder.binding.tvExpand.visibility)} img=${visName(holder.binding.llImages.visibility)} top=${visName(holder.binding.llTopImages.visibility)}")
+                Log.d("S1LAYOUT", "HEIGHT ${ob}->${b} pid=${post.pid} pow=${visName(h.binding.tvPower.visibility)} rate=${visName(h.binding.llRating.visibility)} exp=${visName(h.binding.tvExpand.visibility)} img=${visName(h.binding.llImages.visibility)} top=${visName(h.binding.llTopImages.visibility)}")
             }
         }
-        holder.itemView.getTag(R.id.tag_post_layout_listener)?.let {
-            holder.itemView.removeOnLayoutChangeListener(it as View.OnLayoutChangeListener)
+        h.itemView.getTag(R.id.tag_post_layout_listener)?.let {
+            h.itemView.removeOnLayoutChangeListener(it as View.OnLayoutChangeListener)
         }
-        holder.itemView.setTag(R.id.tag_post_layout_listener, ll)
-        holder.itemView.addOnLayoutChangeListener(ll)
+        h.itemView.setTag(R.id.tag_post_layout_listener, ll)
+        h.itemView.addOnLayoutChangeListener(ll)
     }
 
     private fun visName(v: Int): String = when (v) {
@@ -673,7 +730,7 @@ class PostAdapter(
         startPos: Int,
         emojiSize: Int,
         url: String,
-        holder: VH,
+        h: VH,
         position: Int
     ) {
         val target = object : Target {
@@ -683,8 +740,8 @@ class PostAdapter(
                 result.setBounds(0, 0, emojiSize, emojiSize)
                 ssb.setSpan(ImageSpan(result, ImageSpan.ALIGN_BASELINE),
                     startPos, startPos + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                if (holder.bindingAdapterPosition == position) {
-                    holder.binding.tvPostMessage.text = ssb
+                if (h.bindingAdapterPosition == position) {
+                    h.binding.tvPostMessage.text = ssb
                 }
             }
         }
@@ -753,7 +810,16 @@ class PostAdapter(
         }
     }
 
-    override fun getItemCount() = posts.size
+    /** 楼层数 + 投票卡那一行（若这一页要显示投票） */
+    override fun getItemCount() = posts.size + if (showPoll) 1 else 0
+
+    /** 楼层数（不含投票卡），PageAdapter 插入/移除投票时需要它判断该不该 notify */
+    fun postCount(): Int = posts.size
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        if (holder is PollVH) holder.composeView.disposeComposition()
+        super.onViewRecycled(holder)
+    }
 
     /**
      * 失效黑名单/关键词缓存：外部（详情页）在「全局拉黑 / 本帖屏蔽」状态变化时调用，
@@ -786,6 +852,16 @@ class PostAdapter(
     }
 
     companion object {
+        /** 楼层行的 viewType */
+        private const val TYPE_POST = 0
+        /** 投票卡行的 viewType */
+        private const val TYPE_POLL = 1
+        /**
+         * 投票卡在列表里的下标 —— **照 s1er**：`index == 1`，即紧跟主楼之后
+         * （s1er thread_detail_screen.dart:971）。
+         */
+        private const val POLL_LIST_INDEX = 1
+
         /** 头像地址：把 uid 补成 9 位再按 3/2/2/2 切段 */
         fun buildAvatarUrl(uid: String): String? {
             val n = uid.toIntOrNull() ?: return null

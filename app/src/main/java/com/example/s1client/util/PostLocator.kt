@@ -38,12 +38,21 @@ object PostLocator {
                 .url(url)
                 .header("Referer", "https://stage1st.com/2b/forum.php?mod=viewthread&tid=$tid")
                 .build()
-            // 关键：不跟随 302，否则读不到 Location 头
-            RetrofitClient.httpClient.newBuilder().followRedirects(false).build()
+            // 第一级：不跟随 302，直接读 Location 头（最省、最准）
+            val fromHeader = RetrofitClient.httpClient.newBuilder().followRedirects(false).build()
                 .newCall(req).execute().use { resp ->
                     val loc = resp.header("Location")
                     android.util.Log.d("S1Locate", "tid=$tid pid=$pid code=${resp.code} location=$loc")
                     parsePageFromLocation(loc)
+                }
+            // 第二级（照 s1er 的 realUri 兜底）：有些情况下服务端不给 Location，
+            // 而是 200 一段带 meta refresh 的 HTML。那就跟随重定向，读**最终 URL** ——
+            // OkHttp 跟完后 resp.request.url 就是 thread-{tid}-{page}-1.html。
+            fromHeader ?: RetrofitClient.httpClient.newBuilder().followRedirects(true).build()
+                .newCall(req).execute().use { resp ->
+                    val finalUrl = resp.request.url.toString()
+                    android.util.Log.d("S1Locate", "fallback realUri=$finalUrl")
+                    parsePageFromLocation(finalUrl)
                 }
         } catch (_: Exception) {
             null

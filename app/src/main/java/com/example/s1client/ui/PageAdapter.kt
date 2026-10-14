@@ -38,7 +38,9 @@ class PageAdapter(
     /** pid -> 是否已被本地楼层收藏 */
     private val bookmarkProvider: (String?) -> Boolean = { false },
     /** 滑到尚未加载的页码时回调，交给 Activity 去请求这一页 */
-    private val onPageMissing: ((Int) -> Unit)? = null
+    private val onPageMissing: ((Int) -> Unit)? = null,
+    /** 投票提交（只有第 1 页的投票卡会用），由 Activity 注入 */
+    private val onPollVote: (suspend (List<String>) -> String?)? = null
 ) : RecyclerView.Adapter<PageAdapter.PageVH>() {
 
     /** 多选分享：是否处于多选模式（仅 applyShareSelectMode 内部可改，onBindViewHolder 读最新值） */
@@ -62,6 +64,41 @@ class PageAdapter(
     private val MAX_PAGES = 30
     /** 页面访问顺序（LRU）：队首是最久没碰过的，超出上限时淘汰它 */
     private val pageAccess = LinkedHashSet<Int>()
+
+    /**
+     * 投票卡（thread.special==1 的投票帖才有）。**只挂在第 1 页**：
+     * s1er 是 `_showsPollOnPage => currentPage == 1 && poll != null`。
+     *
+     * 为什么不放顶层卡槽：卡槽高度写死会把内容挤扁（'显示不全'），
+     * 而它是楼层列表的一行时高度自适应、跟着列表一起滚，和 s1er 一致。
+     */
+    var poll: com.example.s1client.data.model.ThreadPoll? = null
+        private set
+
+    /**
+     * 投票数据到货 / 投票后刷新：更新第 1 页的 PostAdapter 并局部通知。
+     * 第 1 页还没绑过（用户直接恢复到第 N 页）时只存值，等绑定时自然带上。
+     */
+    fun setPoll(p: com.example.s1client.data.model.ThreadPoll?) {
+        val had = poll != null
+        poll = p
+        val a = liveAdapters[0] ?: return
+        a.poll = p
+        if (a.postCount() == 0) return   // 楼层还没到，绑定时自然带上，不必 notify
+        when {
+            !had && p != null -> a.notifyItemInserted(1)
+            had && p == null -> a.notifyItemRemoved(1)
+            had && p != null -> a.notifyItemChanged(1)
+        }
+    }
+
+    /** 列表下标 → 楼层下标（第 1 页的投票卡占了一行，要扣掉） */
+    fun postIndexFromListIndex(page: Int, listIndex: Int): Int =
+        if (page == 1 && poll != null && listIndex > 1) listIndex - 1 else listIndex
+
+    /** 楼层下标 → 列表下标（滚动定位时要把投票卡那一行让出来） */
+    fun listIndexFromPostIndex(page: Int, postIndex: Int): Int =
+        if (page == 1 && poll != null && postIndex >= 1) postIndex + 1 else postIndex
 
     /** 当前已创建的 PostAdapter（按 ViewPager 位置），用于评分行数据到达后的原地刷新 */
     private val liveAdapters = mutableMapOf<Int, PostAdapter>()
@@ -207,7 +244,9 @@ class PageAdapter(
             rateProvider, onPostRatingRowClick, powerProvider, onPostQuoteJump,
             bookmarkProvider,
             shareSelectMode = shareSelectMode, isShareSelected = shareIsSelected,
-            onShareToggle = shareOnToggle
+            onShareToggle = shareOnToggle,
+            poll = if (page == 1) poll else null,
+            onPollVote = onPollVote
         )
         holder.rv.adapter = pa
         liveAdapters[position] = pa
