@@ -48,11 +48,17 @@ data class ThreadDetailResponse(
 data class ThreadDetailVariables(
     @SerializedName("thread") val thread: ThreadDetail?,
     @SerializedName("postlist") val postList: List<Post>?,
-    @SerializedName("formhash") val formhash: String?
+    @SerializedName("formhash") val formhash: String?,
+    /** 投票帖的投票数据。**用 JSONObject 而非 data class** —— Discuz 的
+     *  polloptions 是以任意 key 的 Map 返回的，直接建 data class 会丢字段，
+     *  交由 PollModels.PollOption 按 key 排序解析（与 s1er 的做法一致）。 */
+    @SerializedName("special_poll") val specialPoll: org.json.JSONObject? = null
 )
 
 data class ThreadDetail(
     @SerializedName("tid") val tid: String?,
+    /** 主题类型：1=投票帖（Discuz 的 special 字段），其余 0/2/3/4 均非投票 */
+    @SerializedName("special") val special: String? = null,
     @SerializedName("fid") val fid: String?,
     @SerializedName("subject") val subject: String?,
     @SerializedName("author") val author: String?,

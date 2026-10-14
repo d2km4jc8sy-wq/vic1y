@@ -133,6 +133,13 @@
             android:textSize="12sp"
             android:visibility="gone" />
 
+        <!-- 投票卡槽：只有 special==1 的投票帖才会往里塞 ComposeView -->
+        <FrameLayout
+            android:id="@+id/pollSlot"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"

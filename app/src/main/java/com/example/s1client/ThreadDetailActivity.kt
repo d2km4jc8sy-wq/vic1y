@@ -49,7 +49,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.s1client.data.api.PollVoteRepository
+import com.example.s1client.ui.PollCard
 import androidx.recyclerview.widget.RecyclerView
+import com.example.s1client.data.store.ReadingProgressStore
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.viewpager2.widget.ViewPager2
 import coil.load
@@ -95,6 +98,18 @@ class ThreadDetailActivity : BaseActivity() {
     internal var subject: String = ""
     internal var isFavorited: Boolean = false
     internal var currentPage: Int = 1
+
+    /** 投票数据（special==1 的投票帖才有）；合并本地已投记录后渲染 */
+    private var threadPoll: com.example.s1client.data.model.ThreadPoll? = null
+
+    /** 本地阅读进度：进来时恢复、滚动时节流保存（点击帖子回到之前的进度） */
+    private var lastProgressSaveAt = 0L
+
+    /** 本次是否已经从本地进度恢复过（避免恢复后立刻被保存覆盖） */
+    private var progressRestored = false
+
+    /** 从本地进度里读出来的楼层 pid（打开后滚动定位用，用完即清） */
+    private var resumeFloorPid: String? = null
 
     /** 待滚动定位的楼层 id；定位成功后立即清空，避免重复执行 */
     private var pendingScrollPid: String? = null
@@ -198,6 +213,16 @@ class ThreadDetailActivity : BaseActivity() {
         isFavorited = intent.getBooleanExtra("favorited", false)
         // 从提醒跳进来时带的楼层 id（PostLocator 已定位过页号）
         pendingScrollPid = intent.getStringExtra(EXTRA_PID)?.takeIf { it.isNotBlank() }
+        // intent 没指定页码时，用本地记录的阅读进度恢复（用户要的"回到之前的进度"）
+        if (intent.getIntExtra("page", 1) <= 1 && pendingScrollPid == null) {
+            ReadingProgressStore.get(this).load(tid)?.let { p ->
+                if (p.page > 1) {
+                    intent.putExtra("page", p.page)
+                    resumeFloorPid = p.floorPid
+                }
+                progressRestored = true
+            }
+        }
 
         binding.btnBack.setOnClickListener { handleBack() }
         if (tid.isEmpty()) { finish(); return }
@@ -304,7 +329,7 @@ class ThreadDetailActivity : BaseActivity() {
      * 停在正确的那一页本身就是主要收益，不必再弹提示打扰用户。
      */
     private fun tryScrollToPendingPid() {
-        val pid = pendingScrollPid ?: return
+        val pid = pendingScrollPid ?: resumeFloorPid ?: return
         // attachedRv 只在 onPageScroll 回调后才被赋值，首屏定位时可能还是 null，
         // 这时从 ViewPager2 的当前子视图里取 RecyclerView
         val rv = attachedRv
@@ -314,8 +339,59 @@ class ThreadDetailActivity : BaseActivity() {
         val target = posts.indexOfFirst { it.pid == pid }
         if (target >= 0) {
             pendingScrollPid = null
+            resumeFloorPid = null
             rv.post { rv.smoothScrollToPosition(target) }
         }
+    }
+
+    /**
+     * 投票帖解析。判定与字段照搬 s1er 的 `parsePoll`：
+     * `thread.special == 1` 且 `Variables.special_poll` 存在才是投票帖。
+     * 再把本地记住的已投选项合进去（API 不返回这个字段）。
+     */
+    private fun loadPollIfAny() {
+        lifecycleScope.launch {
+            try {
+                val r = withContext(Dispatchers.IO) {
+                    RetrofitClient.api.getThreadDetail(tid = tid, page = 1)
+                }
+                val special = r.variables?.thread?.special
+                val pollJson = r.variables?.specialPoll
+                if (special?.trim() == "1" && pollJson != null) {
+                    val parsed = com.example.s1client.data.model.ThreadPoll
+                        .fromJson(pollJson)
+                        .withUserVotes(PollVoteRepository.remembered(tid))
+                    if (parsed.options.isNotEmpty()) {
+                        threadPoll = parsed
+                        showPollCard(parsed)
+                    }
+                }
+            } catch (_: Exception) {
+                // 投票数据缺失不影响看帖，静默跳过
+            }
+        }
+    }
+
+    /** 用 ComposeView 在楼层列表上方渲染投票卡 */
+    private fun showPollCard(poll: com.example.s1client.data.model.ThreadPoll) {
+        binding.pollSlot.visibility = android.view.View.VISIBLE
+        binding.pollSlot.removeAllViews()
+        val cv = androidx.compose.ui.platform.ComposeView(this).apply {
+            setContent {
+                com.example.s1client.ui.theme.S1Theme {
+                    PollCard(
+                        poll = poll,
+                        tid = tid,
+                        onSubmit = { ids ->
+                            PollVoteRepository.votePoll(tid, ids)?.also { msg ->
+                                toast(msg, S1Notify.Type.ERROR)
+                            }
+                        }
+                    )
+                }
+            }
+        }
+        binding.pollSlot.addView(cv)
     }
 
     internal fun setupPageAdapter() {
@@ -540,6 +616,7 @@ class ThreadDetailActivity : BaseActivity() {
     /** 从某楼菜单进入多选模式：预选当前楼，显示底部分享条、隐藏原回复条 */
     internal fun loadFirstPage() {
         isLoading = true
+        loadPollIfAny()
         binding.progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
@@ -695,10 +772,28 @@ class ThreadDetailActivity : BaseActivity() {
         if (endDetectorAttached[rv] == true) return
         endDetectorAttached[rv] = true
         rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(r: RecyclerView, dx: Int, dy: Int) = checkEndFooter(r)
+            override fun onScrolled(r: RecyclerView, dx: Int, dy: Int) {
+                checkEndFooter(r)
+                saveProgressThrottled(r)
+            }
         })
         // 末页内容一屏装得下、无需滚动时也能显示
         rv.post { checkEndFooter(rv) }
+    }
+
+    /**
+     * 节流保存阅读进度：页 + 视口第一条楼层 pid + 滚动偏移。
+     * 2 秒节流 —— 滚动监听每帧都会回调，不节流会把 SQLite 写爆。
+     */
+    private fun saveProgressThrottled(rv: RecyclerView) {
+        val now = System.currentTimeMillis()
+        if (now - lastProgressSaveAt < 2000) return
+        lastProgressSaveAt = now
+        val lm = rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager ?: return
+        val first = lm.findFirstVisibleItemPosition()
+        val floorPid = pageAdapter.getPage(currentPage)?.getOrNull(first)?.pid
+        val offset = rv.computeVerticalScrollOffset()
+        ReadingProgressStore.get(this).save(tid, currentPage, floorPid, offset)
     }
 
     internal fun showEndFooter() {
