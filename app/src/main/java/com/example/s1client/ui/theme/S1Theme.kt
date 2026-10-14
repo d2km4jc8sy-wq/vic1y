@@ -202,14 +202,28 @@ private class IridescentPreset(
 )
 
 private val IridescentPresets = listOf(
-    // 0 · 浅色板（封面取自用户参考图 1：粉底 + 右上暖橙光）
-    //    页面是近白的紫粉晕，卡片纯白；封面用粉色调，暖橙由焦点光斑提供
+    // 0 · 浅色板 —— **iOS 27 Liquid Glass 基调 + 紫粉调**
+    //    用户反馈原版「过于偏白、刺眼」，原 #FBF7FD/#FDF4F9 已接近纯白。
+    //    本轮整体压暗并加重粉紫：
+    //      · 页面底色 #F2EAF6 → #FBE4F0（淡紫到粉的柔和渐变，比原版暗约 8%，
+    //        消除纯白的刺眼感，同时保留 Liquid Glass 的通透）；
+    //      · 文字用深紫灰 #3D2438 / #8A6B85（不用纯黑，避免在粉底上过硬）；
+    //      · 主色 #D6339C（紫粉），与封面流光板同色系。
     IridescentPreset(
-        Color(0xFFFBF7FD), Color(0xFFFDF4F9),
-        Color(0xFFE0459F), Color(0xFF7A3FD4),
-        Color(0xFFEBD4FA), Color(0xFFFBD9E8),
-        Color(0x33B569F6), Color(0xE6FBF7FD),
-        listOf(Color(0xFFFF6FA6), Color(0xFFFF69A8), Color(0xFFF75A9E))
+        Color(0xFFF2EAF6), Color(0xFFFBE4F0),
+        Color(0xFFD6339C), Color(0xFF8B3FD9),
+        Color(0xFFF7EBFC), Color(0xFFFDE6F3),
+        Color(0x33B569F6), Color(0xE6F7F0F9),
+        listOf(Color(0xFFFF6FA6), Color(0xFFB66BF7), Color(0xFFFF8FC7)),
+        isDark = false,
+        cardBg = Color(0xFFFFFFFF),
+        textMain = Color(0xFF3D2438), textSub = Color(0xFF8A6B85),
+        glassCard = Color(0xF7FFFFFF), glassFloat = Color(0xF2FFFFFF),
+        glassDialog = Color(0xFAFFFFFF),
+        chipBg = Color(0x1AB569F6),
+        snackbarBg = Color(0xFFD6339C), onSnackbar = Color(0xFFFFFFFF),
+        glassEdgeTop = Color(0x8AFFFFFF), glassEdgeMid = Color(0x4DFFFFFF),
+        glassEdgeBottom = Color(0x1AFFFFFF), glassInsetLight = Color(0x6EFFFFFF)
     ),
     // 1 · 深色板（封面取自用户参考图 2：紫底 + 品红光 + 底部淡紫）
     //    页面深紫、卡片深紫灰；封面紫 → 品红 → 淡紫

@@ -618,10 +618,10 @@ fun PillTabs(
 fun ConicFlowBorderCard(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 16.dp,
-    borderWidth: Dp = 2.5.dp,
+    borderWidth: Dp = 3.5.dp,
     /** false = 静态柔彩（配角卡）；true = 全饱和旋转（主角卡，一页只留一个） */
     rotating: Boolean = true,
-    /** 描边透明度：配角卡 0.4f 退到底色里 */
+    /** 描边透明度：配角卡 0.5f 退到底色里 */
     borderAlpha: Float = 1f,
     /** >0 且静态时：pulseKey 变化触发一次 0.6s 快转脉冲（签到庆祝用） */
     pulseKey: Int = 0,
@@ -632,7 +632,7 @@ fun ConicFlowBorderCard(
     val infAngle = if (rotating) {
         rememberInfiniteTransition(label = "conic").animateFloat(
             initialValue = 0f, targetValue = 360f,
-            animationSpec = infiniteRepeatable(tween(3200, easing = LinearEasing)),
+            animationSpec = infiniteRepeatable(tween(4200, easing = LinearEasing)),
             label = "angle"
         ).value
     } else null
