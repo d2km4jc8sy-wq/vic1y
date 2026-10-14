@@ -125,10 +125,15 @@ fun showUserCardDialog(
                         RetrofitClient.api.addFriend(uid = uid, formhash = fh).string()
                     }
                     val msg = parseFriendResult(body)
+                    val isErr = msg.contains("请先登录")
                     S1Notify.show(
                         activity, msg,
-                        if (msg.contains("请先登录")) S1Notify.Type.ERROR else S1Notify.Type.SUCCESS
+                        if (isErr) S1Notify.Type.ERROR else S1Notify.Type.SUCCESS
                     )
+                    // L2：申请成功后，被点的这个按钮原地脉冲一圈（震动由上面的 SUCCESS 自动配对）
+                    if (!isErr) {
+                        PulseFeedback.once(cardBinding.btnCardFriend)
+                    }
                 } catch (e: Exception) {
                     S1Notify.show(activity, "发送失败：${e.message}", S1Notify.Type.ERROR)
                 } finally {
