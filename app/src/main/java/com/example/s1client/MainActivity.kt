@@ -8,7 +8,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.ui.viewinterop.AndroidView
-import com.example.s1client.ui.EdgePageBar
 import com.example.s1client.ui.RopeRefreshView
 import com.example.s1client.data.store.BlacklistManager
 import com.example.s1client.util.Haptic
@@ -432,16 +431,23 @@ fun XhsHomeScreen(viewModel: PostViewModel, resumeSignal: androidx.compose.runti
                 } else {
                     val tid = post.tid
                     scope.launch {
-                        val r = FavoriteManager.toggleFavorite(tid)
+                        // Peek 单向收藏（只收不取消），取消去收藏页手动
+                        val r = FavoriteManager.addFavorite(tid)
                         val msg: String
                         val type: S1Notify.Type
                         when {
                             r.failed -> { msg = "操作失败：" + r.message; type = S1Notify.Type.ERROR }
-                            r.isFavorited -> { msg = "已收藏"; type = S1Notify.Type.SUCCESS }
-                            else -> { msg = "已取消收藏"; type = S1Notify.Type.SUCCESS }
+                            r.message == "已在收藏中" -> { msg = "已在收藏中 · 取消请到收藏页手动操作"; type = S1Notify.Type.INFO }
+                            else -> { msg = "已收藏"; type = S1Notify.Type.SUCCESS }
                         }
                         S1Notify.show(act, msg, type)
                     }
+                }
+            },
+            onUndoFavorite = {
+                scope.launch {
+                    val r = FavoriteManager.cancelFavorite(post.tid)
+                    if (!r.failed) S1Notify.show(act, "已取消收藏", S1Notify.Type.SUCCESS)
                 }
             },
             onShare = {
@@ -466,7 +472,6 @@ fun XhsHomeScreen(viewModel: PostViewModel, resumeSignal: androidx.compose.runti
                         post.authorName ?: "",
                         post.timeText ?: ""
                     )
-                    undoBar = UndoBarData("已隐藏该帖", "撤销") { viewModel.unhidePost(post.tid) }
                 }
             },
             onOpen = {
@@ -615,7 +620,11 @@ fun XhsHomeScreen(viewModel: PostViewModel, resumeSignal: androidx.compose.runti
                                 viewModel.pullRefresh(tab.fid)
                             },
                             onLoadMore = { viewModel.loadMore(tab.fid) },
-                            onJumpPage = { viewModel.jumpToPage(tab.fid, it) },
+                            onJumpPage = { target ->
+                                viewModel.jumpToPage(tab.fid, target)
+                                // 原型规格 7：跳转「落点确认」反馈
+                                S1Notify.show(context, "已跳转到第 $target 页", S1Notify.Type.SUCCESS)
+                            },
                             onAvatarClick = { post ->
                                 val uid = post.authorId
                                 if (!uid.isNullOrBlank()) {

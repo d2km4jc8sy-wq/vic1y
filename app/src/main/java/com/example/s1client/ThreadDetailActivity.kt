@@ -284,6 +284,34 @@ class ThreadDetailActivity : BaseActivity() {
         binding.vpPages.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 currentPage = position + 1
+                // 原型规格 7：跳转落点高亮（目标页首楼卡闪烁 1.6s 渐隐）
+                if (pendingFlashPage == currentPage) {
+                    pendingFlashPage = -1
+                    binding.vpPages.post {
+                        val innerRv = (0 until binding.vpPages.childCount)
+                            .map { binding.vpPages.getChildAt(it) }
+                            .filterIsInstance<RecyclerView>()
+                            .firstOrNull()
+                        val vh = innerRv?.findViewHolderForAdapterPosition(position)
+                            as? PageAdapter.PageVH
+                        val rv = vh?.itemView as? RecyclerView
+                        val card = rv?.getChildAt(0)
+                        if (card != null) flashCardView(card)
+                    }
+                }
+                // 实验功能「转盘翻页」：每翻一档给一次 iPod 式 tick 触觉（默认关）
+                if (com.example.s1client.data.store.SettingStore.dialPaging(this@ThreadDetailActivity)
+                    && position > 0
+                ) {
+                    runCatching {
+                        val v = getSystemService(android.content.Context.VIBRATOR_SERVICE)
+                            as? android.os.Vibrator
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                            v?.vibrate(android.os.VibrationEffect.createPredefined(
+                                android.os.VibrationEffect.EFFECT_TICK))
+                        } else @Suppress("DEPRECATION") v?.vibrate(12)
+                    }
+                }
                 tryScrollToTarget()
                 // 翻页本身就是"读到哪了"，必须立刻记一笔 ——
                 // 只靠竖向滚动的 onScrolled 存进度的话，用户左右翻页后直接返回
@@ -869,6 +897,37 @@ class ThreadDetailActivity : BaseActivity() {
             }
         }
     }
+
+    /** 跳转落点高亮：目标卡叠一层 accent 圆角 overlay，1.6s 渐隐后移除 */
+    internal fun flashCardView(card: View) {
+        val gd = android.graphics.drawable.GradientDrawable().apply {
+            setColor(0x405E6AD2)
+            cornerRadius = 12f * resources.displayMetrics.density
+        }
+        card.overlay.add(gd)
+        card.postInvalidate()
+        val anim = android.animation.ValueAnimator.ofInt(0x40, 0x00).apply {
+            duration = 1600
+            startDelay = 120
+            addUpdateListener {
+                val a = it.animatedValue as Int
+                gd.setColor((a shl 24) or 0x5E6AD2)
+                card.overlay.clear()
+                card.overlay.add(gd)
+                card.postInvalidate()
+            }
+            addListener(object : android.animation.Animator.AnimatorListener {
+                override fun onAnimationEnd(a: android.animation.Animator) { card.overlay.clear() }
+                override fun onAnimationStart(a: android.animation.Animator) {}
+                override fun onAnimationCancel(a: android.animation.Animator) { card.overlay.clear() }
+                override fun onAnimationRepeat(a: android.animation.Animator) {}
+            })
+        }
+        anim.start()
+    }
+
+    /** 跳转落点高亮的目标页（1 基），-1 = 无 */
+    internal var pendingFlashPage: Int = -1
 
     internal fun gotoPage(page: Int) {
         if (page < 1) { toast("已经是第一页"); return }

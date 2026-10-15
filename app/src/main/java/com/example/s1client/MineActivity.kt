@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -13,6 +14,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.offset
@@ -60,8 +62,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -525,17 +531,63 @@ fun FlowGlassCard(
     content: @Composable () -> Unit
 ) {
     if (ThemeManager.currentTheme == ThemeManager.THEME_IRIDESCENT) {
-        com.example.s1client.ui.ConicFlowBorderCard(
-            modifier = modifier,
-            cornerRadius = 16.dp,
-            // ⚠️ 之前这里写死 1.5/2.5dp + 40% 透明度，**把所有调用点的彩边都压没了**
-            //（"我的"页 6 张卡全是 soft=true）。组件默认值再粗也没用，被这里覆盖。
-            // 现改为斐波那契：主角 5dp / 配角 3dp；配角只降厚度不降到看不见（0.9 透明度）。
-            borderWidth = if (soft) 3.dp else 5.dp,
-            rotating = rotating,
-            borderAlpha = if (soft) 0.9f else 1f,
-            pulseKey = pulseKey
-        ) { content() }
+        // 幻彩「彩色亮丝」卡框（2026-10-15 用户定稿，替代原旋转流光环）：
+        // 与瀑布流卡框同一套语法、同一粗细 —— 1.5dp 主题色板渐变描边
+        // （s1RingColors 四色，左上→右下，0.88）+ 贴边 4dp@0.10 同色柔光；
+        // 五张卡一致对待，无主次分离（用户：「不走主次分离，和其他边框统一」）。
+        // 描边画在边界内侧（Canvas 覆盖层不参与测量），内容层与常规主题尺寸完全一致。
+        // rotating / soft 参数保留以兼容调用点，已不参与绘制；
+        // pulseKey 保留 = 签到成功时彩丝提亮加粗一格（0.6s）。
+        val c = LocalS1Colors.current
+        val band = remember(c) { com.example.s1client.ui.theme.s1RingColors(c) }
+        val pulse = remember { Animatable(0f) }
+        LaunchedEffect(pulseKey) {
+            if (pulseKey > 0) {
+                pulse.snapTo(1f)
+                pulse.animateTo(0f, tween(600, easing = FastOutSlowInEasing))
+            }
+        }
+        val corner = 16.dp
+        Box(modifier = modifier) {
+            // 内容层：clip + 玻璃底，与常规主题同一布局尺寸
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(corner))
+                    .background(c.glassCard)
+            ) { content() }
+            // 边框层：铺满外层 Box（matchParentSize 不参与测量），画在最上层
+            Canvas(Modifier.matchParentSize()) {
+                val rr = corner.toPx()
+                // 柔光：贴边低透明度宽描边，让彩丝有「亮」的晕染
+                val glowPx = 4.dp.toPx()
+                val glowInset = glowPx / 2f
+                drawRoundRect(
+                    brush = Brush.linearGradient(
+                        band.map { it.copy(alpha = 0.10f + pulse.value * 0.10f) },
+                        start = Offset.Zero,
+                        end = Offset(size.width, size.height)
+                    ),
+                    topLeft = Offset(glowInset, glowInset),
+                    size = Size(size.width - glowPx, size.height - glowPx),
+                    cornerRadius = CornerRadius((rr - glowInset).coerceAtLeast(0f)),
+                    style = Stroke(width = glowPx)
+                )
+                // 彩丝本体：1.5dp@0.88（签到脉冲时短暂加粗提亮）
+                val strokePx = (1.5.dp * (1f + pulse.value)).toPx()
+                val inset = strokePx / 2f
+                drawRoundRect(
+                    brush = Brush.linearGradient(
+                        band.map { it.copy(alpha = 0.88f + pulse.value * 0.12f) },
+                        start = Offset.Zero,
+                        end = Offset(size.width, size.height)
+                    ),
+                    topLeft = Offset(inset, inset),
+                    size = Size(size.width - strokePx, size.height - strokePx),
+                    cornerRadius = CornerRadius((rr - inset).coerceAtLeast(0f)),
+                    style = Stroke(width = strokePx)
+                )
+            }
+        }
     } else {
         Box(
             modifier

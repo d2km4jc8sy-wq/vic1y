@@ -7,7 +7,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.ui.viewinterop.AndroidView
-import com.example.s1client.ui.EdgePageBar
 import com.example.s1client.ui.RopeRefreshView
 import com.example.s1client.data.store.BlacklistManager
 import com.example.s1client.util.Haptic
@@ -50,6 +49,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
@@ -69,12 +69,20 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.PathOperation
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Density
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -207,138 +215,14 @@ fun PostActionDialog(
     }
 }
 
-@Composable
-fun PostPeekDialog(
-    post: Post,
-    viewModel: PostViewModel,
-    onDismiss: () -> Unit,
-    onFavorite: () -> Unit,
-    onShare: () -> Unit,
-    onHidePost: (() -> Unit)? = null,
-    onOpen: () -> Unit
-) {
-    var preview by remember(post.tid) { mutableStateOf<String?>(null) }
-    var loading by remember(post.tid) { mutableStateOf(true) }
-    LaunchedEffect(post.tid) {
-        loading = true
-        preview = viewModel.fetchThreadPreview(post.tid)
-        loading = false
-    }
+/* ================= 长按 Peek · 全息门票（2026-10-15 用户定稿）=================
+ * 票面恒深色：两种主题一张票；打孔锯齿边 = TicketShape 真挖孔。
+ * 调色收敛在 TicketPalette —— 后续幻彩主题调色只动这里（可从 s1 色板派生新 palette）。
+ */
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = GlassDialog,
-            border = androidx.compose.foundation.BorderStroke(1.dp, GlassDialogLine),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
-                // 标题
-                Text(
-                    text = post.title ?: "无标题",
-                    color = TextMain,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = listOfNotNull(
-                        post.authorName,
-                        post.timeText.takeIf { it.isNotBlank() },
-                        post.replies?.let { "$it 回复" }
-                    ).joinToString(" · "),
-                    color = TextSub,
-                    fontSize = 12.sp
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                androidx.compose.material3.Divider(color = GlassDialogLine)
-                Spacer(modifier = Modifier.height(12.dp))
+/** 上下半裁剪（真撕票拆层用）*/
 
-                // 正文预览：加载中 / 成功 / 失败三态
-                when {
-                    loading -> {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp),
-                                strokeWidth = 2.dp,
-                                color = AccentPink
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("正在加载正文…", color = TextSub, fontSize = 13.sp)
-                        }
-                    }
-                    preview.isNullOrBlank() -> {
-                        Text(
-                            "正文预览没取到，可以直接进帖看看。",
-                            color = TextSub,
-                            fontSize = 13.sp
-                        )
-                    }
-                    else -> {
-                        // 预览区高度有上限，内容多时内部滚动
-                        Box(modifier = Modifier.heightIn(max = 180.dp)) {
-                            val scroll = rememberScrollState()
-                            Text(
-                                text = preview ?: "",
-                                color = TextMain,
-                                fontSize = 14.sp,
-                                lineHeight = 21.sp,
-                                modifier = Modifier.verticalScroll(scroll)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 三个操作：收藏 / 分享 / 隐藏
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    PeekActionButton("收藏", Modifier.weight(1f), onFavorite)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    PeekActionButton("分享", Modifier.weight(1f), onShare)
-                    if (onHidePost != null) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        PeekActionButton("隐藏", Modifier.weight(1f), onHidePost)
-                    }
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                // 进帖：点整行
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onOpen() }
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("查看完整帖子", color = AccentPink, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("→", color = AccentPink, fontSize = 14.sp)
-                }
-            }
-        }
-    }
-}
-
-/** Peek 里的操作按钮：竖杠风格，和顶栏文字一致 */
-
-@Composable
-internal fun PeekActionButton(text: String, modifier: Modifier, onClick: () -> Unit) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(GlassDialogLine.copy(alpha = 0.35f))
-            .clickable { onClick() }
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text, color = TextMain, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-    }
-}
-
-/** 黑名单管理：没有这个入口，塞抹布就成了单向陷阱 */
-
+/** 门票调色板：幻彩主题调色的唯一入口 */
 @Composable
 fun BlockedAuthorsDialog(
     blocked: Map<String, String>,

@@ -201,9 +201,40 @@ internal fun ThreadDetailActivity.updatePageIndicator() {
 internal fun ThreadDetailActivity.showPagePicker() {
         val total = (if (totalPages > 0) totalPages else loadedMaxPage).coerceAtLeast(1)
         if (total <= 1) { toast("本贴只有一页"); return }
-        binding.edgePageBar.onConfirm = { target ->
-            binding.edgePageBar.hide()
+        // 统一设计语言：详情页与首页共用 WheelJumpSheetView（EdgePageBar 弃用）
+        val root = findViewById<ViewGroup>(android.R.id.content)
+        if (jumpSheet == null) {
+            val scrim = android.view.View(this).apply {
+                setBackgroundColor(0x73000000.toInt())
+                visibility = android.view.View.GONE
+                setOnClickListener { hideJumpSheet() }
+            }
+            root.addView(scrim, ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+            sheetScrim = scrim
+            val sheet = com.example.s1client.ui.WheelJumpSheetView(this).apply {
+                visibility = android.view.View.GONE
+            }
+            root.addView(sheet, android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                android.view.Gravity.BOTTOM))
+            jumpSheet = sheet
+        }
+        val accent = run {
+            val tv = android.util.TypedValue()
+            theme.resolveAttribute(com.example.s1client.R.attr.s1Accent, tv, true)
+            if (tv.type != android.util.TypedValue.TYPE_NULL) tv.data else 0xFF5E6AD2.toInt()
+        }
+        jumpSheet?.setup("跳转到楼层", 1, total, currentPage, accent, 0x295E6AD2)
+        jumpSheet?.setS1Colors(
+            com.example.s1client.ui.theme.s1PaletteFor(
+                com.example.s1client.util.ThemeManager.currentTheme
+            )
+        )
+        jumpSheet?.onJump = { target ->
+            hideJumpSheet()
             if (target != currentPage) {
+                pendingFlashPage = target   // 原型规格 7：跳转落点高亮
                 if (pageAdapter.hasPage(target)) {
                     binding.vpPages.setCurrentItem(target - 1, false)
                     updatePageIndicator()
@@ -212,7 +243,27 @@ internal fun ThreadDetailActivity.showPagePicker() {
                 }
             }
         }
-        binding.edgePageBar.show(currentPage, total)
+        jumpSheet?.onRequestClose = { hideJumpSheet() }
+        sheetScrim?.visibility = android.view.View.VISIBLE
+        jumpSheet?.visibility = android.view.View.VISIBLE
+        jumpSheet?.alpha = 0f
+        jumpSheet?.animate()?.alpha(1f)?.setDuration(220)?.start()
+    }
+
+    private fun ThreadDetailActivity.resolveAttrColor(attr: Int, fallback: Int): Int {
+        val tv = android.util.TypedValue()
+        theme.resolveAttribute(attr, tv, true)
+        return if (tv.type != android.util.TypedValue.TYPE_NULL) tv.data else fallback
+    }
+
+    private var jumpSheet: com.example.s1client.ui.WheelJumpSheetView? = null
+    private var sheetScrim: android.view.View? = null
+
+    internal fun ThreadDetailActivity.hideJumpSheet() {
+        jumpSheet?.animate()?.alpha(0f)?.setDuration(200)?.withEndAction {
+            jumpSheet?.visibility = android.view.View.GONE
+            sheetScrim?.visibility = android.view.View.GONE
+        }?.start()
     }
 
     /**

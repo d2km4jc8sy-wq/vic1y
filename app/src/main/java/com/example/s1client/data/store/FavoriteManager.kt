@@ -14,6 +14,33 @@ import com.example.s1client.util.UserPostParser
  */
 object FavoriteManager {
 
+    /** 本地收藏状态（跨 Peek 实例/重启持久）：Peek 二次点收藏的判定依据 */
+    private lateinit var localPrefs: android.content.SharedPreferences
+
+    /** 应用启动时初始化（与 ForumDataCache 等同款） */
+    fun initLocal(app: android.app.Application) {
+        localPrefs = app.getSharedPreferences("fav_local", android.content.Context.MODE_PRIVATE)
+    }
+
+    fun isLocalFaved(tid: String): Boolean {
+        val r = tid.isNotBlank() && localPrefs.getStringSet("faved", emptySet())!!.contains(tid)
+        return r
+    }
+
+    fun markLocalFaved(tid: String) {
+        if (tid.isBlank()) return
+        val set = localPrefs.getStringSet("faved", emptySet())!!.toMutableSet()
+        set.add(tid)
+        localPrefs.edit().putStringSet("faved", set).apply()
+    }
+
+    fun unmarkLocalFaved(tid: String) {
+        if (tid.isBlank()) return
+        val set = localPrefs.getStringSet("faved", emptySet())!!.toMutableSet()
+        set.remove(tid)
+        localPrefs.edit().putStringSet("faved", set).apply()
+    }
+
     /** isFavorited：操作后的状态；failed：请求本身失败，message 为原因 */
     data class Result(
         val isFavorited: Boolean = false,
@@ -63,6 +90,37 @@ object FavoriteManager {
                         removeFavorite(tid, fh)
                     addBody.contains("favoriteform") || addBody.contains("favoritesubmit") ->
                         submitForm(addBody, fh, isDelete = false)
+                    addBody.contains("alert_right") || addBody.contains("收藏成功") -> {
+                        markLocalFaved(tid)
+                        Result(isFavorited = true)
+                    }
+                    addBody.contains("alert_error") || addBody.contains("抱歉") || addBody.contains("失败") ->
+                        Result(failed = true, message = addBody.take(120))
+                    else -> { markLocalFaved(tid); Result(isFavorited = true) }
+                }
+            } catch (e: Exception) {
+                Result(failed = true, message = e.message ?: "")
+            }
+        }
+    }
+
+    /** 只收藏不取消（长按 Peek 单向收藏用）：已收藏时友好返回，绝不走 remove。
+     *  取消收藏请到收藏列表手动操作（2026-10-15 用户定稿：Peek 不做 toggle）。 */
+    suspend fun addFavorite(tid: String): Result {
+        if (tid.isBlank()) return Result(failed = true, message = "缺少 tid")
+        val fh = fetchFormhash(tid)
+        if (fh.isBlank()) return Result(failed = true, message = "获取 formhash 失败")
+
+        return withContext(Dispatchers.IO) {
+            try {
+                val addBody = RetrofitClient.api.addFavorite(id = tid, formhash = fh).string()
+                when {
+                    addBody.contains("抱歉，您已收藏") || addBody.contains("已经收藏") -> {
+                        markLocalFaved(tid)
+                        Result(isFavorited = true, message = "已在收藏中")
+                    }
+                    addBody.contains("favoriteform") || addBody.contains("favoritesubmit") ->
+                        submitForm(addBody, fh, isDelete = false)
                     addBody.contains("alert_right") || addBody.contains("收藏成功") ->
                         Result(isFavorited = true)
                     addBody.contains("alert_error") || addBody.contains("抱歉") || addBody.contains("失败") ->
@@ -73,6 +131,16 @@ object FavoriteManager {
                 Result(failed = true, message = e.message ?: "")
             }
         }
+    }
+
+    /** 只取消不收藏（Peek 二次点收藏的「撤销」用，2026-10-15 用户定稿）：未收藏时友好返回 */
+    suspend fun cancelFavorite(tid: String): Result {
+        if (tid.isBlank()) return Result(failed = true, message = "缺少 tid")
+        val fh = fetchFormhash(tid)
+        if (fh.isBlank()) return Result(failed = true, message = "获取 formhash 失败")
+        val r = removeFavorite(tid, fh)
+        if (!r.failed) unmarkLocalFaved(tid)
+        return r
     }
 
     private suspend fun fetchFormhash(tid: String): String {

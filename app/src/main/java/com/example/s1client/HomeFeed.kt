@@ -7,7 +7,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.ui.viewinterop.AndroidView
-import com.example.s1client.ui.EdgePageBar
 import com.example.s1client.ui.RopeRefreshView
 import com.example.s1client.data.store.BlacklistManager
 import com.example.s1client.util.Haptic
@@ -379,6 +378,8 @@ fun ForumFeedPage(
                     LazyVerticalStaggeredGrid(
                         columns = StaggeredGridCells.Fixed(2),
                         state = gridState,
+                        // 滚轮呼出时物理禁滚（模态）：事件即使泄漏到列表也无视觉后果
+                        userScrollEnabled = !showPagePicker,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
                             start = 10.dp,
@@ -405,7 +406,8 @@ fun ForumFeedPage(
                                 read = post.tid in readTids,
                                 onAvatarClick = { onAvatarClick(post) },
                                 onMarkRead = { onMarkRead(post) },
-                                onLongPress = { onLongPressPost(post) }
+                                onLongPress = { onLongPressPost(post) },
+                                interactionsLocked = showPagePicker
                             )
                         }
                     }
@@ -443,99 +445,57 @@ fun ForumFeedPage(
                             .zIndex(2f)
                     )
 
-                    // 页码面板：从页码胶囊向上展开（实心玻璃不透字、右对齐）——
-                    // 替代左缘半透明滚轮条（可读性差、位置与右缘导航轴割裂）
-                    // 关闭途径：点面板外遮罩（遮罩吞掉一切手势，滑动不再穿透到瀑布流）/
-                    // 再点页码胶囊。不再"滚动即消失"——选页时背景滚动不再打断。
+                    // 方案 01 移植版：底部 WheelJumpSheet（grab+状态 chip+停稳武装+长按 1s ring）
+                    val s1ForSheet = LocalS1Colors.current
+                    // AnimatedVisibility：退场 250ms 内遮罩仍拦截 → 关闭瞬间触摸不穿透瀑布流
                     androidx.compose.animation.AnimatedVisibility(
                         visible = showPagePicker,
-                        enter = fadeIn(),
-                        exit = fadeOut(),
+                        enter = androidx.compose.animation.fadeIn(),
+                        exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(250)),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // 遮罩：吞掉一切手势（tap 关闭 / drag 不再穿透到瀑布流）
                         Box(
                             Modifier
                                 .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.10f))
+                                .background(Color.Black.copy(alpha = 0.45f))
                                 .pointerInput(Unit) {
-                                    awaitEachGesture {
-                                        val down = awaitFirstDown(requireUnconsumed = false)
-                                        var moved = false
-                                        while (true) {
-                                            val e = awaitPointerEvent()
-                                            e.changes.forEach { it.consume() }
-                                            if (e.changes.any { it.positionChange() != Offset.Zero }) moved = true
-                                            if (e.changes.all { !it.pressed }) break
-                                        }
-                                        if (!moved) showPagePicker = false
+                                    detectTapGestures {
+                                        showPagePicker = false
                                     }
                                 }
                         )
                     }
                     androidx.compose.animation.AnimatedVisibility(
                         visible = showPagePicker,
-                        enter = fadeIn() + androidx.compose.animation.expandVertically(
-                            expandFrom = Alignment.Bottom
-                        ),
-                        exit = fadeOut() + androidx.compose.animation.shrinkVertically(
-                            shrinkTowards = Alignment.Bottom
-                        ),
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(end = 12.dp, bottom = 90.dp)
+                        enter = androidx.compose.animation.slideInVertically(
+                            androidx.compose.animation.core.tween(320)
+                        ) { it / 2 } + androidx.compose.animation.fadeIn(),
+                        exit = androidx.compose.animation.slideOutVertically(
+                            androidx.compose.animation.core.tween(250)
+                        ) { it / 2 } + androidx.compose.animation.fadeOut(),
+                        modifier = Modifier.align(Alignment.BottomCenter)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(CardBg)
-                                .border(1.dp, GlassFloatLine, RoundedCornerShape(14.dp))
-                                .padding(8.dp)
-                        ) {
-                            Column(modifier = Modifier.width(162.dp)) {
-                                Text(
-                                    text = "共 " + (if (state.totalPages > 0) state.totalPages.toString() else "?") + " 页 · 点选跳转",
-                                    color = TextSub,
-                                    fontSize = 10.5.sp,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-                                )
-                                if (state.totalPages > 0) {
-                                    androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
-                                        columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(4),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .heightIn(max = 320.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                        verticalArrangement = Arrangement.spacedBy(5.dp)
-                                    ) {
-                                        items(state.totalPages) { p0 ->
-                                            val p = p0 + 1
-                                            val on = p == state.currentPage
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .background(if (on) AccentPink else GlassFloat)
-                                                    .clickable {
-                                                        runCatching { com.example.s1client.util.Haptic.selection(context) }
-                                                        showPagePicker = false
-                                                        onJumpPage(p)
-                                                    }
-                                                    .padding(vertical = 8.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(
-                                                    p.toString(),
-                                                    color = if (on) Color.White else TextSub,
-                                                    fontSize = 12.sp,
-                                                    fontWeight = if (on) FontWeight.Medium else FontWeight.Normal
-                                                )
-                                            }
-                                        }
+                        androidx.compose.ui.viewinterop.AndroidView(
+                            factory = { ctx ->
+                                com.example.s1client.ui.WheelJumpSheetView(ctx).apply {
+                                    onJump = { target ->
+                                        showPagePicker = false
+                                        if (target != state.currentPage) onJumpPage(target)
                                     }
+                                    onRequestClose = { showPagePicker = false }
                                 }
-                            }
-                        }
+                            },
+                            update = { v ->
+                                v.ensureSetup(
+                                    "跳转到页", 1,
+                                    if (state.totalPages > 0) state.totalPages else 1,
+                                    state.currentPage.coerceAtLeast(1),
+                                    0xFF5E6AD2.toInt(), 0x295E6AD2
+                                )
+                                v.setS1Colors(s1ForSheet)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
 
                     // 页码胶囊：回顶已合并进绳子把手（单击回顶 + 外环进度），右下只留这一件
@@ -563,7 +523,7 @@ fun ForumFeedPage(
                                     .background(CardBg)
                                     .border(1.dp, GlassFloatLine, RoundedCornerShape(S1Radius.pill))
                                     .combinedClickable(
-                                        onClick = { showPagePicker = !showPagePicker },
+                                        onClick = { showPagePicker = true },
                                         onLongClick = {
                                             runCatching { com.example.s1client.util.Haptic.selection(context) }
                                             showPagePicker = true
@@ -624,12 +584,14 @@ fun ForumFeedPage(
                     )
                 }
 
-                // 跳页改由贴边滚轮浮条（EdgePageBar）承担，旧的页码弹窗不再使用
+                // 跳页由 WheelJumpSheetView（方案 01 底部面板）承担
             }
         }
     }
 }
 
+
+private fun accentColorOf(ctx: android.content.Context): Int = 0x295E6AD2
 
 @Composable
 fun XhsCategoryTabs(

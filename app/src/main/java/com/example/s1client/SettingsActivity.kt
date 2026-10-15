@@ -38,6 +38,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Refresh
@@ -261,6 +262,15 @@ fun SettingsScreen(onFinish: () -> Unit) {
                     onCheckedChange = { DataSaverStore.set(context, it) }
                 )
             }
+        }
+
+        // ═══ 实验功能 ═══
+        // 2026-10-15：转盘翻页实验剔除（与预期出入）；分组保留，后续新想法在此上架
+        GroupTitle("实验功能")
+        Group {
+            SettingRow(Icons.Outlined.Tune, "更多实验功能筹备中",
+                sub = "新交互想法会先在这里上架试玩，稳定后转正"
+            ) { Chevron() }
         }
 
         // ═══ 发帖 ═══

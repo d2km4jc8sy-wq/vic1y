@@ -7,7 +7,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.ui.viewinterop.AndroidView
-import com.example.s1client.ui.EdgePageBar
 import com.example.s1client.ui.RopeRefreshView
 import com.example.s1client.data.store.BlacklistManager
 import com.example.s1client.data.store.CoverCacheStore
@@ -70,8 +69,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.zIndex
@@ -277,7 +276,9 @@ fun XhsPostCard(
     read: Boolean = false,
     onAvatarClick: () -> Unit,
     onMarkRead: () -> Unit,
-    onLongPress: () -> Unit
+    onLongPress: () -> Unit,
+    /** 滚轮呼出等模态场景：锁定卡片点击/长按 */
+    interactionsLocked: Boolean = false
 ) {
     val title = post.title ?: "无标题"
     val tag = post.tag ?: "杂谈"
@@ -304,27 +305,20 @@ fun XhsPostCard(
     // 卡片圆角：Linear 收敛到 9dp，其余 14dp
     val corner = if (coverStyle == -2) 9f else 14f
     val cardShape = RoundedCornerShape(corner.dp)
-    // 幻彩流光的流动相位：只在绘制阶段读 .value（每帧重绘、不重组），非幻彩主题不建动画
-    val flowPhaseState: State<Float> = if (coverStyle == 5) {
-        rememberInfiniteTransition(label = "iridescent")
+    // 幻彩流光相位（方案②·光斑呼吸，2026-10-15 用户定稿）：
+    // 相位由系统时间直接计算（全 App 一面墙一套相位，与卡片何时进入组合无关，
+    // 根治「每卡独立时钟各自闪烁」）；这里的 infiniteTransition 只当「心跳」，
+    // 负责让幻彩卡每帧重绘（在绘制阶段读取，不触发重组），非幻彩主题不建动画。
+    val flowHeartbeat: State<Float> = if (coverStyle == 5) {
+        rememberInfiniteTransition(label = "flowTick")
             .animateFloat(
                 initialValue = 0f, targetValue = 1f,
                 animationSpec = infiniteRepeatable(
                     animation = tween((FLOW_CYCLE_SECONDS * 1000).toInt(), easing = LinearEasing),
                     repeatMode = RepeatMode.Restart
                 ),
-                label = "iridescentPhase"
+                label = "flowTickValue"
             )
-    } else {
-        remember { mutableStateOf(0f) }
-    }
-    // 控件 01 · strange-cobra-12：五色描边带相位（0→1 每 0.75s，对应 translateX(-25%)）
-    val cobraPhaseState: State<Float> = if (coverStyle == 5) {
-        rememberInfiniteTransition(label = "cobra").animateFloat(
-            initialValue = 0f, targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(6400, easing = LinearEasing)),
-            label = "cobraPhase"
-        )
     } else {
         remember { mutableStateOf(0f) }
     }
@@ -345,6 +339,7 @@ fun XhsPostCard(
             .combinedClickable(
                 interactionSource = pressSource,
                 indication = androidx.compose.material.ripple.rememberRipple(),
+                enabled = !interactionsLocked,
                 onClick = {
                     if (post.tid.isNotBlank()) {
                         onMarkRead()
@@ -365,7 +360,9 @@ fun XhsPostCard(
         shape = cardShape,
         colors = CardDefaults.cardColors(
             containerColor = when {
-                coverStyle == 5 -> if (s1.isDark) Color(0xFF0B0B10) else Color(0xFFF5F4F8)
+                // 幻彩卡面与「我的」页同源（不再写死冷灰 #F5F4F8 / 近黑 #0B0B10）：
+                // 浅色 #FFFFFF / 深色 #221830，消除「同主题三张白、冷暖相冲」
+                coverStyle == 5 -> s1.cardBg
                 coverStyle == -2 -> LinearCardBase
                 else -> GlassCard
             }
@@ -386,25 +383,37 @@ fun XhsPostCard(
           .fillMaxWidth()
           .then(
               if (isIridescentTheme) {
-                  // 幻彩整卡外框：与「我的」页卡框**共用同一套取色**（s1RingColors），
-                  // 封面/meta 同面板直角拼接，内角弧不复存在。
-                  //
-                  // 之前这里是一组写死的五色带（绿/黄/紫/青，40% 透明度、2dp），
-                  // 用户反馈"瀑布流幻彩卡片边框太细、主题不突出" —— 两个原因：
-                  //   ① 与主题色板无关，幻彩那种紫粉调完全没体现；
-                  //   ② 2dp/40% 在浅色底上几乎看不出是一圈边。
-                  // 现在：主题色板取色 + 4dp + 90% 不透明度。
+                  // 幻彩「彩色亮丝」卡框（2026-10-15 用户定稿，替代原 4dp 饱和粗环）：
+                  // 1.5dp 主题色板渐变描边（s1RingColors 四色，左上→右下）+ 贴边 4dp@0.10
+                  // 同色柔光（「亮」的来源，想更安静可整段删掉柔光那截）。
+                  // 描边整体内缩半个线宽——Card/Surface 会把内容 clip 到圆角形状，
+                  // 直接画在边界上时靠外的一半会被裁掉（4dp 只剩 2dp 的老坑）。
+                  // 与「我的」页卡框同一套语法、同一粗细（1.5dp），幻彩主题内边框全部统一。
                   Modifier.drawWithContent {
                       drawContent()
                       val band = ringBand
-                      android.util.Log.d("S1Border", "ring coverStyle=$coverStyle band=$band size=$size")
-                      // ⚠️ 描边要**整体内缩半个线宽**：Card/Surface 会把内容 clip 到圆角形状，
-                      // 直接画在边界上时靠外的一半会被裁掉 —— 4dp 只剩 2dp，看起来还是"细边"。
-                      val strokePx = 4.dp.toPx()
+                      // 柔光：贴边的低透明度宽描边，让彩丝有「亮」的晕染
+                      val glowPx = 4.dp.toPx()
+                      val glowInset = glowPx / 2f
+                      drawRoundRect(
+                          brush = Brush.linearGradient(
+                              band.map { it.copy(alpha = 0.10f) },
+                              start = Offset.Zero,
+                              end = Offset(size.width, size.height)
+                          ),
+                          topLeft = Offset(glowInset, glowInset),
+                          size = Size(size.width - glowPx, size.height - glowPx),
+                          cornerRadius = androidx.compose.ui.geometry.CornerRadius(
+                              (corner.dp.toPx() - glowInset).coerceAtLeast(0f)
+                          ),
+                          style = androidx.compose.ui.graphics.drawscope.Stroke(width = glowPx)
+                      )
+                      // 彩丝本体：1.5dp@0.88
+                      val strokePx = 1.5.dp.toPx()
                       val inset = strokePx / 2f
                       drawRoundRect(
                           brush = Brush.linearGradient(
-                              band.map { it.copy(alpha = 0.9f) },
+                              band.map { it.copy(alpha = 0.88f) },
                               start = Offset.Zero,
                               end = Offset(size.width, size.height)
                           ),
@@ -506,37 +515,67 @@ fun XhsPostCard(
 
                 val coverModifier = when (coverStyle) {
                     5 -> {
-                        // 幻彩封面：整卡外框在 Card 层（五色带 40% 环绕整卡），
-                        // 这里补"内框线"——1dp 细线环封面块（上圆下方，与卡圆角/拼接处一致），
-                        // 内外两层线都在，用户拍板双层都要
+                        // 幻彩封面（方案②·光斑呼吸，2026-10-15 用户定稿；技术源头：
+                        // uiverse fast-badger-70 多层 radial 极光 / blue-mole-92 磨砂纱）：
+                        //   ① 封面色板打底（s1.coverColors，浅粉调 / 深紫调）
+                        //   ② 三个径向光斑大圆慢漂 —— 幅度减半（±5%）、全墙同频
+                        //      （相位 = 系统时间取模，与卡片组合时机无关）、已读定格
+                        //   ③ 一层薄磨砂霜（近似 backdrop 磨砂，压住光斑浓度）
+                        //   ④ 底部 42% 起白/深纱，标题无论几行都落在纱上
+                        //   ⑤ 无任何扫光/亮带（方案①②③对比后用户选 ②：流动感全部
+                        //      来自色彩呼吸，不来自位移扫动；cobraPhase 亮带已删）
+                        // 旧实现只有一条 1dp「strange-cobra」五色内框（绿/黄/青 off-palette
+                        // 残留，与紫粉色板无关），已删。
                         Modifier
                             .fillMaxWidth()
-                            .defaultMinSize(minHeight = 120.dp)
+                            .heightIn(min = 120.dp)
                             .drawBehind {
-                                val band = listOf(
-                                    Color(0xFF4FCF70), Color(0xFFFAD648), Color(0xFFA767E5),
-                                    Color(0xFF12BCFE), Color(0xFF44CE7B)
+                                flowHeartbeat.value // 心跳：读取以建立重绘依赖（相位本体来自系统时间）
+                                val w = size.width; val h = size.height
+                                val cover = s1.coverColors.ifEmpty {
+                                    listOf(FlowColorBottom, FlowColorMid, FlowColorTop)
+                                }
+                                // ① 底色
+                                drawRect(
+                                    color = if (s1.isDark) Color(0xFF1E1428) else Color(0xFFF2D9EA)
                                 )
-                                val r = 10.dp.toPx()
-                                val path = Path().apply {
-                                    addRoundRect(
-                                        androidx.compose.ui.geometry.RoundRect(
-                                            androidx.compose.ui.geometry.Rect(0f, 0f, size.width, size.height),
-                                            topLeft = androidx.compose.ui.geometry.CornerRadius(r, r),
-                                            topRight = androidx.compose.ui.geometry.CornerRadius(r, r),
-                                            bottomRight = androidx.compose.ui.geometry.CornerRadius(0f, 0f),
-                                            bottomLeft = androidx.compose.ui.geometry.CornerRadius(0f, 0f)
-                                        )
+                                // ② 光斑慢漂（半幅 ±5%，全局同频；已读卡定格在固定相位退为背景）
+                                fun blob(color: Color, bx: Float, by: Float, radius: Float, dx: Float, dy: Float, shift: Float) {
+                                    val ph = if (read) 0.25f
+                                    else ((System.nanoTime() / (FLOW_CYCLE_SECONDS * 1_000_000_000.0)) % 1.0).toFloat()
+                                    val ang = ((ph + shift) % 1f) * 2f * kotlin.math.PI.toFloat()
+                                    val cx = bx + dx * kotlin.math.sin(ang)
+                                    val cy = by + dy * kotlin.math.cos(ang)
+                                    drawCircle(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(color.copy(alpha = 0.92f), color.copy(alpha = 0f)),
+                                            center = Offset(cx, cy),
+                                            radius = radius
+                                        ),
+                                        radius = radius,
+                                        center = Offset(cx, cy)
                                     )
                                 }
-                                drawPath(
-                                    path,
-                                    brush = Brush.linearGradient(
-                                        band.map { it.copy(alpha = 0.4f) },
-                                        start = Offset.Zero,
-                                        end = Offset(size.width, size.height)
-                                    ),
-                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
+                                blob(cover[0], w * 0.18f, h * 0.20f, w * 0.60f, w * 0.05f, h * 0.06f, 0f)
+                                blob(cover[1 % cover.size], w * 0.84f, h * 0.16f, w * 0.55f, w * 0.045f, h * 0.07f, 0.34f)
+                                blob(cover[cover.size - 1], w * 0.45f, h * 0.88f, w * 0.68f, w * 0.06f, h * 0.04f, 0.67f)
+                                // ③ 磨砂霜
+                                drawRect(
+                                    color = (if (s1.isDark) Color(0xFF140A1E) else Color.White)
+                                        .copy(alpha = if (s1.isDark) 0.16f else 0.22f)
+                                )
+                                // ④ 底部纱（42% 起）
+                                val veil = if (s1.isDark) Color(0xFF12091C) else Color.White
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            veil.copy(alpha = 0.55f),
+                                            veil.copy(alpha = 0.94f)
+                                        ),
+                                        startY = h * 0.38f,
+                                        endY = h
+                                    )
                                 )
                             }
                     }
@@ -639,8 +678,11 @@ fun XhsPostCard(
                 val baseTitleColor = if (coverStyle == 5) {
                     if (s1.isDark) Color.White else FlowCoverText
                 } else if (isDarkCover) Color.White else s1.textMain
-                // 已读：保持原色相，只降不透明度（不动封面、不动卡片底色）
-                val titleColor = if (read) baseTitleColor.copy(alpha = baseTitleColor.alpha * 0.42f)
+                // 已读：保持原色相，只降不透明度（不动封面、不动卡片底色）。
+                // 可读性底线：幻彩封面下限 60%（≥3:1，实测 42% 时仅 2.4:1 糊掉）；
+                // 其他主题维持既有 42% 不动。
+                val readAlphaFactor = if (coverStyle == 5) 0.6f else 0.42f
+                val titleColor = if (read) baseTitleColor.copy(alpha = baseTitleColor.alpha * readAlphaFactor)
                                  else baseTitleColor
 
                 Box(
@@ -668,21 +710,10 @@ fun XhsPostCard(
                         maxLines = 5,
                         overflow = TextOverflow.Ellipsis,
                         lineHeight = 21.sp,
-                        // 幻彩流光封面：标题居中（用户要求"自动在封面居中位置展示"）；
-                        // 其余深色封面仍左下角，浅色封面仍居中
+                        // 幻彩流光封面标题居中；其余深色封面仍左下角，浅色封面仍居中。
+                        // 标题可读性由底部磨砂纱保证，不再叠白字柔光阴影（浅色下会洗字）。
                         textAlign = if (coverStyle == 5 || !isDarkCover) TextAlign.Center else TextAlign.Start,
-                        // 幻彩流光封面：标题加一层极淡的白色柔光阴影。
-                        // 参考稿（Start / UIVERSE）的字都有微妙阴影勾边 ——
-                        // 光斑偶尔蹭到文字边缘时，这层光能把文字"钉"在背景上
-                        style = if (coverStyle == 5) {
-                            androidx.compose.material3.LocalTextStyle.current.copy(
-                                shadow = androidx.compose.ui.graphics.Shadow(
-                                    color = Color.White.copy(alpha = 0.75f),
-                                    offset = Offset(0f, 1f),
-                                    blurRadius = 3f
-                                )
-                            )
-                        } else androidx.compose.material3.LocalTextStyle.current,
+                        style = androidx.compose.material3.LocalTextStyle.current,
                         modifier = Modifier
                             .fillMaxWidth()
                             .then(

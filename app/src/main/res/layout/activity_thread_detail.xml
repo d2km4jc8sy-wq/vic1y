@@ -281,13 +281,5 @@
 
     <!-- 贴边页码浮条（左侧中部）：紧凑滚轮 + 进度填充 + 咔哒声，顶部确认块提交，
          2.5s 无操作自动淡出。组件化实现，首页瀑布流可复用同一套 -->
-    <com.example.s1client.ui.EdgePageBar
-        android:id="@+id/edgePageBar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="start|center_vertical"
-        android:layout_marginStart="10dp"
-        android:alpha="0"
-        android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

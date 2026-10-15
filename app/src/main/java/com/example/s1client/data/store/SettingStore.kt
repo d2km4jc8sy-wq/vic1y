@@ -103,6 +103,13 @@ object SettingStore {
         bump()
     }
 
+    /** 实验功能：转盘翻页（详情页翻页每档 tick 触觉）——默认关 */
+    fun dialPaging(context: Context): Boolean = prefs(context).getBoolean("dial_paging", false)
+    fun setDialPaging(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean("dial_paging", on).apply()
+        bump()
+    }
+
     /** 全局文字缩放系数 = fontSize / 14 */
     fun fontScale(context: Context): Float = fontSize(context) / DEFAULT_BODY_SIZE.toFloat()
 
