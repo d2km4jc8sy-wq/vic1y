@@ -105,6 +105,37 @@ class EdgePageBar @JvmOverloads constructor(
         }.start()
     }
 
+    /**
+     * 左侧齿口（2026-10-16，用户拍板）。
+     *
+     * 用户判断正确：齿口在右侧会紧贴屏幕边缘被忽略/遮挡，必须移到左侧朝屏幕内侧
+     * 才看得见。XML drawable 无法真正挖洞，所以用 Canvas 在左边缘画一串半圆缺口，
+     * 视觉上与便签票根的齿口同一套语汇。
+     *
+     * 齿口用**页面底色**填充（而非卡片色），这样看起来才像"票被撕开的缺口"，
+     * 透出后面的内容，而不是画了个装饰圆点。
+     */
+    override fun dispatchDraw(canvas: android.graphics.Canvas) {
+        super.dispatchDraw(canvas)
+        val d = resources.displayMetrics.density
+        val bgAttr = com.example.s1client.R.attr.s1BgPage
+        val tv = android.util.TypedValue()
+        val hole = if (context.theme.resolveAttribute(bgAttr, tv, true)) tv.data else 0xFFFFFFFF.toInt()
+        val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = hole
+            style = android.graphics.Paint.Style.FILL
+        }
+        val r = 3.2f * d
+        val top = 12f * d
+        val bottom = height - 12f * d
+        var y = top
+        while (y <= bottom) {
+            // 半圆缺口中心落在左边缘 → 圆的一半在组件内、一半在外，形成"咬边"
+            canvas.drawCircle(0f, y, r, p)
+            y += r * 2f + 5f * d
+        }
+    }
+
     private fun resetHideTimer() {
         handler.removeCallbacks(hideRunnable)
         handler.postDelayed(hideRunnable, autoHideDelayMs)

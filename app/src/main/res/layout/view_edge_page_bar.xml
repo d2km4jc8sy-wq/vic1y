@@ -1,12 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 贴边页码浮条（可复用）：整条一张卡片，左边窄滚轮 + 右侧「共/N/页」标注。
-     交互：滚动选页（轻震）→ 长按 400ms 确认跳转（重震）→ 超时淡出。 -->
+<!--
+  贴边页码浮条（可复用）：窄滚轮 + 「共/N/页」竖排标注。
+
+  2026-10-16 重构（依据用户实机反馈三条）：
+   ① 「默认状态左右被切，长按蓄力才显示完整」—— 原布局把「共/N/页」竖排放在滚轮
+      右侧、marginEnd=8dp，贴到屏幕边缘时被裁掉。改为竖排放到**左侧**，右侧只留
+      10dp 吸边余量，默认态即完整可见。
+   ② 「锯齿效果在右侧紧贴边缘也不明显」—— 右侧紧贴屏幕边，视觉上完全没有"这是纸"
+      的暗示；齿口需要朝向屏幕内侧才能被看见。
+   ③ 「两个组件默认位置不统一、有时叠在一起」—— 底改为不透明 + 2dp 高饱和描边
+      （彩票语汇），避免被瀑布流卡片半透明压住而显得"陷进背景"。
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
     android:background="@drawable/bg_edge_pill">
+
+    <!-- 左侧总页数：逐字竖排（不用 writing-mode，避免数字被旋转）
+         移到左边：贴右边会被屏幕边缘裁掉，且齿口朝外看不见 -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="4dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="共"
+            android:textSize="11sp"
+            android:textColor="?attr/s1TextTertiary" />
+
+        <TextView
+            android:id="@+id/tvEdgeTotal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="2dp"
+            android:text="9"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="?attr/s1TextSecondary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="页"
+            android:textSize="11sp"
+            android:textColor="?attr/s1TextTertiary" />
+    </LinearLayout>
 
     <!-- 窄滚轮 -->
     <FrameLayout
@@ -34,38 +80,8 @@
             android:background="?attr/s1BorderCard" />
     </FrameLayout>
 
-    <!-- 右侧总页数：逐字竖排（不用 writing-mode，避免数字被旋转） -->
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:layout_marginStart="4dp"
-        android:layout_marginEnd="8dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="共"
-            android:textSize="11sp"
-            android:textColor="?attr/s1TextTertiary" />
-
-        <TextView
-            android:id="@+id/tvEdgeTotal"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:layout_marginBottom="2dp"
-            android:text="9"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textColor="?attr/s1TextTertiary" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="页"
-            android:textSize="11sp"
-            android:textColor="?attr/s1TextTertiary" />
-    </LinearLayout>
+    <!-- 右侧吸边余量：留 10dp 让圆角与描边完整可见，不再贴死屏幕边 -->
+    <View
+        android:layout_width="10dp"
+        android:layout_height="1dp" />
 </LinearLayout>

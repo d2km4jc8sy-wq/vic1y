@@ -235,11 +235,14 @@ class StampOverlayView @JvmOverloads constructor(
 }
 
 /**
- * 把落章章盖在**新回复楼层**上（2026-10-16）。
+ * 回复成功的落章动画：**居中**（2026-10-16，用户拍板 A 方案）。
  *
- * 上一版把锚点传成顶栏，结果章盖在屏幕左上角（用户实机反馈"在左上角"）——
- * 语义应是"这一楼被盖了章"，所以必须在目标页里找到新楼层 item，用它的位置当锚点。
- * 找不到（item 尚未布局）则退回顶部居中，不硬算。
+ * 之前取rv.getChildAt(0) 当锚点 —— 那只是"第一个可见楼层"，而新回复在页末，
+ * 于是章落在页首/左上角（用户实机反馈"始终停在左上角"）。
+ * 居中方案放弃定位逻辑：章永远出现在用户视线中心，100% 看得到、不会跑到角落。
+ *
+ * 权衡（已知并接受）：章会遮住新回复正文约1s。但回复后用户第一反应就是
+ * "我发到哪了"，中央章恰好强化这个确认，且 1s 后淡出不残留。
  */
 fun playStampOverlayOnNewPost(
     host: android.view.ViewGroup,
@@ -248,29 +251,12 @@ fun playStampOverlayOnNewPost(
 ) {
     val ctx = host.context
     val d = ctx.resources.displayMetrics.density
-    val size = (92 * d).toInt()
-
-    // 目标页的第一个可见 child = 用户此刻看到的楼层；新回复在该页末尾，
-    // 列表已滚到末尾时它就在可视区顶部附近 —— 用它落章，视觉上就是"这一楼被盖了章"。
-    var anchorTop = -1
-    if (rv is android.view.ViewGroup && rv.childCount > 0) {
-        val child = rv.getChildAt(0)
-        val loc = IntArray(2)
-        val hostLoc = IntArray(2)
-        child.getLocationInWindow(loc)
-        host.getLocationInWindow(hostLoc)
-        anchorTop = loc[1] - hostLoc[1]
-    }
+    val size = (104 * d).toInt()
 
     val stamp = StampOverlayView(ctx)
-    val lp = FrameLayout.LayoutParams(size, size, android.view.Gravity.TOP or android.view.Gravity.END)
-    if (anchorTop >= 0) {
-        lp.rightMargin = (14 * d).toInt()
-        lp.topMargin = (anchorTop + (8 * d).toInt()).coerceAtLeast((56 * d).toInt())
-    } else {
-        lp.gravity = android.view.Gravity.TOP or android.view.Gravity.CENTER_HORIZONTAL
-        lp.topMargin = (72 * d).toInt()
-    }
+    // 屏幕中心（略偏上，给底部输入栏留位）
+    val lp = FrameLayout.LayoutParams(size, size, android.view.Gravity.CENTER)
+    lp.bottomMargin = (56 * d).toInt()
     stamp.layoutParams = lp
     host.addView(stamp)
     stamp.post { stamp.playStamp { host.removeView(stamp) } }

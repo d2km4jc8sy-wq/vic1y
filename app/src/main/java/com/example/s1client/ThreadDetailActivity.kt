@@ -453,9 +453,24 @@ class ThreadDetailActivity : BaseActivity() {
             }
             postIndex = idx
         } else {
+            // pid 优先（2026-10-16 修复"侧滑返回后再进则跳转失效"）。
+            //
+            // 根因：原来只用 resumeFloor 绝对楼层做算术推算
+            // （postIndex = resumeFloor - (page-1)*ppp - 1）。这个推算在
+            // ① perPage 服务端变了 ② 翻过页 ③ 帖内有楼层被删
+            // 三种情况下都会错位 → 滚到错误位置甚至滚不动（用户实机反馈：
+            // 「进入→侧滑返回使其作为主页→再次点击进入」此时失效）。
+            //
+            // 进度记录里本来就存了 floorPid（那一楼真实 pid），直接用它精确匹配；
+            // 匹配不到才退回楼层推算，并 clamp 在有效范围内。
             val ppp = if (perPage > 0) perPage else PAGE_SIZE
-            val base = (currentPage - 1) * ppp + 1          // 本页第一楼的绝对楼层
-            postIndex = (resumeFloor - base).coerceIn(0, posts.size - 1)
+            val base = (currentPage - 1) * ppp + 1
+            val byPid = resumeFloorPid?.let { rp -> posts.indexOfFirst { it.pid == rp } } ?: -1
+            postIndex = if (byPid >= 0) {
+                byPid
+            } else {
+                (resumeFloor - base).coerceIn(0, posts.size - 1)
+            }
         }
 
         val listIndex = pageAdapter.listIndexFromPostIndex(currentPage, postIndex)

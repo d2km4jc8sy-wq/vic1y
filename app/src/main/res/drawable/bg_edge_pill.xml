@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 贴边浮条通用底：外观对齐主页卡片（圆角 14dp + 玻璃卡底 + 1dp 描边） -->
+<!--
+  贴边浮条底（2026-10-16 调整）。
+  用户反馈"两个组件默认位置不统一、有时叠在一起"—— 根因是半透明玻璃底
+  （s1GlassSheetBg）被瀑布流卡片压住时显得"陷进背景"、边界不清。
+  改为**不透明卡底 + 2dp 高饱和 accent 描边**（与拉票同一套彩票语汇），
+  浮条永远在卡片之上、边界清晰，与拉票夹成为一套语言。
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="?attr/s1GlassSheetBg" />
-    <stroke android:width="1dp" android:color="?attr/s1BorderCard" />
+    <solid android:color="?attr/s1BgCard" />
+    <stroke android:width="2dp" android:color="?attr/s1Accent" />
     <corners android:radius="14dp" />
 </shape>

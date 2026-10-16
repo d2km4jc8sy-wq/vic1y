@@ -44,9 +44,16 @@ class TicketPullView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     companion object {
-        /** 待命态透明度：不用全0 —— 全透明则用户看不到"这里能拉票"。
-         *  给一点极低透明度（票夹淡显）既不抢戏，也给出可拉提示。 */
-        const val IDLE_ALPHA = 0.55f
+        /**
+         * 待命态透明度（2026-10-16）。
+         *
+         * 用户实测反馈："默认色彩肉眼看着太难受了，几乎看不到，正常拉时才看得到"。
+         * 根因：票纸用主题色**半透明**（alpha 235）+ 淡描边，在浅色/幻彩主题下
+         * 与背景几乎同色 —— 半透明最大的问题就是"看得出有东西，但看不清是什么"。
+         * 现在改为**实底 + 高饱和描边**（彩票/刮刮乐色彩体系）：待命态就能明确看见，
+         * 不必先拉一下才知道这里能拉。
+         */
+        const val IDLE_ALPHA = 1f
         /** 静止时票据露出高度（dp） */
         private const val IDLE_PEEK = 18f
     }
@@ -187,17 +194,19 @@ class TicketPullView @JvmOverloads constructor(
         buildTicketPath()
 
         // ---- 票夹（顶部固定，票据从它里面被抽出）----
-        clipPaint.color = withAlpha(lineColor, 150)
+        clipPaint.color = withAlpha(accentColor, 235)
         canvas.drawRoundRect(clipRect, 4f * density, 4f * density, clipPaint)
-        edgePaint.color = withAlpha(accentColor, 120)
+        edgePaint.color = withAlpha(accentColor, 255)
         edgePaint.pathEffect = null
         canvas.drawRoundRect(clipRect, 4f * density, 4f * density, edgePaint)
 
-        // ---- 票纸 ----
-        ticketPaint.color = withAlpha(paperColor, 235)
+        // ---- 票纸：实底（不用半透明）+ 彩票式高饱和描边 ----
+        // 半透明在浅色主题下会与背景同色，用户反馈"几乎看不到"；实底才有存在感。
+        ticketPaint.color = if (triggerArmed) withAlpha(accentColor, 255) else paperColor
         canvas.drawPath(ticketPath, ticketPaint)
-        // 亮白描边（票据语汇）
-        edgePaint.color = withAlpha(Color.WHITE, 200)
+        // 描边：待命态用主题 accent（高饱和，彩票红边感），触发态用亮白强调
+        edgePaint.color = if (triggerArmed) Color.WHITE else withAlpha(accentColor, 235)
+        edgePaint.strokeWidth = (if (triggerArmed) 2.2f else 1.8f) * density
         canvas.drawPath(ticketPath, edgePaint)
         // 虚线内框
         edgePaint.color = withAlpha(accentColor, 110)
@@ -212,7 +221,7 @@ class TicketPullView @JvmOverloads constructor(
         // ---- 票面内容：过阈值前画向下箭头，过阈值后亮起 + 翻成向上 ----
         val cx = ticketRect.centerX()
         val cy = ticketRect.centerY()
-        barPaint.color = if (triggerArmed) withAlpha(accentColor, 235) else withAlpha(accentColor, 170)
+        barPaint.color = if (triggerArmed) Color.WHITE else withAlpha(accentColor, 255)
         val ar = 5.5f * density
         val dir = if (triggerArmed) -1f else 1f
         canvas.save()
@@ -243,8 +252,8 @@ class TicketPullView @JvmOverloads constructor(
                 canvas.drawLine(x, baseY, x + step * 0.55f, baseY, barPaint)
             }
         } else {
-            // 待命/待发：文字提示
-            textPaint.color = withAlpha(accentColor, if (triggerArmed) 235 else 150)
+            // 待命/待发：文字提示（实底上用高对比色，否则看不清）
+            textPaint.color = if (triggerArmed) Color.WHITE else withAlpha(accentColor, 255)
             canvas.drawText(
                 if (triggerArmed) "松手" else "拉票",
                 cx,
