@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -73,15 +74,7 @@ fun ChangelogScreen(onFinish: () -> Unit) {
                     .padding(horizontal = 8.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_back),
-                    contentDescription = "返回",
-                    tint = c.textMain,
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .width(22.dp)
-                        .height(22.dp)
-                )
+                Icon(\n                    painter = painterResource(R.drawable.ic_back),\n                    contentDescription = "返回",\n                    tint = c.textMain,\n                    modifier = Modifier\n                        .padding(8.dp)\n                        .width(22.dp)\n                        .height(22.dp)\n                        .clickable(onClick = onFinish)\n                )
                 Spacer(Modifier.width(4.dp))
                 Text(
                     "更新日志",

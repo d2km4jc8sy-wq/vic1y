@@ -52,7 +52,8 @@ class CiSmokeCaptureTest {
                     Text("S1Client CI smoke")
                 }
             }
-            composeRule.waitForIdle()
+            // 不调 waitForIdle：Robolectric 上帧时钟可能永不静默（ComposeTimeoutException 实测），
+            // 静态内容 setContent 后 captureToImage 自带一次真实绘制，无需等待空闲
             // 阶段二④调整（2026-10-17）：compileSdk 35 下 roborazzi 1.8.0 的
             // captureRoboImage 扩展解析失败（版本代差嫌疑），改用 compose-ui-test
             // 原生 captureToImage + PNG 落盘 —— 同样证明 NATIVE 图形真实渲染并产出产物；
