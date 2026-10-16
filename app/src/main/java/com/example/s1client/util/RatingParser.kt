@@ -122,8 +122,14 @@ object RatingParser {
                     ?.filter { it.isDigit() || it == '-' || it == '+' }?.toIntOrNull() ?: 0
 
                 block.select("tr").forEach { row ->
-                    val amount = row.selectFirst("td.xi1")?.text()
-                        ?.replace(" ", "")?.toIntOrNull() ?: return@forEach
+                    // 桌面行结构（2026-10-16 PROBLEMS P7 修复）：[用户名 td(含 space-uid 链接),
+                    // 分值 td(xi1=正 / xg1=负), 理由 td] —— 分值/理由单元格的 class 不区分正负
+                    // （理由也用 xg1），改为按位置取列，对类名免疫；负分行不再被整行跳过。
+                    val tds = row.select("td")
+                    val userIdx = tds.indexOfFirst { it.selectFirst("a[href^=space-uid-]") != null }
+                    if (userIdx < 0 || userIdx + 1 >= tds.size) return@forEach
+                    val amount = tds[userIdx + 1].text()
+                        .replace(" ", "").toIntOrNull() ?: return@forEach
 
                     val anchors = row.select("a[href^=space-uid-]")
                     val best = anchors.firstOrNull { it.text().trim().isNotEmpty() }
@@ -132,10 +138,7 @@ object RatingParser {
                     val name = best?.text()?.trim()?.let { decode(it) }?.ifEmpty { "匿名" } ?: "匿名"
                     val avatar = anchors.firstNotNullOfOrNull { it.selectFirst("img")?.attr("src") }
 
-                    val reasonCell = row.select("td").find { cell ->
-                        !cell.hasClass("xi1") && cell.selectFirst("a[href^=space-uid-]") == null
-                    }
-                    val reason = reasonCell?.text()?.trim()?.let { decode(it) }.orEmpty()
+                    val reason = tds.getOrNull(userIdx + 2)?.text()?.trim()?.let { decode(it) }.orEmpty()
                     entries.add(RateEntry(name, amount, reason, uid, avatar))
                 }
             }

@@ -46,23 +46,24 @@ class RatingParserContractTest {
     }
 
     @Test
-    fun `桌面分支现状_负分单元格td-xg1被跳过_只收xi1正分`() {
-        // ⚠️ 固化现状而非理想行为：td.xi1 ×7 / td.xg1 ×6，parse() 只取 xi1，
-        // 因此 7 个楼层的 entries 合计应为 7（每块 1 条正分）。
-        // 若未来修复为收录负分，此断言应同步改为 13 并更新本注释（见 PROBLEMS P7）。
+    fun `桌面分支同时收录正分与负分单元格`() {
+        // 2026-10-16 PROBLEMS P7 修复后：td.xi1(正×7) + td.xg1(负×6) 全收，13 行 = 13 条。
+        // 若未来上游改单元格类名，此断言会失败并指认契约断裂。
         val map = RatingParser.parse(viewthread)
-        assertEquals(7, map.values.sumOf { it.entries.size })
+        assertEquals(13, map.values.sumOf { it.entries.size })
         val first = map["70275730"]!!
-        assertEquals(1, first.entries.size)
-        assertEquals(1, first.entries[0].amount)
-        assertEquals("firewings0607", first.entries[0].name)
+        assertEquals(2, first.entries.size)
+        assertEquals(setOf(1, -1), first.entries.map { it.amount }.toSet())
+        assertEquals(setOf("firewings0607", "长门改二"), first.entries.map { it.name }.toSet())
     }
 
     @Test
     fun `理由文本被保留`() {
         val map = RatingParser.parse(viewthread)
         val first = map["70275730"]!!
-        assertEquals("来必看", first.entries[0].reason)
+        val byName = first.entries.associateBy { it.name }
+        assertEquals("来必看", byName["firewings0607"]!!.reason)
+        assertEquals("思路广", byName["长门改二"]!!.reason)
     }
 
     @Test
