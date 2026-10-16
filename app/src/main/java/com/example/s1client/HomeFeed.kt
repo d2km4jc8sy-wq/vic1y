@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.s1client.ui.TicketPullView
 import com.example.s1client.ui.RopeRefreshView
 import com.example.s1client.data.store.BlacklistManager
 import com.example.s1client.util.Haptic
@@ -412,13 +413,27 @@ fun ForumFeedPage(
                         }
                     }
 
+                    // 下拉刷新（顶部右侧）：默认「抽票」实现。
+                    // 方案可切换：PULL_IMPL = 0 抽票据 / 1 相机过片扳手（实验室备选）/ 2 原绳子
+                    // —— 三个实现接口一致，改这里一个数字即可切换。
+                    val PULL_IMPL = 0
                     // 绳子下拉刷新（顶部右侧）。
                     // 系统下拉刷新只在列表滚到顶时才生效，翻了几页后就拉不动了；
                     // 这根绳子是独立控件，任何时候都能拉下来 —— 拉到底 = 回到板块第一页并刷新。
                     AndroidView(
                         factory = { ctx ->
                             val doRefresh = onRefresh
-                            RopeRefreshView(ctx).apply {
+                            when (PULL_IMPL) {
+                                0 -> TicketPullView(ctx).apply {
+                                    alpha = TicketPullView.IDLE_ALPHA
+                                    this.onPullRatio = { pullRatio = it }
+                                    this.onRefresh = {
+                                        scope.launch { gridState.animateScrollToItem(0) }
+                                        doRefresh()
+                                    }
+                                }
+                                // 1 = 相机过片扳手（实验室备选，用户方案，待实现）
+                                else -> RopeRefreshView(ctx).apply {
                                 alpha = RopeRefreshView.IDLE_ALPHA
                                 // 控件 04：刷新珠子注入主题三色（原版三色追逐）
                                 this.orbitColors = com.example.s1client.ui.theme.s1PaletteFor(
@@ -432,6 +447,7 @@ fun ForumFeedPage(
                                     scope.launch { gridState.animateScrollToItem(0) }
                                     doRefresh()
                                 }
+                                }
                             }
                         },
                         update = { view ->
@@ -440,8 +456,11 @@ fun ForumFeedPage(
                         },
                         modifier = Modifier
                             .align(Alignment.TopEnd)
+                            // 票据控件自带顶部偏移（避开分类条），此处只做水平内收
                             .padding(top = TopBarHeight, end = 13.dp)
-                            .size(width = 60.dp, height = 260.dp)
+                            // 触摸热区要够宽：原60dp 窄条实机拉不动 → 加宽到 96dp，
+                            // 高度也放宽到可拉带长度。视觉仍由票夹本身决定大小。
+                            .size(width = 96.dp, height = 300.dp)
                             .zIndex(2f)
                     )
 
