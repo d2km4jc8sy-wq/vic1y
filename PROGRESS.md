@@ -78,3 +78,6 @@
   - 调查协作：两路研究员并行（fixture 采集 + 会话写点全图 notes_session_map.md/notes_fixtures.md）。
   - 验证：testDebugUnitTest 138 用例（115+12+11）0 失败 + assembleDebug 绿；真机冒烟：装机 Success、冷启动 ok、探针广播实测 probe done posts=40 totalPages=2 perPage=40、零 FATAL。
   - 遗留：P7 待拍板；全量 ThreadDetailViewModel 转换（下轮，含分 slices 回归计划）；142 用例基线上的 instrumentation 三路径（报告 5.5）。
+
+
+- 2026-10-17 阶段二第二轮（报告 7.2-① 主项落地）：ThreadDetailViewModel 状态宿主——Activity 上 12 个跨线程/数据类字段（totalPages/perPage/loadedMaxPage/hasMore/authorId/isOnlyAuthor/threadFid/rateMap/missingPages/ratingFetchedPages/capturedPoll×2）改为同形委托属性直达 VM；@Volatile 全部消失（StateFlow + CAS 原子更新），四个 Actions 扩展文件零改动。主线程视图编排字段按职责保留在 Activity。验证：138 用例 0 失败 + assembleDebug 绿；真机装机后用户实机浏览中（详情页打开正常）。回帖/评分/投票提交链路为编译级验证，待用户日常复核。验收基线：开帖/翻页/进度恢复/探针在 VM 前一版已全绿（见上条验收记录），VM 版差异仅在状态存储位置。
