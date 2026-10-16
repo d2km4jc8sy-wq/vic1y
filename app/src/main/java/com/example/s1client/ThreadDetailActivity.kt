@@ -24,6 +24,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -100,6 +101,9 @@ class ThreadDetailActivity : BaseActivity() {
     }
 
     internal lateinit var binding: ActivityThreadDetailBinding
+
+    /** 状态宿主（阶段二）：跨线程/数据类字段收敛进 ViewModel，Activity 只留主线程视图编排状态 */
+    private val vm: ThreadDetailViewModel by viewModels()
     /**
      * 跳到新楼层的重试计数（2026-10-16）。
      *
@@ -120,9 +124,14 @@ class ThreadDetailActivity : BaseActivity() {
     /**
      * 第 1 页响应里顺带带回来的投票原始值（fetchOnePage 在 IO 线程写，主线程读并 apply）。
      * 见 [applyCapturedPoll]：不用再为投票单独发一次请求。
+     * 阶段二：存储迁到 VM（仍 @Volatile），Activity 侧同形委托，调用方零改动。
      */
-    @Volatile internal var capturedPollSpecial: String? = null
-    @Volatile internal var capturedPollJson: com.google.gson.JsonObject? = null
+    internal var capturedPollSpecial: String?
+        get() = vm.capturedPollSpecial
+        set(value) { vm.capturedPollSpecial = value }
+    internal var capturedPollJson: com.google.gson.JsonObject?
+        get() = vm.capturedPollJson
+        set(value) { vm.capturedPollJson = value }
 
     /** 本地阅读进度：进来时恢复、滚动时节流保存（点击帖子回到之前的进度） */
     private var lastProgressSaveAt = 0L
@@ -167,8 +176,12 @@ class ThreadDetailActivity : BaseActivity() {
      * 用户辛苦翻到第 8 页的进度会被自己的一次打开动作覆盖掉。
      */
     private var progressReady: Boolean = false
-    internal var loadedMaxPage: Int = 0
-    internal var hasMore: Boolean = true
+    internal var loadedMaxPage: Int
+        get() = vm.meta.value.loadedMaxPage
+        set(value) { vm.updateMeta { it.copy(loadedMaxPage = value) } }
+    internal var hasMore: Boolean
+        get() = vm.meta.value.hasMore
+        set(value) { vm.updateMeta { it.copy(hasMore = value) } }
     internal var isLoading: Boolean = false
     /**
      * 「回帖后跳到自己新楼层」的专用标志。
@@ -179,20 +192,26 @@ class ThreadDetailActivity : BaseActivity() {
      */
     internal var jumpLoading: Boolean = false
 
-    internal var authorId: String? = null
-    internal var isOnlyAuthor: Boolean = false
+    internal var authorId: String?
+        get() = vm.meta.value.authorId
+        set(value) { vm.updateMeta { it.copy(authorId = value) } }
+    internal var isOnlyAuthor: Boolean
+        get() = vm.meta.value.isOnlyAuthor
+        set(value) { vm.updateMeta { it.copy(isOnlyAuthor = value) } }
     internal var quotedPost: Post? = null
-    internal var threadFid: String = ""
+    internal var threadFid: String
+        get() = vm.meta.value.threadFid
+        set(value) { vm.updateMeta { it.copy(threadFid = value) } }
 
     internal var attachedRv: RecyclerView? = null
-    /** 总页数：由 thread.replies + ppp 算出。
-     *  @Volatile：它在 IO 线程写（fetchOnePage）、主线程读（UI 与翻页判断），必须保证可见性 */
-    @Volatile
-    internal var totalPages: Int = 1
-    /** 实际每页楼层数：论坛返回 t.ppp；与 totalPages 用同一口径，避免跳页落错页。
-     *  同样跨线程读写 → @Volatile */
-    @Volatile
-    internal var perPage: Int = 40
+    /** 总页数：由 thread.replies + ppp 算出（IO 线程写 / 主线程读 → VM StateFlow 保证线程安全与可见性） */
+    internal var totalPages: Int
+        get() = vm.meta.value.totalPages
+        set(value) { vm.updateMeta { it.copy(totalPages = value) } }
+    /** 实际每页楼层数：论坛返回 t.ppp；与 totalPages 用同一口径，避免跳页落错页 */
+    internal var perPage: Int
+        get() = vm.meta.value.perPage
+        set(value) { vm.updateMeta { it.copy(perPage = value) } }
 
     // ===== 多选分享：选中态 + 已选 pid（按加入顺序，便于按楼层序拼接） =====
     internal var shareSelectMode = false
@@ -238,15 +257,17 @@ class ThreadDetailActivity : BaseActivity() {
     internal lateinit var pageAdapter: PageAdapter
     internal val PAGE_SIZE = 40  // 每页最多 40 楼
 
-    /** pid -> 评分聚合，来自网页版 viewthread HTML 的 ratelog（移动版 API 没有） */
-    internal val rateMap = java.util.concurrent.ConcurrentHashMap<String, com.example.s1client.util.RateInfo>()
+    /** pid -> 评分聚合，来自网页版 viewthread HTML 的 ratelog（移动版 API 没有）。
+     *  阶段二：底层落 VM StateFlow，读写经 [ThreadDetailViewModel.ratingsMap]，调用方语法不变 */
+    internal val rateMap: MutableMap<String, com.example.s1client.util.RateInfo>
+        get() = vm.ratingsMap
     /** 正在补拉的页码（按页去重，替代原来的 isLoading 闸门 —— 见 onPageMissing） */
-    internal val missingPages = java.util.concurrent.ConcurrentHashMap.newKeySet<Int>()
+    internal val missingPages: MutableSet<Int>
+        get() = vm.inFlightPages
 
-    /** 已经抓过评分的页码，避免重复请求。
-     *  注意：loadFirstPage / 多个 preloadPage 会并发调用 loadRatings，
-     *  这里必须是并发安全集合（普通 mutableSetOf 会 ConcurrentModificationException）。 */
-    internal val ratingFetchedPages = java.util.concurrent.ConcurrentHashMap.newKeySet<Int>()
+    /** 已经抓过评分的页码，避免重复请求（并发安全集合，底层在 VM） */
+    internal val ratingFetchedPages: MutableSet<Int>
+        get() = vm.ratingsFetchedPages
 
     /** 战斗力数据到达后防抖刷新（多条 uid 陆续返回，合并成一次列表重绑） */
     internal val powerRefreshRunnable = Runnable {
