@@ -86,3 +86,12 @@
 - 2026-10-17 性能与遮挡修复（用户真机反馈两项）：①小米10 瀑布流左右滑掉帧——幻彩心跳每卡 60fps 改 15fps 帧控（XhsPostCard），同机同手势 gfxinfo A/B：janky 152→59（-61%）；②Levi''s 票夹常驻压卡+抢触摸——改「滚动超视口 ~8% 才现身」（HomeFeed derivedStateOf，参考绳子 ~8%），hitTest 向下外扩 180dp 收紧为 +10dp（TicketPullView）；验证截图 outputs/shots/v104_ticket_top|scrolled.png。138 用例 0 失败。用户已确认回帖/评分/投票三链路日常使用无异常。
 
 - 2026-10-17 用户真机验收通过（本修复轮）：回帖/评分/投票三链路无异议；小米10 左右滑掉帧修复「完美闭环」；票夹「不占版面、点击触摸精准、卡片与票夹各司其职」。本验收轮关闭。
+
+- 2026-10-17 阶段二第③④项（用户指令"全开"）：
+  - d4e7131 ThreadRepository（data/remote/）：fetchOnePage/评分抓取/完整评分历史下沉——IO 零状态写入，状态提交回主线程经 VM 委托；ShareNav.fetchOnePage 变薄壳（P0-2 验收达成：withContext(IO) 块内无任何状态/View 操作）。
+  - 95f079f 屏蔽/折叠精准刷新：notifyBlockStateChanged（整页重绑）退役，notifyFloorsChanged(predicate) 只重绑命中楼层；三个 Store 状态流收集器改差分（新旧键对比→uid/pid 谓词）；「收起此楼」就地重绑（ExpandedFloors 无状态流）。
+  - bc8f645 图片区结构复用：同楼层重绑时 url 集合未变即跳过整段 removeAllViews+逐图新建（键 = isFirst|多选态|url 串，ids.xml 挂 tag）；折叠早退路径重绑后直接命中复用。
+  - 32eb02e+3dabe80 CI + Roborazzi（执行者子任务在独立克隆产出，cherry-pick 集成；超时未竟部分由主会话收尾）：GitHub Actions（ubuntu-latest，temurin 17 + gradle 缓存，testDebugUnitTest+assembleDebug，lint continue-on-error + 报告 artifact）；Roborazzi 1.8.0 纯测试依赖接入 + CiSmokeCaptureTest（NATIVE 冒烟截图，跳过闸门做成 RuleChain 外层规则——Windows 本机 skipped、CI Linux 真跑）。子任务两条关键发现：简报所写 1.8.0-alpha-13 版本不存在（实查 Maven Central 取 1.8.0）；无插件时必须 System.setProperty("roborazzi.test.record","true") 否则 captureRoboImage 静默空转。
+  - 6e46416 org.gradle.java.home 迁入用户级 gradle.properties（项目文件可移植化）——CI 首跑被本机 JDK 路径炸掉的根因修复。
+  - CI 红绿灯：run 38931846143 failure（本机 JDK 路径）→ 修复 → run 38933168612 **success**（139 用例含 Linux NATIVE 截图冒烟 + assembleDebug + lint 报告 artifact）。PROBLEMS P5 就此关闭（冒烟基线就位，7×3 对比矩阵列为后续增强）。
+  - 本地：139 用例（138+1 Windows skipped）0 失败 + assembleDebug 绿。

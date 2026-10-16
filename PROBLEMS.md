@@ -29,9 +29,9 @@
 > 原状：
 - 两处都能改主题（审计确认功能重复但用户未提出收敛），记录备查，未动。
 
-## P5 · 截图测试环境阻塞
-- Roborazzi 截图测试依赖 Robolectric NATIVE 图形模式；本机 NATIVE 启动即 UnsatisfiedLinkError（RenderNodeNatives），被迫全局 LEGACY。
-- 解除条件：升级 Robolectric/开启 GPU（ci 机器）后，按"7 主题 × 3 关键页"补截图对比测试。
+## P5 · ✅ 已解决（2026-10-17：CI Linux 上 Roborazzi NATIVE 冒烟截图跑通）
+> 阻塞（本机 NATIVE 起不来）已由 GitHub Actions 解除：run 38933168612 在 ubuntu-latest 上以 Robolectric 4.11.1 NATIVE 模式真实渲染并落盘 ci_smoke.png（Roborazzi 1.8.0 + Compose BOM 2024.02 兼容确认；跳过闸门做成 RuleChain 外层规则，Windows 本机按 skipped 干净处理）。
+> 后续增强（非阻塞）：从单点冒烟扩展为"7 主题 × 3 关键页"截图对比矩阵（依赖冒烟基线稳定后逐步加）。原状：
 
 ## P6 · GitHub 备份需要认证凭据
 - 远程已配置（origin → github.com/d2km4jc8sy-wq/vic1y），但推送需要 PAT。
