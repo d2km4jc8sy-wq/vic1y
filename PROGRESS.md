@@ -81,3 +81,6 @@
 
 
 - 2026-10-17 阶段二第二轮（报告 7.2-① 主项落地）：ThreadDetailViewModel 状态宿主——Activity 上 12 个跨线程/数据类字段（totalPages/perPage/loadedMaxPage/hasMore/authorId/isOnlyAuthor/threadFid/rateMap/missingPages/ratingFetchedPages/capturedPoll×2）改为同形委托属性直达 VM；@Volatile 全部消失（StateFlow + CAS 原子更新），四个 Actions 扩展文件零改动。主线程视图编排字段按职责保留在 Activity。验证：138 用例 0 失败 + assembleDebug 绿；真机装机后用户实机浏览中（详情页打开正常）。回帖/评分/投票提交链路为编译级验证，待用户日常复核。验收基线：开帖/翻页/进度恢复/探针在 VM 前一版已全绿（见上条验收记录），VM 版差异仅在状态存储位置。
+
+
+- 2026-10-17 性能与遮挡修复（用户真机反馈两项）：①小米10 瀑布流左右滑掉帧——幻彩心跳每卡 60fps 改 15fps 帧控（XhsPostCard），同机同手势 gfxinfo A/B：janky 152→59（-61%）；②Levi''s 票夹常驻压卡+抢触摸——改「滚动超视口 ~8% 才现身」（HomeFeed derivedStateOf，参考绳子 ~8%），hitTest 向下外扩 180dp 收紧为 +10dp（TicketPullView）；验证截图 outputs/shots/v104_ticket_top|scrolled.png。138 用例 0 失败。用户已确认回帖/评分/投票三链路日常使用无异常。
