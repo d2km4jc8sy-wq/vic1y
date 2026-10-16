@@ -148,4 +148,10 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // Roborazzi 截图测试：CI Linux 上以 NATIVE 图形冒烟截图落盘（Windows 本机 NATIVE 起不来，CiSmokeCaptureTest 首行 Assume 跳过）。
+    // 1.8.0 与既有 Robolectric 4.11.1 + Compose BOM 2024.02.00 同时代可用；1.8 线不存在 alpha-13（仅 alpha-1..6 / rc-1..2 / 正式版 1.8.0）。
+    // 用 onRoot().captureRoboImage 手法，无需 JUnit rule，故不引 roborazzi-junit-rule（roborazzi-junit4 工件在 Maven Central 不存在）。
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.8.0")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.8.0")
 }
