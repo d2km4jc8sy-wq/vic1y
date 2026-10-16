@@ -91,7 +91,7 @@ internal fun ThreadDetailActivity.loadRatings(page: Int) {
     // 本页作者的战斗力（按 uid 从 Profile API 取，跨页缓存复用）
     pageAdapter.getPage(page)?.let { loadPowers(it) }
     lifecycleScope.launch {
-        val fetched = withContext(Dispatchers.IO) { fetchRatingsHtml(page) }
+        val fetched = com.example.s1client.data.remote.ThreadRepository.fetchRatings(tid, page)
         // put 覆盖旧值：自己评完分后要让汇总数字刷新
         fetched.forEach { (pid, info) -> rateMap.put(pid, info) }
         if (fetched.isNotEmpty()) pageAdapter.notifyRatingsChanged()
@@ -122,22 +122,6 @@ internal fun ThreadDetailActivity.schedulePowerRefresh() {
     binding.root.postDelayed(powerRefreshRunnable, 120)
 }
 
-
-internal fun ThreadDetailActivity.fetchRatingsHtml(page: Int): Map<String, com.example.s1client.util.RateInfo> {
-    return try {
-        val url = "https://stage1st.com/2b/forum.php?mod=viewthread" +
-                "&tid=$tid&page=$page&mobile=2"
-        val req = okhttp3.Request.Builder().url(url).build()
-        val html = RetrofitClient.httpClient.newCall(req).execute()
-            .use { it.body?.string().orEmpty() }
-        com.example.s1client.util.RatingParser.parse(html)
-    } catch (e: Exception) {
-        android.util.Log.e("S1Rate", "fetch ratelog failed p$page", e)
-        emptyMap()
-    }
-}
-
-/** 点评分行：弹出完整评分明细列表（方案 A：紧凑长条，整行点按可看个人资料） */
 
 internal fun ThreadDetailActivity.showRatingDetail(post: Post) {
     val pid = post.pid ?: return
@@ -252,7 +236,7 @@ internal fun ThreadDetailActivity.showRatingDetail(post: Post) {
             pbLoadFull.visibility = View.VISIBLE
             btnLoadFull.text = "加载中…"
             lifecycleScope.launch {
-                val full = withContext(Dispatchers.IO) { fetchFullRatings(pid) }
+                val full = com.example.s1client.data.remote.ThreadRepository.fetchFullRatings(tid, pid)
                 if (full != null && full.entries.isNotEmpty()) {
                     currentInfo = full
                     rateMap.put(pid, full)
@@ -277,23 +261,6 @@ internal fun ThreadDetailActivity.showRatingDetail(post: Post) {
     }
 
     dialog.show()
-}
-
-/** 拉取某一层的完整评分历史（不受内联 ratelog 条数截断限制）。参考 s1er fetchFullRateLog */
-
-internal fun ThreadDetailActivity.fetchFullRatings(pid: String): com.example.s1client.util.RateInfo? {
-    return try {
-        val url = "https://stage1st.com/2b/forum.php?mod=misc&action=viewratings" +
-                "&tid=$tid&pid=$pid&mobile=2"
-        val req = okhttp3.Request.Builder().url(url).build()
-        val html = RetrofitClient.httpClient.newCall(req).execute()
-            .use { it.body?.string().orEmpty() }
-        android.util.Log.d("S1Rate", "viewratings pid=$pid len=${html.length}")
-        com.example.s1client.util.RatingParser.parseViewRatings(html, pid)
-    } catch (e: Exception) {
-        android.util.Log.e("S1Rate", "fetch full ratings failed pid=$pid", e)
-        null
-    }
 }
 
 /**

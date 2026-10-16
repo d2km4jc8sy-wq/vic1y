@@ -405,72 +405,28 @@ internal fun ThreadDetailActivity.pageInRange(page: Int): Boolean =
      * 直接请求 API 一页（40 楼），超出截取，少于 40 就全部返回。
      */
 
-internal suspend fun ThreadDetailActivity.fetchOnePage(page: Int): List<Post> = withContext(Dispatchers.IO) {
-        try {
-            val r = RetrofitClient.api.getThreadDetail(
-                tid = tid, page = page,
-                authorid = if (isOnlyAuthor) authorId else null
-            )
-            SessionRepository.refreshFormhash(r.variables?.formhash)
-            r.variables?.thread?.fid?.let { if (it.isNotBlank()) threadFid = it }
-            // 总页数 = (回复数 + 楼主层) / 每页楼层数
-            r.variables?.thread?.let { t ->
-                val replies = t.replies?.toIntOrNull() ?: -1
-                val ppp = t.ppp?.toIntOrNull()?.takeIf { it > 0 } ?: PAGE_SIZE
-                perPage = ppp
-                if (replies >= 0) {
-                    // ⚠️ 这里只算数字，**绝对不能碰 UI**：fetchOnePage 跑在 Dispatchers.IO 上，
-                    // 而 reserveUpTo（内部 notifyItemRangeInserted）与 updatePageIndicator
-                    //（改 TextView）都必须在主线程，否则抛 CalledFromWrongThreadException；
-                    // 该异常又会被下面的 catch 吞成空列表 → 表现为「进任何帖子都加载失败」。
-                    totalPages = com.example.s1client.util.Paging.totalPages(replies, ppp)
-                }
-            }
-            val posts = r.variables?.postList ?: emptyList()
-            // 投票数据顺手带走：整个帖子的属性，第 1 页的响应里就有，
-            // 不必再为它单独发一次请求（原来 loadPollIfAny() 每次开帖都多发一次）。
-            if (page == 1) {
-                capturedPollSpecial = r.variables?.thread?.special
-                capturedPollJson = r.variables?.specialPoll
-            }
-            // 瀑布流封面缓存：服务端只对约 1/4 帖子返回 attachmentImagePreviewList，
-            // 用户进详情页看到图就顺手记下来，下次瀑布流这张卡就有封面（零额外请求）
-            if (page == 1) {
-                posts.firstOrNull { it.first == "1" }?.message?.let { msg ->
-                    com.example.s1client.util.CoverResolver
-                        .pickFirstContentImage(msg)
-                        ?.let { url ->
-                            com.example.s1client.data.store.CoverCacheStore
-                                .get(applicationContext).put(tid, url)
-                        }
-                }
-            }
-            // take() 返回新列表副本；subList 只是原列表视图，上游修改会连带变化。
-            //
-            // 关键：截断上限必须用**本次响应自报的 ppp**，不能写死 PAGE_SIZE(40)。
-            // 服务端每页数（perPage/ppp）不是 40 时（如被论坛设置成 20 或 50），
-            // 按 40 截断会凭空吞掉楼层 —— 表现就是"部分贴子缺页/楼层错位"。
-            val cap = if (perPage > 0) perPage else PAGE_SIZE
-            if (posts.size > cap) posts.take(cap) else posts
-        } catch (e: Exception) {
-            // 原来这里直接 emptyList()，把超时/解析失败/网络异常全吞成"没有数据"，
-            // 表现是"进入帖子提示加载失败"但日志里什么都查不到。必须留下类型和页码。
-            //
-            // 特别注意「子线程碰 View」这类编程错误：曾真的出现过 HTTP 200 成功，
-            // 却因为在 IO 线程里调 adapter 通知 / 改 TextView 而失败，
-            // 异常被这个 catch 吞成空列表 → 表现为「进任何帖子都加载失败」。
-            // 该异常类在 SDK 桩里没有独立 class（属于 framework 内部），只能按类名匹配。
-            if (e.javaClass.simpleName == "CalledFromWrongThreadException") {
-                Log.e("S1Thread", "fetchOnePage(page=$page) 在子线程碰了 View —— 编程错误，看栈", e)
-            } else {
-                Log.w(
-                    "S1Thread",
-                    "fetchOnePage(page=$page) failed: ${e.javaClass.simpleName}: ${e.message}"
-                )
-            }
-            emptyList()
-        }
+internal suspend fun ThreadDetailActivity.fetchOnePage(page: Int): List<Post> {
+    // P0-2 收尾（2026-10-17）：网络与解析下沉到 ThreadRepository（纯 IO、零状态写入），
+    // 本壳只负责把响应数据在主线程提交进 VM（委托属性线程安全）；
+    // 原先 IO 块内的状态写入全部移出 —— withContext(IO) 内不再出现任何状态/View 操作。
+    val data = com.example.s1client.data.remote.ThreadRepository.fetchPage(
+        tid = tid, page = page,
+        authorId = authorId, filterToAuthor = isOnlyAuthor
+    )
+    com.example.s1client.data.session.SessionRepository.refreshFormhash(data.formhash)
+    if (data.threadFid.isNotBlank()) threadFid = data.threadFid
+    if (data.perPage > 0) perPage = data.perPage
+    if (data.totalPages > 0) totalPages = data.totalPages
+    if (page == 1) {
+        // 原口径保留：page==1 无条件写入（无投票数据时清掉旧值），消费方 applyCapturedPoll 读后即清
+        capturedPollSpecial = data.pollSpecial
+        capturedPollJson = data.pollJson
     }
+    data.coverUrl?.let { url ->
+        com.example.s1client.data.store.CoverCacheStore.get(applicationContext).put(tid, url)
+    }
+    return data.posts
+}
 
     /**
      * [fetchOnePage] 之后、**必须在主线程**调用：把新算出的总页数同步进 UI。
