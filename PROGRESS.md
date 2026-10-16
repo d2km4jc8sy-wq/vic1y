@@ -68,3 +68,13 @@
 - 2026-10-16 22:05 待办：远程推送需新 PAT——旧凭据在本次误推（截断令牌）时被 credential reject 清除，GitHub 端仍为瘦身前旧历史；用户提供 PAT 后执行 git push -f origin main --tags 即可同步（本地 363db20 为最新）。Phase2（ThreadDetailViewModel / SessionRepository / 解析器契约测试）按报告排期待续。
 
 - 2026-10-16 22:15 v1.1.0(91) 真机验收（OnePlus CPH2581 / 742d179c，root+su 自动化，截图存 outputs/shots/v104_*）：①装机确认 versionCode=91 / versionName=1.1.0 ②冷启动 ok、全程 logcat 零 FATAL ③首页瀑布流/五键底栏/已读态置灰/Levi''s 票据厂标/页码浮标正常 ④详情页 PS1 皮肤 + STAGE1 品牌行 + 归墟版块标签（按需加载链路实测命中）+ 评分 chip「+0/–」占位 ⑤阅读进度恢复实测：直接落到 41 楼（第 2 页），floorPid 口径工作正常，翻页往返后进度回写 ⑥第 2 页战斗力 pill（✕ 11/-23/-7/319）异步到货渲染正常，内联表情正常 ⑦独立视觉复核（审阅者）11/11 项 PASS「可验收」。记录两个非阻塞观察：进度直落第 2 页时顶栏作者名不显示（bindTopAuthor 只在首楼响应取值，v103 同，列入 Phase2 顺手修）；本机 root + su -c input 可自动化点击（推翻旧文档「无法自动化」限制，后续回归测试可用）。验收截图：outputs/shots/v104_home_01.png / v104_d_settled.png / v104_d_page2.png / v104_d_page1_back.png / v104_now.png。
+
+
+- 2026-10-16 22:40 远程同步完成：用户提供新 PAT，force push main（a462f0c → d2f13f9）+ v35-baseline 标签；GitHub 现为瘦身后的干净历史；令牌已恢复进 Windows 凭据管理器（git:https://github.com）。
+- 2026-10-16 23:00 阶段二第一轮（报告 7.2 的 ①③④ 三项，全量 ThreadDetailViewModel 转换留待下轮专属回归计划）：
+  - 36af678 SessionRepository（data/session/）：会话字段写点全量收编——adoptLogin/refreshFormhash/refreshProfile/refreshForumTree 四方法，守卫与原调用点逐字一致；验收达成：`ForumDataCache.formhash =` 全项目仅 SessionRepository 内部命中。唯一收紧：refreshFormhash 拒写空串（原 ShareNav 无条件写会清有效缓存）。
+  - 36af678 ThreadEntry（util/）：详情页起始页判定抽纯函数（guessFromFloor/correctionTarget）+ 12 边界单测，loadFirstPage 两处调用点改纯函数，口径与 s1er resolveThreadInitialPage 一致。
+  - cdf7d8e 解析器契约测试：游客态真实 fixture 6 份（研究员实抓：viewthread 桌面模板 194KB 含 7 带评分楼层/13 评分行、viewratings 明细 ±1、showdarkroom JSON 47 条含裸数字键坏 JSON）+ RatingParserContractTest 5 用例 + DarkRoomParserContractTest 6 用例；上游改版时失败测试名直接指认断裂契约。⚠ 契约发现固化：桌面分支只取 td.xi1 正分单元格，负分被跳过——登记 PROBLEMS P7 待拍板。
+  - 调查协作：两路研究员并行（fixture 采集 + 会话写点全图 notes_session_map.md/notes_fixtures.md）。
+  - 验证：testDebugUnitTest 138 用例（115+12+11）0 失败 + assembleDebug 绿；真机冒烟：装机 Success、冷启动 ok、探针广播实测 probe done posts=40 totalPages=2 perPage=40、零 FATAL。
+  - 遗留：P7 待拍板；全量 ThreadDetailViewModel 转换（下轮，含分 slices 回归计划）；142 用例基线上的 instrumentation 三路径（报告 5.5）。

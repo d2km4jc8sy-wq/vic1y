@@ -36,3 +36,10 @@
 ## P6 · GitHub 备份需要认证凭据
 - 远程已配置（origin → github.com/d2km4jc8sy-wq/vic1y），但推送需要 PAT。
 - 解除条件：用户提供 Personal Access Token（repo 权限）→ 配置 credential 后推送 main。
+
+
+## P7 · 评分解析桌面分支跳过负分单元格（待用户拍板）
+- 现状（2026-10-16 契约测试实测固化）：viewthread 桌面模板的评分行里，正分用 `<td class="xi1">`、负分用 `<td class="xg1">`；RatingParser.parse 的桌面分支只取 xi1，**负分条目在楼层内联评分明细里不显示**（每块 count/total 取自块头，汇总数字不受影响；「加载完整评分历史」走 viewratings 接口，负分齐全）。
+- 影响：内联明细少负分行；汇总与完整历史均正确。
+- 可选：①保持现状（内联只看好消息，完整历史看全量）②修 RatingParser 桌面分支同时收 xi1+xg1（契约测试同步改 13 条，PROBLEMS 闭环）。
+- fixture 与断言见 RatingParserContractTest（fixture: viewthread_p1_guest.html，13 行 = 7 正 + 6 负）。
