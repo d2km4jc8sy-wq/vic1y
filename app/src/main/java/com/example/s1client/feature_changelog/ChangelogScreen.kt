@@ -74,7 +74,16 @@ fun ChangelogScreen(onFinish: () -> Unit) {
                     .padding(horizontal = 8.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(\n                    painter = painterResource(R.drawable.ic_back),\n                    contentDescription = "返回",\n                    tint = c.textMain,\n                    modifier = Modifier\n                        .padding(8.dp)\n                        .width(22.dp)\n                        .height(22.dp)\n                        .clickable(onClick = onFinish)\n                )
+                Icon(
+                    painter = painterResource(R.drawable.ic_back),
+                    contentDescription = "返回",
+                    tint = c.textMain,
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .width(22.dp)
+                        .height(22.dp)
+                        .clickable(onClick = onFinish)
+                )
                 Spacer(Modifier.width(4.dp))
                 Text(
                     "更新日志",
