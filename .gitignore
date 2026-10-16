@@ -19,3 +19,9 @@ local.properties
 adb_devices.txt
 app/src/main/.icon_backup/
 *.log
+# ===== 归档区（2026-10-16 根目录减负：产物/截图/日志/预览/素材不入库）=====
+outputs/
+preview/
+preview_iridescent/
+mascot_gen/
+_verify/
