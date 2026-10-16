@@ -254,10 +254,23 @@ fun playStampOverlayOnNewPost(
     val size = (104 * d).toInt()
 
     val stamp = StampOverlayView(ctx)
-    // 屏幕中心（略偏上，给底部输入栏留位）
-    val lp = FrameLayout.LayoutParams(size, size, android.view.Gravity.CENTER)
-    lp.bottomMargin = (56 * d).toInt()
+    // 不依赖父容器 gravity 解析（CoordinatorLayout 下 Gravity.CENTER 偶发失效 → 章落左上，
+    // 用户实机反馈"还是左上"）。改为基于 host 实测宽高的**显式居中**：post 后 host 已有尺寸，
+    // 直接算中心坐标放进 margin，任何 ViewGroup 父都能正确居中。
+    val lp = FrameLayout.LayoutParams(size, size)
     stamp.layoutParams = lp
     host.addView(stamp)
-    stamp.post { stamp.playStamp { host.removeView(stamp) } }
+    stamp.post {
+        val pw = host.width
+        val ph = host.height
+        lp.leftMargin = ((pw - size) / 2).coerceAtLeast(0)
+        lp.topMargin = ((ph - size) / 2 - (56 * d).toInt()).coerceAtLeast(0)
+        stamp.layoutParams = lp
+        stamp.requestLayout()
+        android.util.Log.d(
+            "S1Stamp",
+            "host=${pw}x${ph} size=$size left=${lp.leftMargin} top=${lp.topMargin} parent=${host.javaClass.simpleName}"
+        )
+        stamp.playStamp { host.removeView(stamp) }
+    }
 }

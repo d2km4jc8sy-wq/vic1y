@@ -45,13 +45,13 @@ class TicketPullView @JvmOverloads constructor(
 
     companion object {
         /**
-         * 待命态透明度（2026-10-16）。
+         * 待命态透明度（2026-10-16，最后定稿）。
          *
-         * 用户实测反馈："默认色彩肉眼看着太难受了，几乎看不到，正常拉时才看得到"。
-         * 根因：票纸用主题色**半透明**（alpha 235）+ 淡描边，在浅色/幻彩主题下
-         * 与背景几乎同色 —— 半透明最大的问题就是"看得出有东西，但看不清是什么"。
-         * 现在改为**实底 + 高饱和描边**（彩票/刮刮乐色彩体系）：待命态就能明确看见，
-         * 不必先拉一下才知道这里能拉。
+         * 演进：最早(32aa21a)是 0.22（太淡，用户说"看不见"）→ 临时改实底刮刮乐(1f)偏离体系
+         * → 回归宪法20「戏票档浓票纸」：票夹用主题accent实色、票纸用浓票纸深底（本身吸睛），
+         * 待命态常驻可见且自然融入票据语言，不再靠"实底+高饱和描边"硬撑。
+         * 另由 HomeFeed 在列表滚动时把整体 alpha 淡出（FAB 行为），停下再淡入，
+         * 解决"固定在右上压住卡片/与内容混叠"。
          */
         const val IDLE_ALPHA = 1f
         /** 静止时票据露出高度（dp） */
@@ -87,6 +87,20 @@ class TicketPullView @JvmOverloads constructor(
     private var downTime = 0L
     private var scanDeg = 0f
     private var sweep = -1f// -1 = 无扫光；0..1 = 扫光位置
+    // ===== 戏票档浓票纸调色板（从 Compose 侧桥接注入，宪法20「浮层用戏票」）=====
+    // 默认 0 表示"未注入"，onDraw 回退到 attr 派生（兼容旧路径 / 自测）。
+    var palettePaper: Int = 0
+    var paletteGlow: IntArray = IntArray(4)
+    var paletteOnText: Int = Color.WHITE
+    var paletteAccentLine: Int = Color.WHITE
+    fun applyPalette(paper: Int, glows: IntArray, onText: Int, accentLine: Int) {
+        palettePaper = paper
+        paletteGlow = glows.copyOf()
+        paletteAccentLine = accentLine
+        paletteOnText = onText
+        invalidate()
+    }
+
     private var scanAnim: ObjectAnimator? = null
 
     // ===== 主题色（自愈取色，切主题即时跟随）=====
@@ -193,35 +207,53 @@ class TicketPullView @JvmOverloads constructor(
         val ratio = (pull / maxPull).coerceIn(0f, 1f)
         buildTicketPath()
 
-        // ---- 票夹（顶部固定，票据从它里面被抽出）----
-        clipPaint.color = withAlpha(accentColor, 235)
-        canvas.drawRoundRect(clipRect, 4f * density, 4f * density, clipPaint)
-        edgePaint.color = withAlpha(accentColor, 255)
-        edgePaint.pathEffect = null
-        canvas.drawRoundRect(clipRect, 4f * density, 4f * density, edgePaint)
+        // ---- 戏票档（浮层浓票纸，宪法20）：票夹=主题accent实色吸睛，票纸=浓票纸深底+四色荧光 ----
+        val paper = if (palettePaper != 0) palettePaper else paperColor
+        val accentLine = if (paletteAccentLine != 0) paletteAccentLine else withAlpha(Color.WHITE, 200)
+        val onText = paletteOnText
+        val fg = if (triggerArmed) paper else onText
 
-        // ---- 票纸：实底（不用半透明）+ 彩票式高饱和描边 ----
-        // 半透明在浅色主题下会与背景同色，用户反馈"几乎看不到"；实底才有存在感。
-        ticketPaint.color = if (triggerArmed) withAlpha(accentColor, 255) else paperColor
+        // 票夹（顶部固定）：主题 accent 实色块（一眼可辨"可下拉"），亮白细描边（B）
+        clipPaint.color = accentColor
+        canvas.drawRoundRect(clipRect, 2.5f * density, 2.5f * density, clipPaint)
+        edgePaint.color = accentLine
+        edgePaint.pathEffect = null
+        edgePaint.strokeWidth = 1.4f * density
+        canvas.drawRoundRect(clipRect, 2.5f * density, 2.5f * density, edgePaint)
+
+        // 票纸：浓票纸深底（若注入 palette 则用它，否则 attr 派生）
+        ticketPaint.color = if (triggerArmed) accentLine else paper
         canvas.drawPath(ticketPath, ticketPaint)
-        // 描边：待命态用主题 accent（高饱和，彩票红边感），触发态用亮白强调
-        edgePaint.color = if (triggerArmed) Color.WHITE else withAlpha(accentColor, 235)
-        edgePaint.strokeWidth = (if (triggerArmed) 2.2f else 1.8f) * density
+        // 四色荧光轻叠加（浓票纸质感，宪法20）：半透明叠加在深底上，避免盖掉纸面
+        if (paletteGlow[0] != 0) {
+            gradPaint.alpha = 95
+            gradPaint.shader = android.graphics.LinearGradient(
+                ticketRect.left, ticketRect.top, ticketRect.right, ticketRect.bottom,
+                intArrayOf(paletteGlow[0], paletteGlow[1], paletteGlow[2], paletteGlow[3]),
+                null, android.graphics.Shader.TileMode.CLAMP
+            )
+            canvas.drawPath(ticketPath, gradPaint)
+            gradPaint.shader = null
+            gradPaint.alpha = 255
+        }
+        // 亮白细描边（B：替代刮刮乐粗描边）
+        edgePaint.color = accentLine
+        edgePaint.strokeWidth = 1.4f * density
         canvas.drawPath(ticketPath, edgePaint)
-        // 虚线内框
-        edgePaint.color = withAlpha(accentColor, 110)
+        // 虚线内框（C：票据语汇）
+        edgePaint.color = withAlpha(onText, 90)
         edgePaint.pathEffect = DashPathEffect(floatArrayOf(3f * density, 2.5f * density), 0f)
         val inner = RectF(
             ticketRect.left + 5f * density, ticketRect.top + 5f * density,
             ticketRect.right - 5f * density, ticketRect.bottom - 5f * density
         )
-        canvas.drawRoundRect(inner, 3f * density, 3f * density, edgePaint)
+        canvas.drawRoundRect(inner, 2.5f * density, 2.5f * density, edgePaint)
         edgePaint.pathEffect = null
 
         // ---- 票面内容：过阈值前画向下箭头，过阈值后亮起 + 翻成向上 ----
         val cx = ticketRect.centerX()
         val cy = ticketRect.centerY()
-        barPaint.color = if (triggerArmed) Color.WHITE else withAlpha(accentColor, 255)
+        barPaint.color = fg
         val ar = 5.5f * density
         val dir = if (triggerArmed) -1f else 1f
         canvas.save()
@@ -252,8 +284,8 @@ class TicketPullView @JvmOverloads constructor(
                 canvas.drawLine(x, baseY, x + step * 0.55f, baseY, barPaint)
             }
         } else {
-            // 待命/待发：文字提示（实底上用高对比色，否则看不清）
-            textPaint.color = if (triggerArmed) Color.WHITE else withAlpha(accentColor, 255)
+            // 待命/待发：文字提示（fg = 触发态深底/待命态亮白，自动对位）
+            textPaint.color = fg
             canvas.drawText(
                 if (triggerArmed) "松手" else "拉票",
                 cx,

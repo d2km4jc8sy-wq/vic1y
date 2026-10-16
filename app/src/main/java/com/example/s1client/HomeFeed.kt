@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.s1client.ui.TicketPullView
+import com.example.s1client.ui.ticketPaletteFor
 import com.example.s1client.ui.RopeRefreshView
 import com.example.s1client.data.store.BlacklistManager
 import com.example.s1client.util.Haptic
@@ -62,6 +63,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
@@ -420,6 +422,12 @@ fun ForumFeedPage(
                     // 绳子下拉刷新（顶部右侧）。
                     // 系统下拉刷新只在列表滚到顶时才生效，翻了几页后就拉不动了；
                     // 这根绳子是独立控件，任何时候都能拉下来 —— 拉到底 = 回到板块第一页并刷新。
+                    val pullAlpha by animateFloatAsState(
+                        targetValue = if (gridState.isScrollInProgress) 0f else 1f,
+                        animationSpec = tween(durationMillis = 200)
+                    )
+                    // 桥接戏票档浓票纸（宪法20）：在 composable 上下文算好 palette，再喂给 update lambda
+                    val s1PullPalette = ticketPaletteFor(LocalS1Colors.current)
                     AndroidView(
                         factory = { ctx ->
                             val doRefresh = onRefresh
@@ -451,17 +459,32 @@ fun ForumFeedPage(
                             }
                         },
                         update = { view ->
-                            view.visibility =
-                                if (showRope) android.view.View.VISIBLE else android.view.View.GONE
+                            // 2026-10-16：票夹改为**常驻**——"滚到顶消失/时有时无"的根因就是
+                            // showRope 的场景分时条件（第1页顶部隐藏，与回顶钮错峰）。
+                            // 现在显隐统一交由 pullAlpha 滚动淡出（FAB 行为）控制：
+                            // 滚动中淡出不压卡片，停下即稳定可见，不再时有时无。
+                            view.visibility = android.view.View.VISIBLE
+                            // 桥接戏票档浓票纸（宪法20）：每次重组按当前主题注入 palette
+                            (view as? TicketPullView)?.let { v ->
+                                val pal = s1PullPalette
+                                v.applyPalette(
+                                    pal.paperInt(),
+                                    intArrayOf(pal.glowInt(0), pal.glowInt(1), pal.glowInt(2), pal.glowInt(3)),
+                                    pal.onTicketInt(),
+                                    pal.accentInt()
+                                )
+                            }
                         },
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             // 票据控件自带顶部偏移（避开分类条），此处只做水平内收
-                            .padding(top = TopBarHeight, end = 13.dp)
+                            .padding(top = TopBarHeight, end = 8.dp)
                             // 触摸热区要够宽：原60dp 窄条实机拉不动 → 加宽到 96dp，
                             // 高度也放宽到可拉带长度。视觉仍由票夹本身决定大小。
                             .size(width = 96.dp, height = 300.dp)
                             .zIndex(2f)
+                            // 滚动时整体淡出（FAB 行为）：解决"固定在右上压住卡片/与内容混叠"
+                            .alpha(pullAlpha)
                     )
 
                     // 方案 01 移植版：底部 WheelJumpSheet（grab+状态 chip+停稳武装+长按 1s ring）
