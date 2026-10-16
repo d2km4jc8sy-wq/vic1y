@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  便签评分 stamp 虚线框 · 票面版（细节轮3，2026-10-16）。
+  便签改为 TicketPalette 深票纸后，原 dark 版（#4A4238 暗褐虚线）在深票上不可见，
+  浅色版（#B4A98E 米褐）同样被深票吃掉 —— 票面语汇要求「亮白虚线」，
+  故新增此张：亮白半透明虚线，任何主题的深票纸上都能看清。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#00000000" />
+    <stroke
+        android:width="1.5dp"
+        android:color="#B8FFFFFF"
+        android:dashWidth="3dp"
+        android:dashGap="2dp" />
+    <corners android:radius="9dp" />
+</shape>

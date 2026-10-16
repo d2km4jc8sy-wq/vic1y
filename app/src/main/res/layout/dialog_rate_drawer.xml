@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PS1 评分抽屉（Bottom Sheet 风格，但由 RateDrawer.kt 用普通 Dialog 自绘入场，
+  不走 BottomSheetBehavior，以保留弹簧曲线 / 浮动数字 / 遮罩控制权）。
+
+  结构：全屏透明根 = 遮罩 + 浮字层 + 底部机身面板（机身内一块"显示屏" + 加减键帽行）。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rateRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
+
+    <!-- 遮罩（点击 = 取消评分） -->
+    <View
+        android:id="@+id/rateOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/ps_scrim" />
+
+    <!-- ===== 底部机身面板 ===== -->
+    <LinearLayout
+        android:id="@+id/ratePanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="14dp"
+        android:layout_marginBottom="12dp"
+        android:orientation="vertical"
+        android:background="@drawable/ps_body_dark"
+        android:padding="14dp"
+        android:elevation="12dp">
+
+        <!-- 拖拽握把 -->
+        <View
+            android:layout_width="36dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/ps_grip" />
+
+        <!-- 显示屏 -->
+        <LinearLayout
+            android:id="@+id/rateScreen"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/ps_screen_dark"
+            android:padding="14dp"
+            android:layout_marginBottom="12dp">
+
+            <!-- 屏顶铭文行 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="10dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="SCPH-1000 · 评分面板"
+                    android:textSize="9sp"
+                    android:textColor="?attr/s1TextTertiary"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.15" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="SONY"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/s1TextTertiary"
+                    android:letterSpacing="0.15" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <!-- 头像（尺寸对齐个人资料卡 72dp）；LED 已按用户要求移除 -->
+                <FrameLayout
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:layout_marginEnd="14dp">
+
+                    <TextView
+                        android:id="@+id/tvDrawerAvatarLetter"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:textSize="30sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF" />
+
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:id="@+id/ivDrawerAvatar"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:alpha="0"
+                        app:shapeAppearanceOverlay="@style/CircleImage" />
+                </FrameLayout>
+
+                <!-- 用户名 + 战斗力（USER 行改为显示当前战斗力「鹅」）-->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvDrawerName"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:fontFamily="monospace"
+                        android:singleLine="true"
+                        android:ellipsize="end"
+                        android:textColor="?attr/s1TextTitle" />
+
+                    <!-- 战斗力（细节轮2：USER 占位改为显示当前战斗力「鹅」） -->
+                    <TextView
+                        android:id="@+id/tvDrawerPower"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="⚔ 战斗力"
+                        android:textSize="11sp"
+                        android:fontFamily="monospace"
+                        android:singleLine="true"
+                        android:textColor="?attr/s1TextSecondary" />
+                </LinearLayout>
+
+                <!-- 分数 -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="end">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="SCORE"
+                        android:textSize="8sp"
+                        android:fontFamily="monospace"
+                        android:letterSpacing="0.2"
+                        android:textColor="?attr/s1TextTertiary" />
+
+                    <TextView
+                        android:id="@+id/tvScoreValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="0"
+                        android:textSize="30sp"
+                        android:textStyle="bold"
+                        android:fontFamily="monospace"
+                        android:includeFontPadding="false"
+                        android:textColor="#000000" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!--
+  评分理由区（细节轮3 · 对齐 s1 原版评分面板）：
+  Discuz 评分表单带 reason（评分理由），reasonPresets 已从表单解析出来
+  （如「好评加鹅 / 欢乐多 / 思路广」），此前 UI 没出口、提交时恒传空串。
+  这里给三档：① 预置理由横向 chips（点选，再次点击取消）② 自由输入框
+  ③ 通知作者开关（表单默认态由 notifyAuthorDefault 带入）。
+-->
+        <LinearLayout
+            android:id="@+id/rateReasonBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="10dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="6dp"
+                android:text="理由"
+                android:textSize="10sp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.15"
+                android:textColor="?attr/s1TextTertiary" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/rateReasonChips"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:singleLine="false"
+                app:singleSelection="true" />
+
+            <EditText
+                android:id="@+id/rateReasonInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="或在此补充理由…"
+                android:textSize="13sp"
+                android:maxLength="60"
+                android:maxLines="2"
+                android:textColor="?attr/s1TextBody"
+                android:textColorHint="?attr/s1TextTertiary"
+                android:background="@drawable/bg_edge_pill"
+                android:paddingStart="13dp"
+                android:paddingEnd="13dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:importantForAutofill="no" />
+
+            <!-- 通知作者（细节轮3：钩子与文字改黑 —— 系统默认勾选框在暖白纸上钩色过淡，
+     用户反馈"钩不明显"；btnTint 用固定黑保证任何主题下都清晰） -->
+            <CheckBox
+                android:id="@+id/rateNotifyAuthor"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="通知作者"
+                android:textSize="12sp"
+                android:textColor="#000000"
+                android:buttonTint="#000000" />
+        </LinearLayout>
+
+        <!-- 键帽行：− / 分值输入(RESET 位) / 确定 / + ；细节轮2 起键帽走黑白反色 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <FrameLayout
+                android:id="@+id/btnMinus"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/ps_round_btn"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackgroundBorderless">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_ps_triangle_down" />
+            </FrameLayout>
+
+            <!--
+              原 RESET 按钮改为**可输入分值**（细节轮2 · 用户要求）：
+              Discuz 评分值域是有限档位（RateFormOptions.buildScoreOptions），
+              但用户想直接敲数字。这里用 EditText + numberSigned 键盘自建输入，
+              输入非法/超界时由 RateDrawer 校验并回落，并提供长按清空。
+              id 沿用 btnReset 以少改 RateDrawer 的引用。
+            -->
+            <EditText
+                android:id="@+id/btnReset"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:gravity="center"
+                android:hint="0"
+                android:text="0"
+                android:inputType="numberSigned"
+                android:maxLength="3"
+                android:selectAllOnFocus="true"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:textColor="@color/ps_key_ink"
+                android:textColorHint="@color/ps_key_ink_dim"
+                android:background="@drawable/ps_reset_btn"
+                android:imeOptions="actionDone"
+                android:importantForAutofill="no"
+                android:focusable="true" />
+
+            <TextView
+                android:id="@+id/btnDone"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:gravity="center"
+                android:text="确定"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.15"
+                android:textColor="@color/ps_key_ink_invert"
+                android:background="@drawable/ps_done_btn"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <FrameLayout
+                android:id="@+id/btnPlus"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/ps_round_btn"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackgroundBorderless">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_ps_triangle_up" />
+            </FrameLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 浮字层放在最上：+1 / -1 临时数字 addView 到这里。
+         透明且默认不可点击，不会挡住面板操作。 -->
+    <FrameLayout
+        android:id="@+id/rateFloatLayer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false" />
+</FrameLayout>

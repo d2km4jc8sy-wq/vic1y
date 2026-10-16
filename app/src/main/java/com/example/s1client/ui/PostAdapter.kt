@@ -22,7 +22,6 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -34,6 +33,7 @@ import com.example.s1client.data.store.ExpandedFloors
 import com.example.s1client.data.store.HiddenFloors
 import androidx.appcompat.app.AlertDialog
 import androidx.core.text.util.LinkifyCompat
+import androidx.core.view.ViewCompat
 import androidx.recyclerview.widget.RecyclerView
 import coil.Coil
 import coil.load
@@ -60,10 +60,26 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.lifecycleScope
 
+/**
+ * PS1 皮肤版楼层适配器（v3.1：票据 × 手柄融合最终确定版）。
+ *
+ * 与原版的差异仅在视觉绑定层：
+ * - 主楼（first=="1"）：卡片整体是浅灰 PS1 金属机身（[Ps1Skin.bodyRes]），
+ *   顶部品牌行 STAGE1 + 板块纯文字标签，标题/正文/图片包在"显示屏"里
+ *   （[Ps1Skin.screenRes]），底部操作带 = 左评分 chip（46dp 虚线方章，点击看更多评分）
+ *   + 右 △收藏 ○回复 ✕评分 □更多 四钮（34dp 带 9sp 功能标签，教学面）；
+ * - 回复楼：卡片是右侧锯齿的手柄便签（[Ps1Skin.widget.PsNoteCardView] +
+ *   [Ps1Skin.noteRes]），作者行右侧 = 26dp 圆头像（点击 → 资料卡）+ 40dp 倾斜评分
+ *   stamp（rotate(-6deg)，点击 → 查看更多评分），底部 = 左回帖时间（楼层 · 日期）
+ *   + 右纯图标四小钮（22dp，高效面无标签）；
+ * - 数据回调、折叠/引用/投票/多选/长文/图片/表情等业务逻辑与原版完全一致。
+ */
 class PostAdapter(
     private val posts: List<Post>,
     private val subject: String = "",
     private val tid: String = "",
+    /** 板块名（发帖时从 ForumDataCache 按 fid 解析）；为空则隐藏品牌行右侧标签 */
+    private val sectionProvider: () -> String = { "" },
     private val onAvatarClick: ((Post) -> Unit)? = null,
     private val onEditClick: ((Post) -> Unit)? = null,
     private val onRateClick: ((Post) -> Unit)? = null,
@@ -197,9 +213,12 @@ class PostAdapter(
             if (isSelf) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
 
         val timeStr = TimeUtil.formatSmart(post.dateline)
-        h.binding.tvPostTime.text = timeStr
 
         val isFirst = post.first == "1"
+
+        // ===== PS1 皮肤：主楼机身 / 回复楼便签 =====
+        applyPs1Skin(h, isFirst, density)
+
         if (isFirst) {
             // 楼主层：时间挪到标题下的 meta 行，底部操作行不再重复显示
             h.binding.llOpMeta.visibility = View.VISIBLE
@@ -207,14 +226,16 @@ class PostAdapter(
             h.binding.tvPostTime.visibility = View.GONE
         } else {
             h.binding.llOpMeta.visibility = View.GONE
+            // v3.1：楼层号并入底部时间文本（「N楼 · 日期」），作者行只留昵称/战斗力/头像/stamp
+            val floorNum = post.position ?: (position + 1).toString()
+            h.binding.tvPostTime.text = "${floorNum}楼 · $timeStr"
             h.binding.tvPostTime.visibility =
                 if (timeStr.isBlank()) View.GONE else View.VISIBLE
         }
 
-        // 楼主层的作者信息已经上移到顶栏，楼层内不再重复
+        // 楼主层的作者信息已经上移到顶栏，楼层内作者行不重复
         h.binding.llAuthorRow.visibility = if (isFirst) View.GONE else View.VISIBLE
         if (isFirst) {
-            h.binding.tvPostFloor.text = "楼主"
             if (subject.isNotBlank()) {
                 h.binding.tvPostTitle.text = subject
                 h.binding.tvPostTitle.visibility = View.VISIBLE
@@ -223,8 +244,6 @@ class PostAdapter(
             }
         } else {
             h.binding.tvPostTitle.visibility = View.GONE
-            val floorNum = post.position ?: (position + 1).toString()
-            h.binding.tvPostFloor.text = floorNum + "楼"
         }
 
         val letter = authorName.firstOrNull()?.toString() ?: "?"
@@ -252,49 +271,37 @@ class PostAdapter(
             }
         }
 
-        // 操作行：评分 / 引用 / 收藏 / ⋯（编辑已挪进「⋯」菜单）。
-        // 图标统一走 s1ActionIcon，避免各矢量自带的颜色（ic_star 是金色）不一致
-        val actionTv = TypedValue()
-        ctx.theme.resolveAttribute(com.example.s1client.R.attr.s1ActionIcon, actionTv, true)
-        val actionTint = android.content.res.ColorStateList.valueOf(actionTv.data)
-        h.binding.btnRate.imageTintList = actionTint
-        h.binding.btnQuote.imageTintList = actionTint
-        h.binding.btnFavoritePost.imageTintList = actionTint
-        h.binding.btnMore.imageTintList = actionTint
+        // 四钮符号颜色在 vector 里固定（△绿○红✕蓝□品红），主楼 34dp 与便签 22dp 都不做统一 tint
 
-        // ===== 楼层卡片化：圆角卡片底 + 描边；选中态切换为强调色描边 + 浅填充 =====
-        val cardTv = TypedValue()
-        ctx.theme.resolveAttribute(com.example.s1client.R.attr.s1BgCard, cardTv, true)
-        val borderTv = TypedValue()
-        ctx.theme.resolveAttribute(com.example.s1client.R.attr.s1BorderCard, borderTv, true)
+        // ===== 卡片底：PS1 皮肤（多选时切换为强调色描边 + 浅填充，覆盖皮肤底） =====
         val accentTv = TypedValue()
         ctx.theme.resolveAttribute(com.example.s1client.R.attr.s1Accent, accentTv, true)
         val accent = accentTv.data
 
         if (shareSelectMode) {
-            // 选中高亮直接画在 background（绘制在子 View 之下，绝不遮挡右上角勾选徽标）
-            h.binding.root.background = GradientDrawable().apply {
+            // 选中高亮画在 cardContent 上（绘制在子 View 之下，不遮挡右上角勾选徽标）
+            h.binding.cardContent.background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = 16 * density
-                setStroke((2 * density).toInt(), accent)   // 加粗到 2dp 更醒目
+                cornerRadius = 14 * density
+                setStroke((2 * density).toInt(), accent)
                 setColor(android.graphics.Color.argb(
-                    26,  // ≈10% 强调色填充，明显但不刺眼
+                    26,
                     android.graphics.Color.red(accent),
                     android.graphics.Color.green(accent),
                     android.graphics.Color.blue(accent)))
             }
+            h.binding.cardContent.setJagged(false)
+            // 底部操作行整体收起（内含评分 chip 与主楼/便签两套钮）
             h.binding.llActions.visibility = View.GONE
             h.binding.ivSelectBadge.visibility = View.VISIBLE
             if (isShareSelected(post)) {
-                // 选中：accent 实心圆盘 + 白色对勾（白色底衬透出对勾，清晰落在卡片右上角）
                 h.binding.ivSelectBadge.setImageResource(R.drawable.ic_check_circle)
                 h.binding.ivSelectBadge.setColorFilter(accent)
             } else {
-                // 未选：tertiary 圆环（白色底衬透出空心圈，像未勾选的复选框）
-                h.binding.ivSelectBadge.setImageResource(R.drawable.ic_circle_outline)
                 val tertiaryTv = TypedValue()
                 ctx.theme.resolveAttribute(
                     com.example.s1client.R.attr.s1TextTertiary, tertiaryTv, true)
+                h.binding.ivSelectBadge.setImageResource(R.drawable.ic_circle_outline)
                 h.binding.ivSelectBadge.setColorFilter(tertiaryTv.data)
             }
             h.binding.root.isClickable = true
@@ -303,15 +310,8 @@ class PostAdapter(
             // 复用 ViewHolder 时清掉旧的非多选态链接点击，否则正文仍会吞掉整卡点按
             h.binding.tvPostMessage.movementMethod = null
         } else {
-            // 普通态：s1BgCard 圆角底 + 1dp 描边，徽标隐藏
-            h.binding.root.background = GradientDrawable().apply {
-                setColor(cardTv.data)
-                cornerRadius = 16 * density
-                setStroke((1 * density).toInt(), borderTv.data)
-            }
             h.binding.ivSelectBadge.visibility = View.GONE
             h.binding.root.setOnClickListener(null)
-            h.binding.llActions.visibility = View.VISIBLE
         }
 
         // 按压缩放反馈（不消费事件，点击/长按不受影响）
@@ -330,45 +330,70 @@ class PostAdapter(
         h.binding.btnFavoritePost.setOnClickListener { onFavoriteClick?.invoke(post) }
         h.binding.btnMore.setOnClickListener { onMoreClick?.invoke(post) }
 
-        // 评分行：数据来自网页版 HTML 的 ratelog（移动版 API 没有）。
-        // 没加载到用 INVISIBLE 占位，避免 GONE→VISIBLE 把下方整段往下推造成闪动。
-        val rate = rateProvider(post.pid)
-        if (rate != null) {
-            h.binding.llRating.visibility = View.VISIBLE
-            h.binding.tvRatingInfo.text = rate.summary
-            if (shareSelectMode) {
-                // 多选模式：评分行不可点，整卡点按统一走勾选
-                h.binding.llRating.isClickable = false
-                h.binding.llRating.setOnClickListener(null)
-            } else {
-                h.binding.llRating.setOnClickListener { onRatingRowClick?.invoke(post) }
-            }
-        } else {
-            h.binding.llRating.visibility = View.GONE
-            h.binding.llRating.setOnClickListener(null)
+        // 评分 chip（主楼）/ 倾斜 stamp（便签）：点击 → 查看更多评分（与评分汇总行同一入口）
+        h.binding.btnScoreChip.setOnClickListener {
+            if (!shareSelectMode) onRatingRowClick?.invoke(post)
+        }
+        h.binding.btnNoteStamp.setOnClickListener {
+            if (!shareSelectMode) onRatingRowClick?.invoke(post)
         }
 
-        // 操作行外露：引用 / 评分 / 收藏 常驻（评分行汇总仅在确有评分时出现，
-        // 但发起评分的按钮对任意楼层都可用，所以这里常驻可见）
-        h.binding.btnQuote.visibility = View.VISIBLE
-        h.binding.btnFavoritePost.visibility = View.VISIBLE
-        h.binding.btnRate.visibility = View.VISIBLE
+        // 回复楼胶囊行：与主楼四钮同一套回调
+        h.binding.btnNoteRate.setOnClickListener {
+            if (!shareSelectMode) onRateClick?.invoke(post)
+        }
+        h.binding.btnNoteQuote.setOnClickListener {
+            if (!shareSelectMode) onQuoteClick?.invoke(post)
+        }
+        h.binding.btnNoteMore.setOnClickListener {
+            if (!shareSelectMode) onMoreClick?.invoke(post)
+        }
+        h.binding.btnNoteFav.setOnClickListener {
+            if (!shareSelectMode) onFavoriteClick?.invoke(post)
+        }
 
-        // 楼层收藏：固定用书签图标，**不做实心/空心状态变化**。
-        // 理由（用户拍板）：楼层收藏与帖子收藏都用星星会让人分不清自己在收藏什么，
-        // 而实心/空心切换又要求用户"看着图标找状态"，反而更费解。
-        // 现在：书签 = 收藏这条楼层；星星 = 收藏整个帖子。形状不同，含义就一目了然，
-        // 是否已收藏由点击后的 toast 告知即可。
-        h.binding.btnFavoritePost.setImageResource(R.drawable.ic_bookmark_outline)
+        // 评分行：数据来自网页版 HTML 的 ratelog（移动版 API 没有）。
+        // v3.1：列表层评分展示已由主楼评分 chip / 便签倾斜 stamp 承担；汇总行里的
+        // 「N 人参与」等信息按 Q1 拍板收进详情层（点击 chip/stamp 进入），此处不再显示。
+        val rate = rateProvider(post.pid)
+        h.binding.llRating.visibility = View.GONE
+        h.binding.llRating.setOnClickListener(null)
+
+        // 主楼评分 chip / 便签倾斜 stamp 的聚合分：加绿减红；
+        // 细节轮（2026-10-16）：未评分也显示控件，数字位显示「–」，消除已评/未评楼层视觉割裂
+        if (rate != null && rate.count > 0) {
+            val scoreTxt = (if (rate.total >= 0) "+" else "") + rate.total.toString()
+            val scoreColor = if (rate.total >= 0) Ps1Skin.SCORE_UP else Ps1Skin.SCORE_DOWN
+            if (isFirst) {
+                h.binding.btnScoreChip.visibility = View.VISIBLE
+                h.binding.tvChipScore.text = scoreTxt
+                h.binding.tvChipScore.setTextColor(scoreColor)
+            } else {
+                h.binding.btnNoteStamp.visibility = View.VISIBLE
+                h.binding.tvNoteScore.visibility = View.VISIBLE
+                h.binding.tvNoteScore.text = scoreTxt
+                h.binding.tvNoteScore.setTextColor(scoreColor)
+            }
+        } else {
+            val emptyColor = tertiaryColor(h.binding.root)
+            if (isFirst) {
+                h.binding.btnScoreChip.visibility = View.VISIBLE
+                h.binding.tvChipScore.text = "–"
+                h.binding.tvChipScore.setTextColor(emptyColor)
+            } else {
+                h.binding.btnNoteStamp.visibility = View.VISIBLE
+                h.binding.tvNoteScore.visibility = View.VISIBLE
+                h.binding.tvNoteScore.text = "–"
+                h.binding.tvNoteScore.setTextColor(emptyColor)
+            }
+        }
 
         val parsed = PostContentParser.parse(post.message)
 
         // ===== 折叠命中：整层折叠成一行，点一下可展开看原文 =====
-        // 命中判定走缓存（首绑后只查集合，不再每次读 SP），消除长帖滚动掉帧
-        // 三类折叠作用域：全局黑名单（作者 / 关键词）、本帖屏蔽某人（仅本 tid）
         val blocked = run {
             val users = _cachedBlockedUsers
-                ?: com.example.s1client.data.store.BlockedAuthorManager.allBlocked().keys
+                ?: BlockedAuthorManager.allBlocked().keys
                     .also { _cachedBlockedUsers = it }
             val words = _cachedBlockedWords
                 ?: com.example.s1client.data.store.BlacklistManager.blockedWords(ctx)
@@ -377,13 +402,10 @@ class PostAdapter(
                     (parsed.text.isNotBlank() && words.any { w -> parsed.text.toString().contains(w, ignoreCase = true) })
         }
         val threadMuted = tid.isNotBlank() && post.authorId != null &&
-                com.example.s1client.data.store.ThreadMutedUsers.isMuted(tid, post.authorId)
-        // 单楼屏蔽：仅在本帖藏掉这一层（pid 精确），其余楼层不受影响
+                ThreadMutedUsers.isMuted(tid, post.authorId)
         val hiddenFloor = tid.isNotBlank() && post.pid != null &&
-                com.example.s1client.data.store.HiddenFloors.isHidden(tid, post.pid)
-        // 单楼展开：按 pid 精确、持久化；只恢复这一楼，不影响该人其他楼层
-        val expandedOnce = com.example.s1client.data.store.ExpandedFloors.isExpanded(tid, post.pid)
-        // 折叠优先级：全局拉黑 / 本帖屏蔽此人 / 屏蔽此楼 > 单楼手动展开（例外）
+                HiddenFloors.isHidden(tid, post.pid)
+        val expandedOnce = ExpandedFloors.isExpanded(tid, post.pid)
         val folded = (blocked || threadMuted || hiddenFloor) && !expandedOnce
         val foldMsg = when {
             folded && blocked -> "该楼层已被黑名单折叠（${authorName}）· 点击展开"
@@ -398,25 +420,27 @@ class PostAdapter(
             h.binding.llRating.visibility = View.GONE
             h.binding.tvPostTitle.visibility = View.GONE
             h.binding.llOpMeta.visibility = View.GONE
-            h.binding.tvPostFloor.text = if (isFirst) "楼主" else "${post.position ?: (position + 1)}楼"
             val spannable = android.text.SpannableString(foldMsg)
             val secTv = TypedValue()
             ctx.theme.resolveAttribute(
                 com.example.s1client.R.attr.s1TextTertiary, secTv, true)
             spannable.setSpan(
-                android.text.style.ForegroundColorSpan(secTv.data),
+                ForegroundColorSpan(secTv.data),
                 0, spannable.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            spannable.setSpan(android.text.style.RelativeSizeSpan(0.88f),
+            spannable.setSpan(RelativeSizeSpan(0.88f),
                 0, spannable.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             hint.text = spannable
             hint.setOnClickListener {
-                // 只恢复这一楼：按 pid 持久化记录，该人其余楼层仍保持折叠
-                com.example.s1client.data.store.ExpandedFloors.expand(tid, post.pid)
+                ExpandedFloors.expand(tid, post.pid)
                 notifyItemChanged(position)
             }
             h.binding.llQuote.visibility = View.GONE
             h.binding.tvPower.visibility = View.GONE
             h.binding.tvExpand.visibility = View.GONE
+            // PS1 皮肤装饰在折叠态全部收起，只剩一行提示
+            // （底部操作行内含评分 chip 与两套钮，llActions 一并收起）
+            h.binding.llActions.visibility = View.GONE
+            h.binding.llBrandRow.visibility = View.GONE
             return
         }
 
@@ -489,8 +513,7 @@ class PostAdapter(
             h.binding.llQuote.visibility = View.GONE
         }
 
-        // 长文折叠：同步测自然行数（用卡片可用宽度），首帧即定稿，
-        // 避免 GONE→VISIBLE 在布局完成后再切换造成的「闪一下」。
+        // 长文折叠
         val tvMessage = h.binding.tvPostMessage
         val contentWpx = ((ctx.resources.displayMetrics.widthPixels / density) - 48f) * density
         tvMessage.maxLines = 12
@@ -525,27 +548,22 @@ class PostAdapter(
             h.binding.tvExpand.visibility = View.GONE
         }
 
-        // ===== 链接识别：URL 自动高亮成强调色 + 可点击跳浏览器 =====
+        // ===== 链接识别 =====
         val accentLinkTv = TypedValue()
         ctx.theme.resolveAttribute(com.example.s1client.R.attr.s1Accent, accentLinkTv, true)
         h.binding.tvPostMessage.setLinkTextColor(accentLinkTv.data)
-        // 选区高亮色：用 20% 强调色，拖拽选区才看得见；点链接高亮也不会太刺眼
         h.binding.tvPostMessage.highlightColor =
             (accentLinkTv.data and 0x00FFFFFF.toInt()) or 0x33000000.toInt()
         if (!shareSelectMode && LinkifyCompat.addLinks(h.binding.tvPostMessage, Linkify.WEB_URLS)) {
             h.binding.tvPostMessage.movementMethod = LinkMovementMethod.getInstance()
         }
-        // 正文长按 = 系统文本选择（拖拽复制部分段落）；整卡长按不再复制（避免误触）
 
         val imageLoader = Coil.imageLoader(ctx)
         for ((startPos, url) in spansToLoad) {
-            // 表情本地优先：assets/emoticon 里有的直接用本地，秒出且断网可用；
-            // 缺的才回落到论坛 CDN
             val emojiSrc = localEmojiUrl(ctx, url) ?: url
             val target = object : Target {
                 override fun onStart(placeholder: Drawable?) {}
                 override fun onError(error: Drawable?) {
-                    // 本地没命中、网络也挂了，再试一次 CDN
                     if (emojiSrc != url) loadEmoji(ctx, ssb, startPos, emojiSize, url, h, position)
                 }
                 override fun onSuccess(result: Drawable) {
@@ -562,7 +580,7 @@ class PostAdapter(
             imageLoader.enqueue(req)
         }
 
-        // ===== 图片：楼主层置顶（像小红书那样放最上面），其余楼层放正文下方 =====
+        // ===== 图片：楼主层置顶，其余楼层放正文下方（维持整组展示，不做段落穿插） =====
         val topContainer = h.binding.llTopImages
         val container = h.binding.llImages
         topContainer.removeAllViews()
@@ -572,18 +590,14 @@ class PostAdapter(
         topContainer.visibility = if (isFirst && allUrls.isNotEmpty()) View.VISIBLE else View.GONE
         container.visibility = if (!isFirst && allUrls.isNotEmpty()) View.VISIBLE else View.GONE
         if (allUrls.isNotEmpty()) {
-            // 楼主层多图 → 两列画廊格子；单图和普通楼层仍走整行宽
             val gallery = isFirst && allUrls.size > 1
             val cellH = (150 * density).toInt()
             val gap = (8 * density).toInt()
             val radius = if (isFirst) 12 * density else 8 * density
-            // 预留图片高度：卡片可用宽度 * 固定比例，首帧即占好位，
-            // 避免图片异步加载完成后把下方内容顶下去（"打开帖子闪一下"的主因）。
             val screenWdp = ctx.resources.displayMetrics.widthPixels / density
             val contentWdp = (screenWdp - 48f).coerceAtLeast(120f)
             val imgHpx = (contentWdp * 0.7f * density).toInt()
             var row: LinearLayout? = null
-            // 图片占位底色 / 加载失败文字跟随主题，避免浅色主题下露出深灰块
             val phBgTv = TypedValue()
             ctx.theme.resolveAttribute(com.example.s1client.R.attr.s1BgCardLight, phBgTv, true)
             val phTextTv = TypedValue()
@@ -602,7 +616,6 @@ class PostAdapter(
                         host.addView(newRow)
                         row = newRow
                     }
-                    // 两列 weight 均分，中间留 gap
                     wrap.layoutParams = LinearLayout.LayoutParams(0, cellH, 1f).apply {
                         marginStart = if (idx % 2 == 1) gap else 0
                         marginEnd = if (idx % 2 == 0) gap else 0
@@ -637,7 +650,6 @@ class PostAdapter(
                         if (gallery) FrameLayout.LayoutParams.MATCH_PARENT
                         else imgHpx
                     )
-                    // 固定高度 + 中心裁切：首帧即占好位，加载完成不再改变布局（消除闪动）
                     scaleType = ImageView.ScaleType.CENTER_CROP
                     shapeAppearanceModel = ShapeAppearanceModel.builder()
                         .setAllCorners(CornerFamily.ROUNDED, radius)
@@ -681,7 +693,6 @@ class PostAdapter(
                         true
                     }
                     placeholder.setOnClickListener {
-                        // 用系统浏览器打开
                         try {
                             val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
                             ctx.startActivity(intent)
@@ -701,28 +712,77 @@ class PostAdapter(
             }
         }
 
-        // 整卡长按不再复制（避免误触）；正文选区已在上方开启
         h.binding.root.setOnLongClickListener(null)
-
-        Log.d("S1FLICK", "BIND pos=$position pid=${post.pid} pow=${visName(h.binding.tvPower.visibility)} rate=${visName(h.binding.llRating.visibility)} exp=${visName(h.binding.tvExpand.visibility)} img=${visName(h.binding.llImages.visibility)} top=${visName(h.binding.llTopImages.visibility)}")
-
-        // 诊断：监听 item 整体高度变化，直接抓住 bind 之后哪项把下方顶下去了
-        val ll = View.OnLayoutChangeListener { _, _, _, _, b, _, _, _, ob ->
-            if (ob > 0 && b != ob) {
-                Log.d("S1LAYOUT", "HEIGHT ${ob}->${b} pid=${post.pid} pow=${visName(h.binding.tvPower.visibility)} rate=${visName(h.binding.llRating.visibility)} exp=${visName(h.binding.tvExpand.visibility)} img=${visName(h.binding.llImages.visibility)} top=${visName(h.binding.llTopImages.visibility)}")
-            }
-        }
-        h.itemView.getTag(R.id.tag_post_layout_listener)?.let {
-            h.itemView.removeOnLayoutChangeListener(it as View.OnLayoutChangeListener)
-        }
-        h.itemView.setTag(R.id.tag_post_layout_listener, ll)
-        h.itemView.addOnLayoutChangeListener(ll)
     }
 
-    private fun visName(v: Int): String = when (v) {
-        View.VISIBLE -> "V"
-        View.INVISIBLE -> "I"
-        else -> "G"
+    /**
+     * 应用 PS1 皮肤（v3.1）：主楼 = 金属机身 + 品牌行 + 显示屏 + 评分 chip + 四钮带标签；
+     * 回复楼 = 锯齿便签 + 右上角头像/倾斜 stamp + 底部时间 + 纯图标四小钮。
+     * 纯视觉绑定，任何业务状态都不在这里判断。
+     */
+    private fun applyPs1Skin(h: VH, isFirst: Boolean, density: Float) {
+        val b = h.binding
+        val pad14 = (14 * density).toInt()
+        // 主题次级文字色（时间/楼层号/引用标签）：便签与主楼共用
+        val themeInk = tertiaryColor(b.root)
+        if (isFirst) {
+            // —— 主楼：厚重机身 ——
+            b.cardContent.setJagged(false)
+            b.cardContent.setBackgroundResource(Ps1Skin.bodyRes())
+            // 细节轮2（2026-10-16）：去掉 elevation 阴影。
+            // Android 的投影是直角矩形、不随 drawable 圆角裁剪 → 12dp 圆角机身
+            // 四角会露出四块直角阴影（用户反馈"顶楼四角都有阴影"）。
+            // 票据语言靠「描边 + 机身渐变」体现体积，不需要浮起投影；
+            // 便签本来就没阴影（0f），两者也就齐平了。
+            ViewCompat.setElevation(b.cardContent, 0f)
+            // 显示屏
+            b.llScreenBox.setBackgroundResource(Ps1Skin.screenRes())
+            b.llScreenBox.setPadding(pad14, pad14, pad14, pad14)
+            // 品牌行：STAGE1（左）+ 板块纯文字标签（右，解析不到则隐藏）
+            b.llBrandRow.visibility = View.VISIBLE
+            val section = sectionProvider()
+            if (section.isNotBlank()) {
+                b.tvSectionTag.text = section
+                b.tvSectionTag.visibility = View.VISIBLE
+            } else {
+                b.tvSectionTag.visibility = View.GONE
+            }
+            // 操作带：评分 chip + 四钮带标签
+            b.btnScoreChip.setBackgroundResource(Ps1Skin.chipRes())
+            b.btnScoreChip.visibility = View.VISIBLE
+            b.llPsButtons.visibility = View.VISIBLE
+            b.llNoteButtons.visibility = View.GONE
+            // 主楼与便签共用主题文字色（ViewHolder 复用时必须重刷）
+            b.tvPostTime.setTextColor(themeInk)
+            b.llQuote.setBackgroundResource(R.drawable.bg_quote_card)
+        } else {
+            // —— 回复楼：手柄便签（票据面，TicketPalette 深票纸）——
+            b.cardContent.setJagged(true)
+            b.cardContent.background = Ps1Skin.ticketDrawable()
+            ViewCompat.setElevation(b.cardContent, 0f)
+            // 内容直接落在票面上，无屏幕包边
+            b.llScreenBox.background = null
+            b.llScreenBox.setPadding(0, 0, 0, 0)
+            b.llBrandRow.visibility = View.GONE
+            // 操作带：底部时间 + 纯图标四小钮（评分 chip 不出现）
+            b.btnScoreChip.visibility = View.GONE
+            b.llPsButtons.visibility = View.GONE
+            b.llNoteButtons.visibility = View.VISIBLE
+            // stamp 虚线框随时跟随当前明暗皮肤（ViewHolder 复用时必须重刷）
+            b.btnNoteStamp.setBackgroundResource(Ps1Skin.noteStampRes())
+            // 细节轮4：便签改磨砂玻璃膜后，底色浅，文字必须回到**主题色**
+            // （此前深票纸上的亮白字在浅磨砂上会看不清）。便签与主楼共用一套主题文字色。
+            b.tvPostMessage.setTextColor(themeBodyColor(b.root))
+            b.tvPostTime.setTextColor(themeInk)
+            b.tvPostAuthor.setTextColor(themeBodyColor(b.root))
+            // stamp 章内「评分」标签跟随主题次级色
+            b.btnNoteStamp.findViewById<android.widget.TextView>(R.id.tvNoteStampLabel)
+                ?.setTextColor(themeInk)
+            // 引用卡回到主题内衬版
+            b.llQuote.setBackgroundResource(R.drawable.bg_quote_card)
+            b.tvQuoteAuthor.setTextColor(themeInk)
+            b.tvQuoteBody.setTextColor(themeBodyColor(b.root))
+        }
     }
 
     /** 本地未能命中时的兜底加载（回落到论坛 CDN） */
@@ -755,9 +815,6 @@ class PostAdapter(
 
     /**
      * 表情本地优先：把论坛 CDN 地址映射成已内置的 assets 路径。
-     * 命中：https://static.stage1st.com/image/smiley/face2017/044.png
-     *   ->  file:///android_asset/emoticon/face2017/044.png
-     * 未内置该文件则返回 null，由调用方回落到网络。
      */
     private fun localEmojiUrl(ctx: android.content.Context, url: String): String? {
         val m = Regex("""static\.stage1st\.com/image/smiley/([A-Za-z0-9_]+)/([^/?]+)""")
@@ -796,8 +853,6 @@ class PostAdapter(
 
     private fun saveImage(ctx: android.content.Context, url: String) {
         S1Notify.show(ctx, "正在保存...")
-        // 跟随 Activity 生命周期：退出后协程自动取消，不会泄漏 ctx、
-        // 也不会向已销毁的 Activity 弹窗（BadTokenException）
         val scope = (ctx as? androidx.lifecycle.LifecycleOwner)?.lifecycleScope
             ?: CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         scope.launch {
@@ -824,33 +879,11 @@ class PostAdapter(
     }
 
     /**
-     * 失效黑名单/关键词缓存：外部（详情页）在「全局拉黑 / 本帖屏蔽」状态变化时调用，
-     * 配合 notifyDataSetChanged 让已绑定楼层重新判定折叠，做到即时折楼/展开。
+     * 失效黑名单/关键词缓存：外部（详情页）在「全局拉黑 / 本帖屏蔽」状态变化时调用。
      */
     fun invalidateBlockCaches() {
         _cachedBlockedUsers = null
         _cachedBlockedWords = null
-    }
-
-    private fun resolveQuoteTextColor(ctx: android.content.Context): Int {
-        val tv = TypedValue()
-        val found = ctx.theme.resolveAttribute(
-            com.example.s1client.R.attr.s1QuoteText, tv, true)
-        return if (found) tv.data else 0xFF888888.toInt()
-    }
-
-    private fun resolveQuoteBgColor(ctx: android.content.Context): Int {
-        val tv = TypedValue()
-        val found = ctx.theme.resolveAttribute(
-            com.example.s1client.R.attr.s1QuoteBg, tv, true)
-        return if (found) tv.data else 0x22000000
-    }
-
-    private fun resolveQuoteBarColor(ctx: android.content.Context): Int {
-        val tv = TypedValue()
-        val found = ctx.theme.resolveAttribute(
-            com.example.s1client.R.attr.s1QuoteBar, tv, true)
-        return if (found) tv.data else 0xFF888888.toInt()
     }
 
     companion object {
@@ -859,8 +892,7 @@ class PostAdapter(
         /** 投票卡行的 viewType */
         private const val TYPE_POLL = 1
         /**
-         * 投票卡在列表里的下标 —— **照 s1er**：`index == 1`，即紧跟主楼之后
-         * （s1er thread_detail_screen.dart:971）。
+         * 投票卡在列表里的下标 —— **照 s1er**：`index == 1`，即紧跟主楼之后。
          */
         private const val POLL_LIST_INDEX = 1
 
@@ -871,7 +903,23 @@ class PostAdapter(
             val padded = String.format("%09d", n)
             val path = padded.substring(0, 3) + "/" + padded.substring(3, 5) + "/" +
                     padded.substring(5, 7) + "/" + padded.substring(7, 9)
-            return "https://avatar.stage1st.com/" + path + "_avatar_small.jpg"
+            // 细节轮（2026-10-16）：small(48px) 拉到 54dp 抽屉头像发糊，统一改 middle
+            return "https://avatar.stage1st.com/" + path + "_avatar_middle.jpg"
+        }
+
+        /** 从主题取正文色（s1TextBody）：便签/主楼正文共用 */
+        fun themeBodyColor(view: View): Int {
+            val tv = android.util.TypedValue()
+            return if (view.context.theme.resolveAttribute(R.attr.s1TextBody, tv, true)) tv.data
+            else 0xFF3A3630.toInt()
+        }
+
+        /** 从主题取次级文字色（评分控件未评分态的「–」用） */
+        fun tertiaryColor(view: View): Int {
+            val tv = android.util.TypedValue()
+            return if (view.context.theme.resolveAttribute(R.attr.s1TextTertiary, tv, true)) {
+                tv.data
+            } else 0xFF888888.toInt()
         }
 
         /** 无头像/加载失败时的兜底：按名字哈希取一组渐变圆底 */

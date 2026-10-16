@@ -215,4 +215,11 @@
     <color name="iridescent_dark_menu_sheet_bg">#CC2A1D3C</color>
     <color name="iridescent_dark_tag_bg">#FF6FB5</color>
     <color name="iridescent_dark_tag_text">#FFFFFF</color>
+<!-- ===== PS 评分抽屉 · 键面文字色（细节轮2 黑白反色体系，2026-10-16）=====
+     用户要求：白色背景用黑字、黑色背景用白字。
+     键面 drawable 拆成「深面 ps_reset_btn（纯黑）/ 浅面 ps_done_btn（纯白）」，
+     文字色随之取反，保证任何主题下对比度恒定。 -->
+<color name="ps_key_ink">#FFFFFF</color>       <!-- 深面（黑键面）上的文字 -->
+<color name="ps_key_ink_dim">#8A8A8A</color>   <!-- 深面上的占位提示 -->
+<color name="ps_key_ink_invert">#000000</color><!-- 浅面（白键面）上的文字 -->
 </resources>

@@ -272,6 +272,8 @@ class ThreadDetailActivity : BaseActivity() {
 
         setupPageAdapter()
         setupHideAndMute()
+        // v3.1：板块名按需加载（ForumDataCache.forumList 全 App 无赋值点，见 ensureForumTreeLoaded）
+        ensureForumTreeLoaded()
 
         // 控件 04：换页加载珠子注入主题三色（原版三色追逐）
         val orbitPalette = com.example.s1client.ui.theme.s1PaletteFor(
@@ -582,6 +584,7 @@ class ThreadDetailActivity : BaseActivity() {
             onPostQuoteJump = { floor -> floor?.toIntOrNull()?.let { goToFloor(it) } },
             bookmarkProvider = { pid -> com.example.s1client.data.store.PostBookmarkManager.isBookmarked(pid) },
             onPageMissing = { page -> onPageMissing(page) },
+            sectionProvider = { resolveSectionName() },
             onPollVote = { ids -> submitPollVote(ids) }
         )
         // 多选分享：把选中判定与切换回调注入 PageAdapter，供各页 PostAdapter 取用
@@ -592,7 +595,8 @@ class ThreadDetailActivity : BaseActivity() {
 
     // ============ 整帖隐藏（1楼菜单「隐藏该帖」）+ 本帖屏蔽实时刷新 ============
     internal fun setupHideAndMute() {
-        binding.tvThreadTitle.text = subject
+        // v3.1 第八轮：顶栏标题与主楼显示屏里的标题重复且截断不全，删除（仅保留作者名）
+        binding.tvThreadTitle.visibility = View.GONE
         binding.tvMuteBanner.setOnClickListener { showMuteManageDialog() }
 
         // 本帖屏蔽状态变化：刷新楼层折叠 + 提示条
@@ -688,6 +692,47 @@ class ThreadDetailActivity : BaseActivity() {
             val open = View.OnClickListener { showUserCard(post) }
             binding.topAvatarArea.setOnClickListener(open)
             binding.tvTopAuthor.setOnClickListener(open)
+        }
+    }
+
+    // ============ 板块名（主楼品牌行右侧标签）：fid → ForumDataCache 递归解析 ============
+    /** fetchOnePage 会先把 thread.fid 写进 threadFid，之后每次绑定主楼都会现算一次 */
+    internal fun resolveSectionName(): String {
+        if (threadFid.isBlank()) return ""
+        fun find(list: List<com.example.s1client.data.model.SubForum>): String? =
+            list.firstOrNull { it.fid == threadFid }?.name
+                ?: list.firstNotNullOfOrNull { f -> f.subList?.let { find(it) } }
+        val name = find(ForumDataCache.forumList)?.takeIf { it.isNotBlank() }
+        // 正常命中不打日志；解析不到才记一条，方便日后排查（缓存未加载 / fid 不在版面树里）
+        if (name == null) {
+            android.util.Log.d(
+                "S1Section",
+                "fid=$threadFid 未命中 缓存板块数=${ForumDataCache.forumList.size}"
+            )
+        }
+        return name ?: ""
+    }
+
+    /**
+     * v3.1：ForumDataCache.forumList 全 App 没有任何赋值点（首页只喂
+     * PostViewModel 的 tab 流），详情页解析板块名恒不命中。
+     * 这里按需拉一次 forumindex 喂进全局缓存，回来后重绑第 1 页主楼品牌行。
+     * 与 fetchOnePage 的竞态无妨：先到的一方各自走 resolveSectionName / refreshSectionTag。
+     */
+    internal fun ensureForumTreeLoaded() {
+        if (ForumDataCache.forumList.isNotEmpty()) return
+        lifecycleScope.launch {
+            try {
+                val resp = RetrofitClient.api.getForumIndex()
+                val raw = resp.variables?.forumList.orEmpty()
+                if (raw.isNotEmpty()) {
+                    ForumDataCache.forumList = raw
+                    android.util.Log.d("S1Section", "forumindex 按需加载：顶层 ${raw.size} 组")
+                    pageAdapter.refreshSectionTag()
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("S1Section", "forumindex 加载失败: ${e.message}")
+            }
         }
     }
 

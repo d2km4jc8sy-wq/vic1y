@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 主楼"显示屏"（浅色皮肤）：暖白屏幕，字色沿用主题 s1TextBody（浅色主题即深色字） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#F8F5EF" />
+    <stroke android:width="2dp" android:color="#BAB4A7" />
+    <corners android:radius="6dp" />
+</shape>

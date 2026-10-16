@@ -120,7 +120,8 @@ fun PollCard(
                 modifier = Modifier.weight(1f)
             )
             errorMsg?.let {
-                Text(it, fontSize = 11.sp, color = Color(0xFFB4483F))
+                // 细节轮2：过期提示改用主题语义红（原为硬编码 #B4483F，违反宪法18）
+                Text(it, fontSize = 11.sp, color = c.heart)
             }
             if (canInteract) {
                 Spacer(Modifier.width(8.dp))
@@ -148,7 +149,7 @@ fun PollCard(
                         if (submitting) "提交中…" else "投票",
                         fontSize = 12.5.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (submitting || selected.isEmpty()) c.textSub else Color.White
+                        color = if (submitting || selected.isEmpty()) c.textSub else c.onAccent
                     )
                 }
             }
@@ -209,7 +210,7 @@ private fun PollOptionRow(
                 ) {
                     if (selected) {
                         Text(
-                            "✓", fontSize = 9.sp, color = Color.White,
+                            "✓", fontSize = 9.sp, color = c.onAccent,
                             fontWeight = FontWeight.Bold
                         )
                     }

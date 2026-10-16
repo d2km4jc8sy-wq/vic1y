@@ -21,7 +21,7 @@
             android:background="@drawable/bg_glass_topbar"
             android:elevation="2dp"
             android:paddingStart="3dp"
-            android:paddingEnd="3dp">
+            android:paddingEnd="8dp">
 
             <ImageView
                 android:id="@+id/btnBack"
@@ -63,6 +63,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
                 android:maxWidth="110dp"
                 android:ellipsize="end"
                 android:singleLine="true"
@@ -88,6 +89,7 @@
                 android:id="@+id/btnOnlyAuthor"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
                 android:paddingStart="13dp"
                 android:paddingEnd="13dp"
                 android:paddingTop="5dp"
@@ -103,6 +105,7 @@
                 android:id="@+id/btnFavorite"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
+                android:layout_marginStart="8dp"
                 android:padding="8dp"
                 android:src="@drawable/ic_star_outline"
                 android:background="?attr/selectableItemBackgroundBorderless" />
@@ -111,6 +114,7 @@
                 android:id="@+id/btnShare"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
+                android:layout_marginStart="8dp"
                 android:padding="8dp"
                 android:src="@drawable/ic_share"
                 android:background="?attr/selectableItemBackgroundBorderless" />

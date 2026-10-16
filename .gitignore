@@ -1,2 +1,21 @@
 t*.png
 shot_*.png
+
+# ===== 构建产物 =====
+*.apk
+*.idsig
+*.aab
+app/build/
+build/
+.gradle/
+.idea/
+local.properties
+
+# ===== 签名与密钥（绝不入库）=====
+*.jks
+*.keystore
+
+# ===== 临时文件 =====
+adb_devices.txt
+app/src/main/.icon_backup/
+*.log

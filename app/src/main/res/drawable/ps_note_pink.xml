@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 便签纸（樱雾粉霜 · 浅色系）：票据磨砂纸 88% 半透明，基色取该主题 s1BgCardLight #FFF8FA -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#E0FFF8FA" />
+    <stroke android:width="1dp" android:color="#E8D5DC" />
+    <corners android:radius="2dp" />
+</shape>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 抽屉键帽「浅面」（确定键）：纯白键面 + 黑字（与深面成黑白反色对照） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FFFFFF" />
+    <corners android:radius="8dp" />
+</shape>

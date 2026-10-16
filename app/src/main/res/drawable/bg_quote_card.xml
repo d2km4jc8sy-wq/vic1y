@@ -1,6 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#F5F6F8" />
-    <corners android:radius="10dp" />
-    <stroke android:width="1dp" android:color="#ECECEF" />
-</shape>
+<!--
+  引用卡片（便签内的楼层引用块）—— 细节轮票据化（2026-10-16）。
+
+  改前：硬编码 #F5F6F8 冷灰白 + #ECECEF 边 + 10dp 大圆角，在暖米色票据纸上
+  像一块贴上去的异物卡片（违反宪法 18：禁止写死色值 + 圆角容器语言不统一）。
+  改后：票据内衬语言 —— 3dp 小圆角、底色取主题 s1QuoteBg（随主题自适应）、
+  左侧一道压边（票据语汇），视觉上是「贴在纸上的一行批注」而非独立卡片。
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/s1QuoteBg" />
+            <corners android:radius="3dp" />
+            <stroke android:width="1dp" android:color="?attr/s1BorderLight" />
+        </shape>
+    </item>
+    <!-- 左侧压边：票据语汇（2dp 宽的深色条），替代原来的整圈描边 -->
+    <item android:gravity="start|fill_vertical" android:width="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/s1TextTertiary" />
+        </shape>
+    </item>
+</layer-list>

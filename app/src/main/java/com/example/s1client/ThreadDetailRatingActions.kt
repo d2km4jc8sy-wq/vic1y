@@ -60,6 +60,7 @@ import com.example.s1client.databinding.ActivityThreadDetailBinding
 import com.example.s1client.databinding.DialogReplySheetBinding
 import com.example.s1client.databinding.DialogUserCardBinding
 import com.example.s1client.ui.PageAdapter
+import com.example.s1client.ui.Ps1Skin
 import com.example.s1client.util.BbCode
 import com.example.s1client.data.store.DraftStore
 import com.example.s1client.data.store.FavoriteManager
@@ -202,9 +203,9 @@ internal fun ThreadDetailActivity.showRatingDetail(post: Post) {
                 tvName.text = e.name
                 val sign = if (e.amount >= 0) "+" else "−"
                 tvScore.text = "$sign${kotlin.math.abs(e.amount)}"
-                // 加分红、扣分红绿（A 股惯例：红涨绿跌）
+                // 加绿减红（与 PS1 评分抽屉/便签胶囊同一口径，替换原 A 股配色）
                 tvScore.setTextColor(
-                    if (e.amount >= 0) 0xFFF6536B.toInt() else 0xFF36C27C.toInt()
+                    if (e.amount >= 0) Ps1Skin.SCORE_UP else Ps1Skin.SCORE_DOWN
                 )
                 tvReason.text = e.reason.ifBlank { "—" }
 
@@ -303,29 +304,26 @@ internal fun ThreadDetailActivity.fetchFullRatings(pid: String): com.example.s1c
     }
 }
 
-
+/**
+ * 发起评分：拉评分表单 → 打开 PS1 评分抽屉。
+ *
+ * 与旧版 AlertDialog 列表的区别：分值在表单允许的离散档位里选择、只提交一次
+ * （见 com.example.s1client.ui.RateDrawer 的类注释）；理由默认不填。
+ * 表单拉取/提交/刷新链路（fetchRateForm / submitRate / loadRatings）保持不变。
+ */
 internal fun ThreadDetailActivity.showRateDialog(post: Post) {
     if (!ForumDataCache.isLoggedIn()) { toast("请先登录"); return }
-    val act = this
     val pid = post.pid ?: return
-    val floor = if (post.first == "1") "楼主" else "${post.position ?: "?"}楼"
     lifecycleScope.launch {
-        // 先看表单，按服务端给出的分值范围与选项展示（正数=加分、负数=扣分）。
-        // 没权限扣分的用户组，表单里就只有正数，这里自然只出现加分。
+        S1Notify.show(this@showRateDialog, "正在打开评分面板…", S1Notify.Type.INFO)
         val form = withContext(Dispatchers.IO) { fetchRateForm(pid) }
         if (form.hasError) {
             toast("获取评分表单失败：${form.error}")
             return@launch
         }
-        val amounts = form.buildScoreOptions()
-            .ifEmpty { com.example.s1client.util.RateFormOptions.DEFAULT_SCORE_OPTIONS }
-        val options = amounts.map { if (it > 0) "加 $it 分" else "扣 ${-it} 分" }.toTypedArray()
-        val remainText = form.remainingToday?.let { "（今日剩余 $it 分）" }.orEmpty()
-        AlertDialog.Builder(act)
-            .setTitle("评分 · $floor $remainText")
-            .setItems(options) { _, which -> pickReasonThenSubmit(pid, amounts[which], form) }
-            .setNegativeButton("取消", null)
-            .show()
+        com.example.s1client.ui.RateDrawer.show(this@showRateDialog, post, form) { p, amount, reason, notify, f ->
+            submitRate(p, amount, reason, notify, f)
+        }
     }
 }
 
@@ -363,6 +361,10 @@ internal fun ThreadDetailActivity.fetchRateForm(pid: String): com.example.s1clie
 }
 
 
+/**
+ * 旧版"理由二次确认"流程，PS1 抽屉默认不填理由后已无调用方。
+ * 暂保留：若以后要在抽屉里加"评分理由"入口，可直接复用它接 submitRate。
+ */
 internal fun ThreadDetailActivity.pickReasonThenSubmit(
     pid: String,
     amount: Int,
@@ -378,81 +380,88 @@ internal fun ThreadDetailActivity.pickReasonThenSubmit(
         .setItems(reasons.toTypedArray()) { _, which ->
             when (val label = reasons[which]) {
                 "不填理由" ->
-                    submitRate(pid, amount, "", form.notifyAuthorDefault, form)
+                    lifecycleScope.launch { submitRate(pid, amount, "", form.notifyAuthorDefault, form) }
                 "自定义理由" -> {
                     val input = android.widget.EditText(this).apply { hint = "输入评分理由" }
                     AlertDialog.Builder(act)
                         .setTitle("自定义理由")
                         .setView(input)
                         .setPositiveButton("确定") { _, _ ->
-                            submitRate(
-                                pid, amount,
-                                input.text.toString().trim(),
-                                form.notifyAuthorDefault, form
-                            )
+                            lifecycleScope.launch {
+                                submitRate(
+                                    pid, amount,
+                                    input.text.toString().trim(),
+                                    form.notifyAuthorDefault, form
+                                )
+                            }
                         }
                         .setNegativeButton("取消", null)
                         .show()
                 }
                 else ->
-                    submitRate(pid, amount, label, form.notifyAuthorDefault, form)
+                    lifecycleScope.launch { submitRate(pid, amount, label, form.notifyAuthorDefault, form) }
             }
         }
         .setNegativeButton("取消", null)
         .show()
 }
 
-
-internal fun ThreadDetailActivity.submitRate(
+/**
+ * 提交一次评分。
+ * @return true=服务端确认成功（抽屉据此关闭）；false=失败，toast 已在内部提示，
+ *         抽屉保留不关闭，允许用户重试。
+ */
+internal suspend fun ThreadDetailActivity.submitRate(
     pid: String,
     amount: Int,
     reason: String,
     notifyAuthor: Boolean,
     form: com.example.s1client.util.RateFormOptions
-) {
-    lifecycleScope.launch {
-        val fh = form.formHash.ifBlank { ForumDataCache.formhash }
-        if (fh.isBlank()) { toast("获取 formhash 失败，请先登录"); return@launch }
-        val ok = withContext(Dispatchers.IO) {
-            try {
-                val url = "https://stage1st.com/2b/forum.php?mod=misc" +
-                        "&action=rate&ratesubmit=yes&infloat=yes&inajax=1"
-                val fb = okhttp3.FormBody.Builder()
-                    .add("formhash", fh)
-                    .add("tid", form.tid.ifBlank { tid })
-                    .add("pid", form.pid.ifBlank { pid })
-                    .add("score1", amount.toString())
-                    .add("reason", reason)
-                    .add("referer", form.referer.ifBlank { "https://stage1st.com/2b/thread-$tid-1-1.html" })
-                if (form.handleKey.isNotBlank()) fb.add("handlekey", form.handleKey)
-                if (notifyAuthor && !form.notifyAuthorDisabled) fb.add("sendreasonpm", "on")
-                val req = okhttp3.Request.Builder().url(url).post(fb.build()).build()
-                val resp = RetrofitClient.httpClient.newCall(req).execute()
-                val body = resp.use { it.body?.string().orEmpty() }
-                android.util.Log.d("S1Rate", "HTTP=${resp.code} body=${body.take(300)}")
-                if (com.example.s1client.util.RatingParser.isRateSuccess(body)) {
-                    true
-                } else {
-                    val err = com.example.s1client.util.RatingParser.extractMessagetextError(body)
-                    android.util.Log.e("S1Rate", "rate failed: ${err ?: body.take(200)}")
-                    false
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("S1Rate", "rate failed", e)
+): Boolean {
+    val fh = form.formHash.ifBlank { ForumDataCache.formhash }
+    if (fh.isBlank()) {
+        toast("获取 formhash 失败，请先登录", S1Notify.Type.ERROR)
+        return false
+    }
+    val ok = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://stage1st.com/2b/forum.php?mod=misc" +
+                    "&action=rate&ratesubmit=yes&infloat=yes&inajax=1"
+            val fb = okhttp3.FormBody.Builder()
+                .add("formhash", fh)
+                .add("tid", form.tid.ifBlank { tid })
+                .add("pid", form.pid.ifBlank { pid })
+                .add("score1", amount.toString())
+                .add("reason", reason)
+                .add("referer", form.referer.ifBlank { "https://stage1st.com/2b/thread-$tid-1-1.html" })
+            if (form.handleKey.isNotBlank()) fb.add("handlekey", form.handleKey)
+            if (notifyAuthor && !form.notifyAuthorDisabled) fb.add("sendreasonpm", "on")
+            val req = okhttp3.Request.Builder().url(url).post(fb.build()).build()
+            val resp = RetrofitClient.httpClient.newCall(req).execute()
+            val body = resp.use { it.body?.string().orEmpty() }
+            android.util.Log.d("S1Rate", "HTTP=${resp.code} body=${body.take(300)}")
+            if (com.example.s1client.util.RatingParser.isRateSuccess(body)) {
+                true
+            } else {
+                val err = com.example.s1client.util.RatingParser.extractMessagetextError(body)
+                android.util.Log.e("S1Rate", "rate failed: ${err ?: body.take(200)}")
                 false
             }
-        }
-        toast(
-            if (ok) "评分成功" else "评分失败（可能没有权限）",
-            if (ok) S1Notify.Type.SUCCESS else S1Notify.Type.ERROR
-        )
-        if (ok) {
-            // 重新抓当前页评分，评分行的汇总会跟着变
-            ratingFetchedPages.remove(currentPage)
-            loadRatings(currentPage)
+        } catch (e: Exception) {
+            android.util.Log.e("S1Rate", "rate failed", e)
+            false
         }
     }
+    toast(
+        if (ok) "评分成功" else "评分失败（可能没有权限）",
+        if (ok) S1Notify.Type.SUCCESS else S1Notify.Type.ERROR
+    )
+    if (ok) {
+        // 重新抓当前页评分，评分行汇总与便签胶囊分数都会跟着变
+        ratingFetchedPages.remove(currentPage)
+        loadRatings(currentPage)
+    }
+    return ok
 }
 
 // ============ 只看楼主 ============
-

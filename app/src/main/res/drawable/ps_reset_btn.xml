@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  抽屉键帽「深面」（原 RESET，现为分值输入框底）：纯黑键面 + 白字。
+  细节轮2（2026-10-16）：用户要求按钮与数字黑白反色 —— 白底用黑字、黑底用白字，
+  于是键面拆成「深面/浅面」两张纯色 drawable，文字色由 ps_key_ink / ps_key_ink_dim
+  按 btnMinus·btnReset（深面）/ btnDone（浅面）分别取，保证对比度恒定。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#000000" />
+    <corners android:radius="8dp" />
+</shape>

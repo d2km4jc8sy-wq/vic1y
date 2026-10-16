@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PS 抽屉 + 键三角（细节轮4，2026-10-16）：改纯白。
+  用户定调「抽屉整体统一黑白两色，包括上下按钮，不再考虑绿升红降 ——
+  实时 SCORE 数字已经表达了加减方向，键帽不需要再上色」。
+  白三角压黑键面，对比度恒定。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,4 L20,20 H4 Z" />
+</vector>

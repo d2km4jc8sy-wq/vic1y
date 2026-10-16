@@ -39,6 +39,8 @@ class PageAdapter(
     private val bookmarkProvider: (String?) -> Boolean = { false },
     /** 滑到尚未加载的页码时回调，交给 Activity 去请求这一页 */
     private val onPageMissing: ((Int) -> Unit)? = null,
+    /** 板块名（主楼品牌行右侧标签用）；绑定现算，fid 解析不到就返回空串 */
+    private val sectionProvider: () -> String = { "" },
     /** 投票提交（只有第 1 页的投票卡会用），由 Activity 注入 */
     private val onPollVote: (suspend (List<String>) -> String?)? = null
 ) : RecyclerView.Adapter<PageAdapter.PageVH>() {
@@ -95,6 +97,16 @@ class PageAdapter(
     /** 列表下标 → 楼层下标（第 1 页的投票卡占了一行，要扣掉） */
     fun postIndexFromListIndex(page: Int, listIndex: Int): Int =
         if (page == 1 && poll != null && listIndex > 1) listIndex - 1 else listIndex
+
+    /**
+     * v3.1：板块名（主楼品牌行右侧标签）异步到货后，只重绑第 1 页主楼。
+     * 第 1 页还没绑过（用户直接恢复到第 N 页）时什么都不做，等绑定时自然带上。
+     */
+    fun refreshSectionTag() {
+        val a = liveAdapters[0] ?: return
+        if (a.postCount() == 0) return
+        a.notifyItemChanged(0)
+    }
 
     /** 楼层下标 → 列表下标（滚动定位时要把投票卡那一行让出来） */
     fun listIndexFromPostIndex(page: Int, postIndex: Int): Int =
@@ -233,6 +245,7 @@ class PageAdapter(
         if (posts == null) {
             // 还没加载过的页码：先给空列表占位，同时让 Activity 去拉这一页
             holder.rv.adapter = PostAdapter(emptyList(), subject, tid,
+                sectionProvider = sectionProvider,
                 powerProvider = powerProvider, onPostQuoteJump = onPostQuoteJump,
                 bookmarkProvider = bookmarkProvider,
                 shareSelectMode = shareSelectMode, isShareSelected = shareIsSelected,
@@ -242,7 +255,8 @@ class PageAdapter(
             return
         }
         val pa = PostAdapter(
-            posts, subject, tid, onPostAvatarClick, onPostEdit,
+            posts, subject, tid, sectionProvider,
+            onPostAvatarClick, onPostEdit,
             onPostRateClick, onPostQuoteClick, onPostFavoriteClick, onPostMoreClick,
             rateProvider, onPostRatingRowClick, powerProvider, onPostQuoteJump,
             bookmarkProvider,
