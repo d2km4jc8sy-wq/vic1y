@@ -104,3 +104,8 @@
   - 自动化能力变化：新机未 root，su input 不可用——UI 自动化受限回归「探针+人肉」；版本验证改用 aapt2 dump badging。
   - 本地：142 用例（138+1 skip+3 changelog）0 失败 + assembleDebug 绿。已装机 1.1.0(114)。
 - 2026-10-17 CI 迭代收尾（run 3→7）：run3 5e3a214 waitForIdle ComposeTimeoutException → 移除；run4 4023718 captureToImage 仍超时（同根因）→ 弃用等待机制；run5 404e904 ChangelogScreen 语法错（PowerShell 转义事故：`` `n `` 误写 `` \n `` 字面量，Icon 块挤成一行）→ python 字节级还原 + clickable 补绑；run6 404e904… → 最终形态：**buildActivity 直启 ChangelogActivity + 手动 measure/layout/draw + 像素多样性断言（唯一颜色数>50）**，移除全部空闲等待；run7 38946930619 **success**。经验入账：①Robolectric 上 compose-ui-test 的 waitForIdle/captureToImage 均会 10s 超时，CI 截图冒烟用「真实 Activity + 手动绘制 + 像素断言」最稳；②PowerShell 双引号里 \n 是字面量（非换行），多行代码注入一律用 here-string 或 edit 工具；③本地测试结果可能读到过期 XML——以日志里 BUILD 行为准。
+
+- 2026-10-17 阶段四体验轮（用户指令"继续"）：
+  - 41d7b2a+4bbb52c 深色跟随系统：ThemeManager 跟随模式（mapFollowSystem 纯函数 + applyTheme 拆分 + 手动选主题自动退出跟随）+ SettingStore 持久化 + S1App.onConfigurationChanged 转发 + 设置页外观组开关行（默认关=零行为变化）。系统深→Linear、浅→焙茶；FollowSystemThemeTest 3 用例锚定映射与可见主题约束。设计要点：不碰主题架构红线（调色板体系原样），只加映射层。
+  - 备用域名容灾——**需求作废**：研究员实测（notes_domains.md，主域+7 候选逐一 DNS/HTTP/内容探测）：当前无任何可用的 Discuz 备用/镜像域（www/bbs.stage1st.com 同 IP 未开服 404、saraba1st DNS 注销、stage1st.net/s1.lu 为异社区、bbs.imoutolove.me 实为 South+ 系、ac.stage3rd.com 为 Spb 独立站）；唯一健康入口 = 主域。原"备用域切换"需求前提不成立，不做假功能；客户端侧已有 retryOnConnectionFailure + 60s callTimeout 兜底。Cookie 互通备选空间（www/bbs 子域未来开服）已留档。
+  - 本地：145 用例 0 失败 + assembleDebug 绿。装 OnePlus 13T 待用户日常复核深色跟随开关。
