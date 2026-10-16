@@ -92,6 +92,9 @@ class ThreadDetailActivity : BaseActivity() {
     companion object {
         /** 需要滚动定位到的楼层 id（从提醒跳转进来时用） */
         const val EXTRA_PID = "pid"
+
+        /** 撤销横幅自动消失时长（ms），与首页 Snackbar 的 Short 档观感对齐 */
+        private const val UNDO_BANNER_MS = 3200L
     }
 
     internal lateinit var binding: ActivityThreadDetailBinding
@@ -635,6 +638,54 @@ class ThreadDetailActivity : BaseActivity() {
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    /**
+     * 撤销横幅（2026-10-16）：轻操作的「告知 + 可反悔」出口。
+     *
+     * 为什么不用 AlertDialog：弹窗会让界面抖一下并打断当前浏览，而"已收藏/已取消"
+     * 这类轻操作不需要用户做决定，只要知道结果 + 有反悔机会。
+     * 危险操作（隐藏整帖 / 屏蔽他人）仍保留 AlertDialog 二次确认。
+     */
+    internal fun showUndoBanner(message: String, onUndo: () -> Unit) {
+        val banner = binding.undoBanner
+        val txt = binding.tvUndoBannerText
+        val act = binding.tvUndoBannerAction
+        txt.text = message
+        banner.setOnClickListener { hideUndoBanner() }
+        act.setOnClickListener {
+            Haptic.selection(this)
+            hideUndoBanner()
+            onUndo()
+        }
+        if (banner.visibility == View.VISIBLE) {
+            // 已在显示：只换文案与回调，不重复播放入场动画
+            return
+        }
+        banner.visibility = View.VISIBLE
+        banner.translationY = banner.height.toFloat() + 32f
+        banner.alpha = 0f
+        banner.animate()
+            .translationY(0f).alpha(1f)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .setDuration(220)
+            .start()
+        // 自动消失；点一下或撤销即提前收
+        banner.removeCallbacks(hideUndoBannerRunnable)
+        banner.postDelayed(hideUndoBannerRunnable, UNDO_BANNER_MS)
+    }
+
+    private val hideUndoBannerRunnable = Runnable { hideUndoBanner() }
+
+    internal fun hideUndoBanner() {
+        val banner = binding.undoBanner
+        if (banner.visibility != View.VISIBLE) return
+        banner.removeCallbacks(hideUndoBannerRunnable)
+        banner.animate()
+            .translationY(banner.height.toFloat() + 32f).alpha(0f)
+            .setDuration(180)
+            .withEndAction { banner.visibility = View.GONE }
+            .start()
     }
 
     /** 本帖屏蔽提示条：有屏蔽则显示「本帖已屏蔽 N 人 · 点击管理」 */

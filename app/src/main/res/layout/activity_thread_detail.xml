@@ -286,4 +286,54 @@
     <!-- 贴边页码浮条（左侧中部）：紧凑滚轮 + 进度填充 + 咔哒声，顶部确认块提交，
          2.5s 无操作自动淡出。组件化实现，首页瀑布流可复用同一套 -->
 
+<!--
+      撤销横幅（2026-10-16）：取代 AlertDialog 做「撤销」这类轻操作。
+      理由：AlertDialog 会让界面抖动一下并打断当前操作，而「已收藏 / 已取消」这类
+      轻操作只需要"告知 + 可反悔"，横幅无打断、用户可继续浏览。
+      危险操作（隐藏整帖 / 屏蔽他人）仍保留 AlertDialog 二次确认。
+    -->
+    <LinearLayout
+        android:id="@+id/undoBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="14dp"
+        android:layout_marginBottom="72dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_undo_banner"
+        android:paddingStart="16dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="13dp"
+        android:paddingBottom="13dp"
+        android:elevation="6dp"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:id="@+id/tvUndoBannerText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="14sp"
+            android:textColor="?attr/s1TextBody" />
+
+        <TextView
+            android:id="@+id/tvUndoBannerAction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text="撤销"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="?attr/s1Accent"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

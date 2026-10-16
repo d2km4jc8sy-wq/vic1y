@@ -469,6 +469,34 @@ fun PostPeekDialog(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
                     )
+                    // 票头数据条（2026-10-16）：回复数 / 浏览 / 最后回复。
+                    // 放在标题与正文之间 —— 票头就该有票头信息，它直接决定"要不要点进去"。
+                    // 语言取票面次级色 + 竖杠分隔（项目竖杠语汇），不加边框不加底色保持克制。
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val meta = buildList {
+                            post.replies?.takeIf { it > 0 }?.let { add("$it 回复") }
+                            post.views?.takeIf { it > 0 }?.let { add("$it 浏览") }
+                            post.lastReplyAt()?.let { add(it) }
+                        }
+                        meta.forEachIndexed { i, item ->
+                            if (i > 0) {
+                                // 竖杠分隔（项目通用语汇）
+                                Text(
+                                    " | ",
+                                    fontSize = 9.sp,
+                                    color = p.onTicketSub.copy(alpha = .45f)
+                                )
+                            }
+                            Text(
+                                item,
+                                fontSize = 9.5.sp,
+                                color = p.onTicketSub.copy(alpha = .8f)
+                            )
+                        }
+                    }
                     // 正文预览三态（内滚）
                     when {
                         loading -> {
@@ -795,3 +823,8 @@ internal fun PeekActionButton(text: String, modifier: Modifier, onClick: () -> U
 
 /** 黑名单管理：没有这个入口，塞抹布就成了单向陷阱 */
 
+/**
+ * 票头数据条的「最后回复」文案。
+ * 列表模型已把时间格式化好（[Post.timeText]），为空则整项不显示，不占位。
+ */
+private fun Post.lastReplyAt(): String? = timeText.takeIf { it.isNotBlank() }

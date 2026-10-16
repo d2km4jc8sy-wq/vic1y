@@ -416,27 +416,33 @@ internal fun ThreadDetailActivity.togglePostBookmark(post: Post) {
         val act = this
         val pid = post.pid ?: return
         if (PostBookmarkManager.isBookmarked(pid)) {
-    val act = this
-            AlertDialog.Builder(this)
-                .setTitle("取消收藏楼层")
-                .setMessage("确定将这条楼层移出本地收藏吗？")
-                .setPositiveButton("移除") { _, _ ->
+            // 取消收藏是轻操作 → 底部横幅「告知 + 可反悔」（2026-10-16）。
+            // 原先用 AlertDialog 会让界面抖动并打断浏览，二次确认是过度设计。
+            val act = this
+            showUndoBanner("已取消楼层收藏") {
+                lifecycleScope.launch {
+                    PostBookmarkManager.add(act, post, tid, subject, TimeUtil.formatSmart(post.dateline))
+                    pageAdapter.notifyBookmarksChanged()
+                    S1Notify.show(act, "已恢复楼层收藏", S1Notify.Type.SUCCESS)
+                }
+            }
+            lifecycleScope.launch {
+                PostBookmarkManager.remove(act, pid)
+                pageAdapter.notifyBookmarksChanged()
+            }
+        } else {
+            lifecycleScope.launch {
+                PostBookmarkManager.add(act, post, tid, subject,
+                    TimeUtil.formatSmart(post.dateline))
+                pageAdapter.notifyBookmarksChanged()
+                // 震动统一在四键点击入口给（PostAdapter），这里不再重复给 light。
+                showUndoBanner("已收藏楼层") {
                     lifecycleScope.launch {
                         PostBookmarkManager.remove(act, pid)
                         pageAdapter.notifyBookmarksChanged()
                         S1Notify.show(act, "已取消楼层收藏", S1Notify.Type.INFO)
                     }
                 }
-                .setNegativeButton("保留", null)
-                .show()
-        } else {
-            lifecycleScope.launch {
-                PostBookmarkManager.add(act, post, tid, subject,
-                    TimeUtil.formatSmart(post.dateline))
-                pageAdapter.notifyBookmarksChanged()
-                // 震动统一在四键点击入口给（PostAdapter），这里不再重复给 light，
-                // 否则一次收藏会连震两次（selection + light）——违反"四键统一震动语言"。
-                S1Notify.show(act, "已收藏楼层", S1Notify.Type.SUCCESS)
             }
         }
     }
