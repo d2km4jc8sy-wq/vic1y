@@ -1,10 +1,11 @@
 package com.example.s1client
 
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.example.s1client.ui.theme.S1Theme
-import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
@@ -52,8 +53,16 @@ class CiSmokeCaptureTest {
                 }
             }
             composeRule.waitForIdle()
-            composeRule.onRoot().captureRoboImage("build/screenshots/ci_smoke.png")
-            val png = File("build/screenshots/ci_smoke.png")
+            // 阶段二④调整（2026-10-17）：compileSdk 35 下 roborazzi 1.8.0 的
+            // captureRoboImage 扩展解析失败（版本代差嫌疑），改用 compose-ui-test
+            // 原生 captureToImage + PNG 落盘 —— 同样证明 NATIVE 图形真实渲染并产出产物；
+            // Roborazzi 依赖保留（后续对比矩阵再启用其 capture/verify）。
+            val bmp = composeRule.onRoot().captureToImage().asAndroidBitmap()
+            val dir = File("build/screenshots").apply { mkdirs() }
+            val png = File(dir, "ci_smoke.png")
+            png.outputStream().use { out ->
+                bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+            }
             assertTrue("截图应已落盘：${png.absolutePath}", png.isFile)
             assertTrue("截图不应为空", png.length() > 0)
         } finally {
