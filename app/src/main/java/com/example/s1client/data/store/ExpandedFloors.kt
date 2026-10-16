@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * [HiddenPostManager]（整帖隐藏）互不冲突：折叠优先级是「全局拉黑 / 本帖屏蔽 > 单楼展开（例外）」。
  *
  * 状态按 tid|pid 持久化到本地，重开帖子 / 重进详情页依然有效；同时用 StateFlow 暴露，
- * 配合详情页的 notifyBlockStateChanged 即时重绑。
+ * 配合详情页的 notifyFloorsChanged（阶段二精准刷新）即时重绑。
  */
 object ExpandedFloors {
 

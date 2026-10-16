@@ -661,26 +661,54 @@ class ThreadDetailActivity : BaseActivity() {
         binding.tvThreadTitle.visibility = View.GONE
         binding.tvMuteBanner.setOnClickListener { showMuteManageDialog() }
 
-        // 本帖屏蔽状态变化：刷新楼层折叠 + 提示条
+        // 三个屏蔽维度的状态流：阶段二改为**差分精准刷新**——只重绑受影响的楼层，
+        // 不再整页 notifyDataSetChanged（一次「屏蔽此人」打满全页重绑的历史行为）。
+        var lastMuted: Map<String, String>? = null
         lifecycleScope.launch {
-            ThreadMutedUsers.mutedFlow.collect {
+            ThreadMutedUsers.mutedFlow.collect { new ->
+                val old = lastMuted
+                lastMuted = new
                 updateMuteBanner()
-                pageAdapter.notifyBlockStateChanged()
+                val changedUids = changedKeys(old, new).map { it.substringAfter('|') }.toSet()
+                if (changedUids.isNotEmpty()) {
+                    pageAdapter.notifyFloorsChanged { it.authorId in changedUids }
+                }
             }
         }
         // 全局拉黑变化：已打开的帖子也要即时折楼
+        var lastBlocked: Map<String, String>? = null
         lifecycleScope.launch {
-            BlockedAuthorManager.blockedFlow.collect {
-                pageAdapter.notifyBlockStateChanged()
+            BlockedAuthorManager.blockedFlow.collect { new ->
+                val old = lastBlocked
+                lastBlocked = new
+                val changedUids = changedKeys(old, new)
+                if (changedUids.isNotEmpty()) {
+                    pageAdapter.notifyFloorsChanged { it.authorId in changedUids }
+                }
             }
         }
         // 单楼屏蔽变化：屏蔽/取消某一楼，即时重绑让该层折叠/展开
+        var lastHidden: Set<String>? = null
         lifecycleScope.launch {
-            HiddenFloors.flow.collect {
-                pageAdapter.notifyBlockStateChanged()
+            HiddenFloors.flow.collect { new ->
+                val old = lastHidden
+                lastHidden = new
+                val changedPids = ((old ?: emptySet()) - new + (new - (old ?: emptySet())))
+                    .filter { it.startsWith("$tid|") }
+                    .map { it.substringAfter('|') }
+                    .toSet()
+                if (changedPids.isNotEmpty()) {
+                    pageAdapter.notifyFloorsChanged { it.pid in changedPids }
+                }
             }
         }
         updateMuteBanner()
+    }
+
+    /** Map 键差分：新旧值不一致的键集合（阶段二精准刷新的辅助） */
+    private fun changedKeys(old: Map<String, String>?, new: Map<String, String>): Set<String> = buildSet {
+        (old ?: emptyMap()).forEach { (k, v) -> if (new[k] != v) add(k) }
+        new.forEach { (k, v) -> if (old?.get(k) != v) add(k) }
     }
 
     /** 长按标题隐藏整帖：二次确认后隐藏并退出详情页（列表已通过 StateFlow 即时移除） */
@@ -770,13 +798,13 @@ class ThreadDetailActivity : BaseActivity() {
                 ThreadMutedUsers.unmute(tid, uid)
                 S1Notify.show(this, "已恢复该人回复", S1Notify.Type.SUCCESS)
                 updateMuteBanner()
-                pageAdapter.notifyBlockStateChanged()
+                // 楼层重绑由 mutedFlow 差分收集器精准处理（阶段二）
             }
             .setPositiveButton("全部恢复") { _, _ ->
                 ThreadMutedUsers.unmuteAll(tid)
                 S1Notify.show(this, "已恢复全部", S1Notify.Type.SUCCESS)
                 updateMuteBanner()
-                pageAdapter.notifyBlockStateChanged()
+                // 楼层重绑由 mutedFlow 差分收集器精准处理（阶段二）
             }
             .setNegativeButton("取消", null)
             .show()

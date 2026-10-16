@@ -212,15 +212,14 @@ class PageAdapter(
     }
 
     /**
-     * 黑名单/本帖屏蔽状态变化后：失效各页 PostAdapter 的命中缓存并重绑，
-     * 让已渲染楼层即时折楼/展开（滚动位置不变）。
+     * 阶段二：屏蔽/折叠状态变化的**精准刷新**——只重绑命中的楼层。
+     * 原实现对每个在册适配器 notifyDataSetChanged（整页全部楼层重跑绑定），
+     * 一次「屏蔽此人」会打满整页重绑；现在命中行数通常是个位数。
+     * 全量刷新场景（如「恢复全部」）传 { true }。
      */
-    fun notifyBlockStateChanged() {
+    fun notifyFloorsChanged(predicate: (com.example.s1client.data.model.Post) -> Boolean) {
         val adapters = liveAdapters.values.toList()
-        for (a in adapters) {
-            a.invalidateBlockCaches()
-            a.notifyDataSetChanged()
-        }
+        for (a in adapters) a.notifyFloorsChanged(predicate)
     }
 
     /**

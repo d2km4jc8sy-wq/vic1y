@@ -254,7 +254,7 @@ internal fun ThreadDetailActivity.addToBlacklist(post: Post) {
         .setPositiveButton("确认") { _, _ ->
             BlockedAuthorManager.block(uid, name)
             S1Notify.show(this, "已将「$name」加入黑名单", S1Notify.Type.SUCCESS)
-            pageAdapter.notifyBlockStateChanged()
+            // 楼层重绑由 blockedFlow 差分收集器精准处理（阶段二）
         }
         .setNegativeButton("取消", null)
         .show()
@@ -280,8 +280,8 @@ internal fun ThreadDetailActivity.mutePostInThread(post: Post) {
             Haptic.heavy(this)
             ThreadMutedUsers.mute(tid, uid, name)
             S1Notify.show(this, "已在本帖屏蔽「$name」", S1Notify.Type.SUCCESS)
-            pageAdapter.notifyBlockStateChanged()
             updateMuteBanner()
+            // 楼层重绑由 mutedFlow 差分收集器精准处理（阶段二）
         }
         .setNegativeButton("取消", null)
         .show()
@@ -293,7 +293,8 @@ internal fun ThreadDetailActivity.collapseFloor(post: Post) {
     val pid = post.pid ?: return
     ExpandedFloors.collapse(tid, pid)
     S1Notify.show(this, "已收起该楼", S1Notify.Type.INFO)
-    pageAdapter.notifyBlockStateChanged()
+    // ExpandedFloors 无状态流（仅本页可见的临时展开态），这里就地精准重绑该楼
+    pageAdapter.notifyFloorsChanged { it.pid == pid }
 }
 
 /** 屏蔽这一楼：按 pid 精确藏掉，其余楼层不受影响；若此前被展开也一并折回 */
@@ -303,7 +304,7 @@ internal fun ThreadDetailActivity.hideFloor(post: Post) {
     HiddenFloors.hide(tid, pid)
     ExpandedFloors.collapse(tid, pid)
     S1Notify.show(this, "已屏蔽此楼", S1Notify.Type.SUCCESS)
-    pageAdapter.notifyBlockStateChanged()
+    // 楼层重绑由 HiddenFloors.flow 差分收集器精准处理（阶段二）
 }
 
 /** 取消屏蔽这一楼：恢复折叠判定（若该楼正被展开则保持展开） */
@@ -312,7 +313,7 @@ internal fun ThreadDetailActivity.unhideFloor(post: Post) {
     val pid = post.pid ?: return
     HiddenFloors.unhide(tid, pid)
     S1Notify.show(this, "已取消屏蔽此楼", S1Notify.Type.INFO)
-    pageAdapter.notifyBlockStateChanged()
+    // 楼层重绑由 HiddenFloors.flow 差分收集器精准处理（阶段二）
 }
 
 // ============ 举报 ============

@@ -951,6 +951,20 @@ class PostAdapter(
         _cachedBlockedWords = null
     }
 
+    /**
+     * 阶段二：只重绑命中的楼层（屏蔽/折叠状态变化的精准刷新）。
+     * notifyItemChanged 精确到行；黑名单缓存失效放在最前。
+     * 评分缓存/正文解析均有 LruCache，命中的行重绑成本大幅低于整页重绑。
+     */
+    fun notifyFloorsChanged(predicate: (Post) -> Boolean) {
+        invalidateBlockCaches()
+        for (idx in posts.indices) {
+            if (predicate(posts[idx])) {
+                notifyItemChanged(idx + if (showPoll && idx >= POLL_LIST_INDEX) 1 else 0)
+            }
+        }
+    }
+
     companion object {
         /** 楼层行的 viewType */
         /** payload：仅刷新评分 chip / stamp 文字 */
