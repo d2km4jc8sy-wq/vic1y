@@ -306,19 +306,28 @@ fun XhsPostCard(
     val corner = if (coverStyle == -2) 9f else 14f
     val cardShape = RoundedCornerShape(corner.dp)
     // 幻彩流光相位（方案②·光斑呼吸，2026-10-15 用户定稿）：
-    // 相位由系统时间直接计算（全 App 一面墙一套相位，与卡片何时进入组合无关，
-    // 根治「每卡独立时钟各自闪烁」）；这里的 infiniteTransition 只当「心跳」，
-    // 负责让幻彩卡每帧重绘（在绘制阶段读取，不触发重组），非幻彩主题不建动画。
+    // 相位由系统时间直接计算（全 App 一面墙一套相位，与卡片何时进入组合无关）。
+    // 阶段二性能修复（2026-10-17，小米10 左右滑后掉帧）：原 rememberInfiniteTransition
+    // 让每张幻彩卡以屏幕刷新率重绘 —— 一屏 ~10 卡 × 60fps 的无效重绘叠加翻页图片解码，
+    // 是低端芯片滚动掉帧的主源。光斑是 24s 周期的慢速运动，15fps 采样视觉无损：
+    // 改为帧控心跳（每 ~4 帧发一次相位），重绘负载降为 1/4；卡片移出组合
+    // （Pager 切版后旧版块销毁）时 LaunchedEffect 自动取消。
     val flowHeartbeat: State<Float> = if (coverStyle == 5) {
-        rememberInfiniteTransition(label = "flowTick")
-            .animateFloat(
-                initialValue = 0f, targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween((FLOW_CYCLE_SECONDS * 1000).toInt(), easing = LinearEasing),
-                    repeatMode = RepeatMode.Restart
-                ),
-                label = "flowTickValue"
-            )
+        val phase = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            val minIntervalNs = 1_000_000_000L / 15
+            var lastEmit = 0L
+            while (true) {
+                androidx.compose.runtime.withFrameNanos { now ->
+                    if (now - lastEmit >= minIntervalNs) {
+                        lastEmit = now
+                        phase.floatValue =
+                            ((now / (FLOW_CYCLE_SECONDS * 1_000_000_000.0)) % 1.0).toFloat()
+                    }
+                }
+            }
+        }
+        phase
     } else {
         remember { mutableStateOf(0f) }
     }

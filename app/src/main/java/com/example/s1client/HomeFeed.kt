@@ -432,6 +432,18 @@ fun ForumFeedPage(
                     )
                     // 桥接戏票档浓票纸（宪法20）：在 composable 上下文算好 palette，再喂给 update lambda
                     val s1PullPalette = ticketPaletteFor(LocalS1Colors.current)
+                    // 2026-10-17（用户反馈）：票夹默认隐藏——常驻票夹在首页首屏压住右列
+                    // 第一张卡、抢走下方触摸且观感差。改为「滚动超过视口 ~8% 才现身」
+                    // （参考绳子下拉 ~8% 阈值；derivedStateOf 只在布尔翻转时重组）。
+                    // 现身后的触摸拦截由 TicketPullView.hitTest 收紧（不再下探 180dp）。
+                    val ticketRevealed by remember {
+                        androidx.compose.runtime.derivedStateOf {
+                            gridState.firstVisibleItemIndex > 0 ||
+                                    gridState.firstVisibleItemScrollOffset >
+                                    (0.08f * android.content.res.Resources.getSystem()
+                                        .displayMetrics.heightPixels).toInt()
+                        }
+                    }
                     AndroidView(
                         factory = { ctx ->
                             val doRefresh = onRefresh
@@ -463,11 +475,11 @@ fun ForumFeedPage(
                             }
                         },
                         update = { view ->
-                            // 2026-10-16：票夹改为**常驻**——"滚到顶消失/时有时无"的根因就是
-                            // showRope 的场景分时条件（第1页顶部隐藏，与回顶钮错峰）。
-                            // 现在显隐统一交由 pullAlpha 滚动淡出（FAB 行为）控制：
-                            // 滚动中淡出不压卡片，停下即稳定可见，不再时有时无。
-                            view.visibility = android.view.View.VISIBLE
+                            // 2026-10-17：票夹改为「滚动超过视口 ~8% 才现身」——默认位完全让路
+                            // 给卡片（不画、不拦截触摸）；现身后的滚动淡出仍走 pullAlpha。
+                            // INVISIBLE = 不绘制且不参与触摸，彻底解决「下方帖子难点进」。
+                            view.visibility = if (ticketRevealed) android.view.View.VISIBLE
+                            else android.view.View.INVISIBLE
                             // 桥接戏票档浓票纸（宪法20）：每次重组按当前主题注入 palette
                             (view as? TicketPullView)?.let { v ->
                                 // 刷新态由 HomeFeed 状态权威驱动（2026-10-16 根因修复：

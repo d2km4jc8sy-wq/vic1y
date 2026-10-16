@@ -341,9 +341,12 @@ class TicketPullView @JvmOverloads constructor(
     /** 触摸热区扩到票夹左右各 24dp、下方延伸到整条可拉带，
      *  否则 60dp 窄条太难点中（实机反馈：拉不动）。*/
     private fun hitTest(x: Float, y: Float): Boolean {
+        // 2026-10-17（用户反馈）：原向下外扩 180dp 的触摸区会盖住票夹下方的卡片，
+        // 让「下方的帖子很难点进」。收紧到票槽下缘 +10dp（抓取余量）；
+        // 拖动一旦开始（dragging=true）仍全程跟踪，不受此限制。
         val slop = 26f * density
         return x >= clipRect.left - slop && x <= clipRect.right + slop &&
-                y >= 0f && y <= clipRect.bottom + 180f * density
+                y >= 0f && y <= clipRect.bottom + 10f * density
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
