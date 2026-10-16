@@ -125,15 +125,21 @@ class TicketPullView @JvmOverloads constructor(
         strokeCap = Paint.Cap.ROUND
     }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        // Levi's® 厂标字：粗无衬线（品牌补丁语汇），居中
         typeface = android.graphics.Typeface.create(
-            android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD
+            android.graphics.Typeface.SANS_SERIF, android.graphics.Typeface.BOLD
         )
         textAlign = Paint.Align.CENTER
-        textSize = 10f * density
+        textSize = 10.5f * density
+        setLetterSpacing(0.02f)
     }
 
     /** 票夹距视图顶部的偏移：留出 Tab 栏高度，否则票夹被 Tab 盖住看不见 */
     private val clipTopOffset = 34f * density
+
+    /** 票夹右缘距视图右缘的间隙：HomeFeed 用 end padding 把视图右缘对到
+     *  屏幕内 2dp 处，2 + 8 = 10dp —— 与瀑布流 contentPadding end 严格对齐 */
+    private val clipRightGap = 8f * density
 
     private val clipRect = RectF()
     private val ticketRect = RectF()
@@ -170,8 +176,12 @@ class TicketPullView @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        val cx = w / 2f
-        clipRect.set(cx - ticketW / 2f, clipTopOffset, cx + ticketW / 2f, clipTopOffset + clipH)
+        // 2026-10-16 二改：票夹**右对齐**（旧版居中，而票纸 116dp 比宿主视图宽，
+        // 左右各溢出 10dp——alpha<1 时 Android 离屏合成按视图边界裁切，
+        // 溢出段被切掉 = 用户看到的"淡入先部分出现、回 1 才整体弹出"）。
+        // 右缘贴视图内侧 clipRightGap，配合 HomeFeed 的 end padding 与瀑布流外框对齐。
+        val right = w - clipRightGap
+        clipRect.set(right - ticketW, clipTopOffset, right, clipTopOffset + clipH)
         buildTicketPath()
     }
 
@@ -227,7 +237,6 @@ class TicketPullView @JvmOverloads constructor(
         val paper = if (palettePaper != 0) palettePaper else paperColor
         val accentLine = if (paletteAccentLine != 0) paletteAccentLine else withAlpha(Color.WHITE, 200)
         val onText = paletteOnText
-        val fg = if (triggerArmed) paper else onText
 
         // 画序：票纸先画 → 票夹后画盖在票纸上，形成"票插在夹里"的层叠。
         // （旧版票夹先画、票纸后画，静止时票纸反而整段浮在票夹上方，截图实证断裂成两截）
@@ -268,21 +277,28 @@ class TicketPullView @JvmOverloads constructor(
         edgePaint.strokeWidth = 1.4f * density
         canvas.drawRoundRect(clipRect, 2.5f * density, 2.5f * density, edgePaint)
 
-        // ---- 票面内容：过阈值前画向下箭头，过阈值后亮起 + 翻成向上 ----
-        // 箭头锚在票身上段（top+20dp）：静止时藏在票夹后面，抽出过程中从夹口"冒出来"，
-        // 文字锚在票底（撕票口上方）：静止时正好落在 18dp 外露段里
-        val cx = ticketRect.centerX()
-        val ay = ticketRect.top + 20f * density
-        barPaint.color = fg
-        val ar = 5.5f * density
-        val dir = if (triggerArmed) -1f else 1f
-        canvas.save()
-        canvas.translate(cx, ay)
-        canvas.scale(1f, dir)
-        canvas.drawLine(0f, -ar, 0f, ar * 0.5f, barPaint)
-        canvas.drawLine(-ar * 0.72f, 0f, 0f, ar * 0.5f, barPaint)
-        canvas.drawLine(ar * 0.72f, 0f, 0f, ar * 0.5f, barPaint)
-        canvas.restore()
+        // Levi's® 厂标：白字常驻印在票夹上（用户实机反馈"票夹像李维斯皮牌"，
+        // 顺势做成品牌补丁——下拉=撕牌子的隐喻）。任何状态恒在，不参与闪烁。
+        textPaint.color = withAlpha(Color.WHITE, 235)
+        canvas.drawText(
+            "Levi's\u00AE",
+            clipRect.centerX(),
+            clipRect.centerY() + textPaint.textSize / 3f,
+            textPaint
+        )
+
+        // ---- 票面文字 ----
+        // 待发（过阈值）：「松手」**常驻**票面正中（2026-10-16 用户要求：提示类文字一律
+        // 常驻，不做"只显示一次就隐藏"）；空闲/刷新中票面留给撕票口与条码，保持干净。
+        if (triggerArmed && !refreshing) {
+            textPaint.color = paper
+            canvas.drawText(
+                "松手",
+                ticketRect.centerX(),
+                ticketRect.centerY() + textPaint.textSize / 3f,
+                textPaint
+            )
+        }
 
         // ---- 刷新中：底部虚线走位（条码）----
         if (refreshing) {
@@ -303,15 +319,6 @@ class TicketPullView @JvmOverloads constructor(
                 val x = ticketRect.left + 7f * density + i * step
                 canvas.drawLine(x, baseY, x + step * 0.55f, baseY, barPaint)
             }
-        } else {
-            // 待命/待发：文字提示（fg = 触发态深底/待命态亮白，自动对位）
-            textPaint.color = fg
-            canvas.drawText(
-                if (triggerArmed) "松手" else "拉票",
-                cx,
-                ticketRect.bottom - 4.5f * density,
-                textPaint
-            )
         }
 
         // ---- 触发瞬间的高光扫过 ----

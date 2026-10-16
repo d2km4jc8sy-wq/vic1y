@@ -424,7 +424,11 @@ fun ForumFeedPage(
                     // 这根绳子是独立控件，任何时候都能拉下来 —— 拉到底 = 回到板块第一页并刷新。
                     val pullAlpha by animateFloatAsState(
                         targetValue = if (gridState.isScrollInProgress) 0f else 1f,
-                        animationSpec = tween(durationMillis = 200)
+                        // 非对称节奏（FAB 惯例）：滚动手一停**不立刻**弹回，延迟 350ms 再
+                        // 280ms 淡入——否则停顿瞬间票夹闪现，过渡生硬；淡出保持 120ms 快隐
+                        animationSpec = if (gridState.isScrollInProgress)
+                            tween(durationMillis = 120) else
+                            tween(durationMillis = 280, delayMillis = 350)
                     )
                     // 桥接戏票档浓票纸（宪法20）：在 composable 上下文算好 palette，再喂给 update lambda
                     val s1PullPalette = ticketPaletteFor(LocalS1Colors.current)
@@ -466,6 +470,10 @@ fun ForumFeedPage(
                             view.visibility = android.view.View.VISIBLE
                             // 桥接戏票档浓票纸（宪法20）：每次重组按当前主题注入 palette
                             (view as? TicketPullView)?.let { v ->
+                                // 刷新态由 HomeFeed 状态权威驱动（2026-10-16 根因修复：
+                                // 旧版从不回写，控件内部 refreshing 触发一次后永远 true，
+                                // 票面文字被条码顶掉 = 用户看到的"只显示一次就隐藏"）
+                                v.refreshing = refreshing
                                 val pal = s1PullPalette
                                 v.applyPalette(
                                     pal.paperInt(),
@@ -477,11 +485,13 @@ fun ForumFeedPage(
                         },
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            // 票据控件自带顶部偏移（避开分类条），此处只做水平内收
-                            .padding(top = TopBarHeight, end = 8.dp)
-                            // 触摸热区要够宽：原60dp 窄条实机拉不动 → 加宽到 96dp，
-                            // 高度也放宽到可拉带长度。视觉仍由票夹本身决定大小。
-                            .size(width = 96.dp, height = 300.dp)
+                            // 水平定位链：end 2dp + 控件内 clipRightGap 8dp = 票纸右缘
+                            // 距屏 10dp，与瀑布流 contentPadding end 严格对齐（外框贴合）
+                            .padding(top = TopBarHeight, end = 2.dp)
+                            // 宽度必须包住整张票（116dp）+ 右对齐余量：旧版 96dp 窄容器
+                            // 让票纸左右各溢出 10dp，alpha<1 时被离屏层按边界裁切
+                            // = "淡入先部分出现、回 1 才整体弹出"
+                            .size(width = 140.dp, height = 300.dp)
                             .zIndex(2f)
                             // 滚动时整体淡出（FAB 行为）：解决"固定在右上压住卡片/与内容混叠"
                             .alpha(pullAlpha)
