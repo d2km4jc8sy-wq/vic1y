@@ -45,6 +45,7 @@ import com.example.s1client.R
 import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.data.model.Post
 import com.example.s1client.databinding.ItemPostBinding
+import com.example.s1client.util.EmojiAssetsIndex
 import com.example.s1client.util.ImageDownloader
 import com.example.s1client.util.PostContentParser
 import com.example.s1client.util.TimeUtil
@@ -515,14 +516,25 @@ class PostAdapter(
         h.binding.tvExpand.setOnClickListener(null)
         h.binding.tvExpand.visibility = View.GONE
         val textWidth = (contentWpx - tvMessage.compoundPaddingLeft - tvMessage.compoundPaddingRight).toInt()
-        val naturalLines = if (textWidth > 0) kotlin.runCatching {
-            val layout = android.text.StaticLayout.Builder.obtain(
-                displayText, 0, displayText.length, TextPaint(tvMessage.paint), textWidth
-            )
-                .setLineSpacing(tvMessage.lineSpacingExtra, tvMessage.lineSpacingMultiplier)
-                .build()
-            layout.lineCount
-        }.getOrNull() ?: 0 else 0
+        // 性能优化 2026-10-16：测行数是只为「展开全文」按钮服务的一次完整排版，
+        // 原来每次绑定都重算（长文楼层滚动时反复付出整段 StaticLayout 的成本）。
+        // 按（宽度、字号、文本指纹）缓存进进程级 LruCache，重绑定直接查表。
+        val lineKey = "$textWidth:${tvMessage.textSize}:${displayText.length}:${displayText.hashCode()}"
+        val naturalLines = if (textWidth > 0) {
+            val cached = lineCountCache.get(lineKey)
+            if (cached != null) cached else {
+                val measured = kotlin.runCatching {
+                    android.text.StaticLayout.Builder.obtain(
+                        displayText, 0, displayText.length, TextPaint(tvMessage.paint), textWidth
+                    )
+                        .setLineSpacing(tvMessage.lineSpacingExtra, tvMessage.lineSpacingMultiplier)
+                        .build()
+                        .lineCount
+                }.getOrNull() ?: 0
+                lineCountCache.put(lineKey, measured)
+                measured
+            }
+        } else 0
         if (naturalLines > 12) {
             tvMessage.maxLines = 12
             tvMessage.ellipsize = TextUtils.TruncateAt.END
@@ -872,18 +884,13 @@ class PostAdapter(
     }
 
     /**
-     * 表情本地优先：把论坛 CDN 地址映射成已内置的 assets 路径。
+     * 本地表情命中判断：论坛 CDN 地址映射到内置 assets。
+     * 性能优化 2026-10-16：原实现对每个表情、每次绑定都跑一次
+     * assets.list（主线程磁盘枚举）；现在走 [EmojiAssetsIndex]
+     * 的进程内索引（首次使用扫一次，之后纯内存查找），返回值语义不变。
      */
-    private fun localEmojiUrl(ctx: android.content.Context, url: String): String? {
-        val m = Regex("""static\.stage1st\.com/image/smiley/([A-Za-z0-9_]+)/([^/?]+)""")
-            .find(url) ?: return null
-        val cat = m.groupValues[1]
-        val file = m.groupValues[2]
-        val exists = runCatching {
-            ctx.assets.list("emoticon/$cat")?.contains(file) == true
-        }.getOrDefault(false)
-        return if (exists) "file:///android_asset/emoticon/$cat/$file" else null
-    }
+    private fun localEmojiUrl(ctx: android.content.Context, url: String): String? =
+        EmojiAssetsIndex.resolve(ctx, url)
 
     private fun showImageMenu(ctx: android.content.Context, url: String) {
         val items = arrayOf("保存到相册", "复制链接", "分享")
@@ -948,6 +955,13 @@ class PostAdapter(
         /** 楼层行的 viewType */
         /** payload：仅刷新评分 chip / stamp 文字 */
         private const val PAYLOAD_RATING = "payload_rating"
+
+        /**
+         * 长文行数测量缓存（性能优化 2026-10-16）：
+         * key = 宽度:字号:文本长度:文本哈希。StaticLayout 全文排版只为数行数，
+         * 缓存后同一楼层重复绑定零成本。512 条 ≈ 数页楼层，内存可忽略。
+         */
+        private val lineCountCache = android.util.LruCache<String, Int>(512)
 
         private const val TYPE_POST = 0
         /** 投票卡行的 viewType */

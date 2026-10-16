@@ -73,6 +73,12 @@ class S1App : Application(), Application.ActivityLifecycleCallbacks {
             try {
                 val dir = getExternalFilesDir(null) ?: filesDir
                 val f = File(dir, "crash_trace.txt")
+                // 大小上限（2026-10-16）：超过 512KB 滚动为 .old，避免常年使用无限增长
+                if (f.exists() && f.length() > 512L * 1024) {
+                    val old = File(dir, "crash_trace.old.txt")
+                    old.delete()
+                    f.renameTo(old)
+                }
                 val ts = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
                 f.appendText("==== crash @ $ts thread=${thread.name} ====\n")
                 val sw = StringWriter()

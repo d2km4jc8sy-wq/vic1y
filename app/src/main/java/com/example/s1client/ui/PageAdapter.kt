@@ -112,6 +112,17 @@ class PageAdapter(
     fun listIndexFromPostIndex(page: Int, postIndex: Int): Int =
         if (page == 1 && poll != null && postIndex >= 1) postIndex + 1 else postIndex
 
+    /**
+     * 跨页共享的 ViewHolder 回收池（性能优化 2026-10-16）。
+     * ViewPager2 每页一个独立 RecyclerView，翻页时新页要从零 inflate 楼层卡
+     * （item_post.xml 529 行 / 40+ 视图）。共享池让被回收页的楼层卡直接复用到新页，
+     * 左右翻页与跳页的布局成本显著下降。TYPE_POST 是唯一的高频 viewType，
+     * 池上限提到 12，给一次跨越多页的跳转留足余量。
+     */
+    private val sharedPool = RecyclerView.RecycledViewPool().apply {
+        setMaxRecycledViews(0, 12)
+    }
+
     /** 当前已创建的 PostAdapter（按 ViewPager 位置），用于评分行数据到达后的原地刷新 */
     private val liveAdapters = mutableMapOf<Int, PostAdapter>()
     /** 各页的 RecyclerView（按 ViewPager 位置），用于跳页后精确滚动到指定下标 */
@@ -236,6 +247,7 @@ class PageAdapter(
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
             layoutManager = LinearLayoutManager(parent.context)
+            setRecycledViewPool(sharedPool)
             // 底部留白按 dp 算：要能滚出玻璃底栏的高度（原固定 120px 在高分屏不够，
             // 最后一楼会被「说点什么」输入条盖住）
             setPadding(0, (12 * density).toInt(), 0, (92 * density).toInt())

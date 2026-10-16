@@ -974,7 +974,7 @@ class ThreadDetailActivity : BaseActivity() {
                 if (authorId.isNullOrEmpty()) authorId = posts.firstOrNull { it.first == "1" }?.authorId
                 bindTopAuthor(posts.firstOrNull { it.first == "1" })
 
-                val ratingsReady = preloadRatings(startPage)
+                loadRatings(startPage)
                 // 必须显式写页码：syncPageSocketsOnMain 已把 maxPage 推到总页数，
                 // 用 addPage（写进 maxPage+1）会把内容写到错误的页码上
                 pageAdapter.setPage(startPage, posts)
@@ -993,7 +993,6 @@ class ThreadDetailActivity : BaseActivity() {
                 updatePageIndicator()
                 // 从阅读进度恢复到第 N 页时没有第 1 页的响应，兜底单独拉一次投票
                 if (startPage > 1) loadPollIfAny()
-                if (ratingsReady) ratingFetchedPages.add(startPage)
                 pageAdapter.getPage(startPage)?.let { loadPowers(it) }
                 if (hasMore) preloadPage(startPage + 1)
             } finally {
@@ -1014,7 +1013,7 @@ class ThreadDetailActivity : BaseActivity() {
                 // 空响应不锁死 hasMore（可能只是这次网络抖动），下次滚动会自然重试
                 if (posts.isEmpty()) return@launch
                 hasMore = morePagesToLoad()
-                val ratingsReady = preloadRatings(page)
+                loadRatings(page)
                 // 必须用 setPage(page, ...) 而不是 addPage()：
                 // addPage 是「写进 maxPage+1」，而 reserveUpTo 之后 maxPage 已经等于总页数，
                 // 用 addPage 会把这一页的内容写到错误的页码上。
@@ -1022,7 +1021,6 @@ class ThreadDetailActivity : BaseActivity() {
                 loadedMaxPage = page
                 // 预加载到的正是目标页时，立刻定位（用户还没翻过来）
                 tryScrollToTarget()
-                if (ratingsReady) ratingFetchedPages.add(page)
                 pageAdapter.getPage(page)?.let { loadPowers(it) }
             } finally {
                 isLoading = false
@@ -1084,10 +1082,9 @@ class ThreadDetailActivity : BaseActivity() {
                 syncPageSocketsOnMain()
                 if (posts.isEmpty()) { toast("加载失败", S1Notify.Type.ERROR); return@launch }
                 hasMore = morePagesToLoad()
-                val ratingsReady = preloadRatings(page)
+                loadRatings(page)
                 pageAdapter.setPage(page, posts)
                 if (page > loadedMaxPage) loadedMaxPage = page
-                if (ratingsReady) ratingFetchedPages.add(page)
                 pageAdapter.getPage(page)?.let { loadPowers(it) }
                 // 关键：跳远页不要用平滑滚动，否则会高速掠过中间没加载的空白页（视觉上就是连闪几下）
                 binding.vpPages.setCurrentItem(page - 1, false)

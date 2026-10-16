@@ -107,21 +107,13 @@ internal fun ThreadDetailActivity.loadPowers(posts: List<Post>) {
 }
 
 /**
- * 预取某页评分并填入 [rateMap]（在页面首次渲染前调用），避免评分行
- * GONE→VISIBLE 的竖向跳动（"打开帖子闪一下"的根因）。与页面内容加载串行，
- * 评分是一次独立 HTTP，开销很小。返回是否成功抓到（失败时由调用方决定标记）。
+ * 【2026-10-16 性能优化】串行预取 preloadRatings 已删除。
+ * 原实现在首屏加载中串行等一次完整的 viewthread HTML（几百 KB），
+ * 弱网下首屏时间直接翻倍；而评分控件早已是常驻「–」占位态，
+ * 不存在旧注释担心的 GONE→VISIBLE 跳动。
+ * 现在所有预取点统一走 [loadRatings]：异步拉取 + payload 局部刷新（notifyRatingsOnly），
+ * 评分到货前后布局零跳动，首屏不再被第二个请求阻塞。
  */
-
-internal suspend fun ThreadDetailActivity.preloadRatings(page: Int): Boolean = withContext(Dispatchers.IO) {
-    try {
-        val fetched = fetchRatingsHtml(page)
-        fetched.forEach { (pid, info) -> rateMap.put(pid, info) }
-        true
-    } catch (e: Exception) {
-        android.util.Log.e("S1Rate", "preload ratelog failed p$page", e)
-        false
-    }
-}
 
 /** 多条战斗力陆续到达：合并成一次 notify，避免频繁整页重绑 */
 

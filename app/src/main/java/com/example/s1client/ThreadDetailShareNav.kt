@@ -337,11 +337,10 @@ internal fun ThreadDetailActivity.goToFloor(floor: Int) {
                     toast("没有第 ${floor} 楼")
                     return@launch
                 }
-                val ratingsReady = preloadRatings(targetPage)
+                loadRatings(targetPage)
                 pageAdapter.setPage(targetPage, posts)
                 if (targetPage > loadedMaxPage) loadedMaxPage = targetPage
                 hasMore = morePagesToLoad()
-                if (ratingsReady) ratingFetchedPages.add(targetPage)
                 pageAdapter.getPage(targetPage)?.let { loadPowers(it) }
                 jump()
                 toast("已跳到第 ${floor} 楼")
@@ -373,11 +372,10 @@ internal fun ThreadDetailActivity.onPageMissing(page: Int) {
                 val posts = fetchOnePage(page)
                 syncPageSocketsOnMain()
                 if (posts.isNotEmpty()) {
-                    val ratingsReady = preloadRatings(page)
+                    loadRatings(page)
                     pageAdapter.setPage(page, posts)
                     if (page > loadedMaxPage) loadedMaxPage = page
                     hasMore = morePagesToLoad()
-                    if (ratingsReady) ratingFetchedPages.add(page)
                     pageAdapter.getPage(page)?.let { loadPowers(it) }
                 }
             } finally {
