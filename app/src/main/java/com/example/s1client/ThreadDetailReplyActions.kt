@@ -353,8 +353,16 @@ internal fun ThreadDetailActivity.sendReplyWithQuote(
                 val ok = pid.isNotBlank() && pid != "0"
                 if (ok) {
                     DraftStore.clear(act, DraftStore.keyForReply(tid))
-                    toast("回复成功", S1Notify.Type.SUCCESS)
-                    onDone(pid)
+                    // 落章动画替代干巴巴的 toast（2026-10-16）：
+                    // 章盖在新楼层所属页的右上角（与便签 stamp 同区），视觉上= "这一楼被盖了章"。
+                    val host = act.binding.root as? android.view.ViewGroup
+                    if (host != null) {
+                        com.example.s1client.ui.playStampOverlay(host, act.binding.topBar)
+                        onDone(pid)
+                    } else {
+                        toast("回复成功", S1Notify.Type.SUCCESS)
+                        onDone(pid)
+                    }
                 } else {
                     toast("回复失败：" + msgStr.ifBlank { msgVal.ifBlank { "pid=$pid" } })
                 }
