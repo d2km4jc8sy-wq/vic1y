@@ -95,3 +95,11 @@
   - 6e46416 org.gradle.java.home 迁入用户级 gradle.properties（项目文件可移植化）——CI 首跑被本机 JDK 路径炸掉的根因修复。
   - CI 红绿灯：run 38931846143 failure（本机 JDK 路径）→ 修复 → run 38933168612 **success**（139 用例含 Linux NATIVE 截图冒烟 + assembleDebug + lint 报告 artifact）。PROBLEMS P5 就此关闭（冒烟基线就位，7×3 对比矩阵列为后续增强）。
   - 本地：139 用例（138+1 Windows skipped）0 失败 + assembleDebug 绿。
+
+- 2026-10-17 发布工程第一轮（报告 Phase3 头两项）+ 设备切换：
+  - a0d8011 compileSdk/targetSdk 35 + localeConfig per-app 语言声明（zh-CN）。行为变化仅落在 Android 15+ 设备。
+  - 0c1f94f 更新日志页（feature_changelog，按 FEATURE_TEMPLATE 目录）：ChangelogState（内置数据，发布时头部追加）/ChangelogScreen（Compose，token 化）/ChangelogActivity（薄宿主）+ 设置页「关于」组入口 + ChangelogTest 3 用例；顺手修关于页版本号硬编码 V1.0 → 读 BuildConfig。
+  - ⚠ 事故记录（已恢复）：SDK35 编辑误用过期工作区副本覆盖 D 盘——丢失 versionCode 自动化/versionName 1.1.0/lifecycle 去重/allowBackup=false/LoginActivity exported=false，装机后发现 versionName=1.0 才暴露。全部按提交历史精确恢复，教训：exec 直改 D 盘的文件必须立刻回同步工作区，构建产物装机前必须 aapt2 验版本。
+  - 设备切换：用户从小米10 Ultra（Android 13，已 root）换到一加 13T PKX110（Android 16，未 root，serial 6a8a1c57）。Android 16 + targetSdk 35 首验：装机 Success、冷启动 ok、焙茶主题瀑布流/边到边状态栏/五键底栏全部正常、零 FATAL——targetSdk 35 的强制边到边在真机 16 上无破版（应用本有完整 insets 处理）。
+  - 自动化能力变化：新机未 root，su input 不可用——UI 自动化受限回归「探针+人肉」；版本验证改用 aapt2 dump badging。
+  - 本地：142 用例（138+1 skip+3 changelog）0 失败 + assembleDebug 绿。已装机 1.1.0(114)。

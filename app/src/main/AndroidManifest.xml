@@ -8,7 +8,7 @@
 
     <application
         android:name=".S1App"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
@@ -29,7 +29,7 @@
             android:exported="false" android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
         <activity android:name=".LoginActivity"
-            android:exported="true" android:screenOrientation="portrait"
+            android:exported="false" android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize|stateHidden" />
         <activity android:name=".MineActivity"
             android:exported="false" android:screenOrientation="portrait" />
