@@ -26,6 +26,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.example.s1client.util.Haptic
 import com.example.s1client.util.S1Notify
 import com.example.s1client.data.store.BlockedAuthorManager
 import com.example.s1client.data.store.ThreadMutedUsers
@@ -325,10 +326,25 @@ class PostAdapter(
             false
         }
 
-        h.binding.btnRate.setOnClickListener { onRateClick?.invoke(post) }
-        h.binding.btnQuote.setOnClickListener { onQuoteClick?.invoke(post) }
-        h.binding.btnFavoritePost.setOnClickListener { onFavoriteClick?.invoke(post) }
-        h.binding.btnMore.setOnClickListener { onMoreClick?.invoke(post) }
+        // 四键统一震动语言（2026-10-16 用户要求）：此前四键的点击入口没有震动，
+        // 震动散落在各功能内部（收藏/评分碰巧有、回复/更多没有），手感不统一。
+        // 现在统一在**点击入口**给 selection 档轻震，功能内部不再重复给。
+        h.binding.btnRate.setOnClickListener {
+            Haptic.selection(it.context)
+            onRateClick?.invoke(post)
+        }
+        h.binding.btnQuote.setOnClickListener {
+            Haptic.selection(it.context)
+            onQuoteClick?.invoke(post)
+        }
+        h.binding.btnFavoritePost.setOnClickListener {
+            Haptic.selection(it.context)
+            onFavoriteClick?.invoke(post)
+        }
+        h.binding.btnMore.setOnClickListener {
+            Haptic.selection(it.context)
+            onMoreClick?.invoke(post)
+        }
 
         // 评分 chip（主楼）/ 倾斜 stamp（便签）：点击 → 查看更多评分（与评分汇总行同一入口）
         h.binding.btnScoreChip.setOnClickListener {
@@ -339,16 +355,21 @@ class PostAdapter(
         }
 
         // 回复楼胶囊行：与主楼四钮同一套回调
+        // 便签四小键与主楼四钮同一套震动语言（同上）
         h.binding.btnNoteRate.setOnClickListener {
+            Haptic.selection(it.context)
             if (!shareSelectMode) onRateClick?.invoke(post)
         }
         h.binding.btnNoteQuote.setOnClickListener {
+            Haptic.selection(it.context)
             if (!shareSelectMode) onQuoteClick?.invoke(post)
         }
         h.binding.btnNoteMore.setOnClickListener {
+            Haptic.selection(it.context)
             if (!shareSelectMode) onMoreClick?.invoke(post)
         }
         h.binding.btnNoteFav.setOnClickListener {
+            Haptic.selection(it.context)
             if (!shareSelectMode) onFavoriteClick?.invoke(post)
         }
 
@@ -359,34 +380,7 @@ class PostAdapter(
         h.binding.llRating.visibility = View.GONE
         h.binding.llRating.setOnClickListener(null)
 
-        // 主楼评分 chip / 便签倾斜 stamp 的聚合分：加绿减红；
-        // 细节轮（2026-10-16）：未评分也显示控件，数字位显示「–」，消除已评/未评楼层视觉割裂
-        if (rate != null && rate.count > 0) {
-            val scoreTxt = (if (rate.total >= 0) "+" else "") + rate.total.toString()
-            val scoreColor = if (rate.total >= 0) Ps1Skin.SCORE_UP else Ps1Skin.SCORE_DOWN
-            if (isFirst) {
-                h.binding.btnScoreChip.visibility = View.VISIBLE
-                h.binding.tvChipScore.text = scoreTxt
-                h.binding.tvChipScore.setTextColor(scoreColor)
-            } else {
-                h.binding.btnNoteStamp.visibility = View.VISIBLE
-                h.binding.tvNoteScore.visibility = View.VISIBLE
-                h.binding.tvNoteScore.text = scoreTxt
-                h.binding.tvNoteScore.setTextColor(scoreColor)
-            }
-        } else {
-            val emptyColor = tertiaryColor(h.binding.root)
-            if (isFirst) {
-                h.binding.btnScoreChip.visibility = View.VISIBLE
-                h.binding.tvChipScore.text = "–"
-                h.binding.tvChipScore.setTextColor(emptyColor)
-            } else {
-                h.binding.btnNoteStamp.visibility = View.VISIBLE
-                h.binding.tvNoteScore.visibility = View.VISIBLE
-                h.binding.tvNoteScore.text = "–"
-                h.binding.tvNoteScore.setTextColor(emptyColor)
-            }
-        }
+        bindRating(h, isFirst, post)
 
         val parsed = PostContentParser.parse(post.message)
 
@@ -720,6 +714,70 @@ class PostAdapter(
      * 回复楼 = 锯齿便签 + 右上角头像/倾斜 stamp + 底部时间 + 纯图标四小钮。
      * 纯视觉绑定，任何业务状态都不在这里判断。
      */
+    /**
+     * 绑定评分 chip / 便签 stamp 的聚合分（细节轮 2026-10-16：未评分也显示控件，
+     * 数字位显示「–」，消除已评/未评楼层视觉割裂）。
+     *
+     * 抽成独立方法是为了让 [onBindViewHolder] 与 payload 局部刷新共用同一份逻辑 ——
+     * 评分数据异步到货时只需重刷评分控件，不必整层重绑（正文解析/表情/引用/四钮
+     * 全部重跑一遍，长列表下是主要掉帧来源）。
+     */
+    private fun bindRating(h: VH, isFirst: Boolean, post: Post) {
+        val rate = rateProvider(post.pid)
+        if (rate != null && rate.count > 0) {
+            val scoreTxt = (if (rate.total >= 0) "+" else "") + rate.total.toString()
+            val scoreColor = if (rate.total >= 0) Ps1Skin.SCORE_UP else Ps1Skin.SCORE_DOWN
+            if (isFirst) {
+                h.binding.btnScoreChip.visibility = View.VISIBLE
+                h.binding.tvChipScore.text = scoreTxt
+                h.binding.tvChipScore.setTextColor(scoreColor)
+            } else {
+                h.binding.btnNoteStamp.visibility = View.VISIBLE
+                h.binding.tvNoteScore.visibility = View.VISIBLE
+                h.binding.tvNoteScore.text = scoreTxt
+                h.binding.tvNoteScore.setTextColor(scoreColor)
+            }
+        } else {
+            val emptyColor = tertiaryColor(h.binding.root)
+            if (isFirst) {
+                h.binding.btnScoreChip.visibility = View.VISIBLE
+                h.binding.tvChipScore.text = "–"
+                h.binding.tvChipScore.setTextColor(emptyColor)
+            } else {
+                h.binding.btnNoteStamp.visibility = View.VISIBLE
+                h.binding.tvNoteScore.visibility = View.VISIBLE
+                h.binding.tvNoteScore.text = "–"
+                h.binding.tvNoteScore.setTextColor(emptyColor)
+            }
+        }
+    }
+
+    /**
+     * 只刷新评分 chip / stamp（性能优化 2026-10-16）。
+     * 供 [com.example.s1client.ui.PageAdapter.notifyRatingsChanged] 调用：
+     * 评分数据异步到货时不必整层重绑，长列表下这是主要掉帧来源。
+     */
+    fun notifyRatingsOnly() {
+        notifyItemRangeChanged(0, itemCount, PAYLOAD_RATING)
+    }
+
+    /**
+     * payload 局部刷新：只重绑评分相关控件，不动其他任何部分。
+     * 由 [notifyRatingsChanged] 调用（性能优化 2026-10-16）。
+     */
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.isNotEmpty() && payloads.contains(PAYLOAD_RATING)) {
+            val h = holder as? VH ?: return
+            val idx = postIndexOf(position)
+            // posts 可能在 notify 与实际重绑之间被换掉（换页/清空），
+            // 这里必须取下标校验，不能让 payload 分支成为越界崩溃点。
+            if (idx !in posts.indices) return
+            bindRating(h, idx == 0, posts[idx])
+            return
+        }
+        super.onBindViewHolder(holder, position, payloads)
+    }
+
     private fun applyPs1Skin(h: VH, isFirst: Boolean, density: Float) {
         val b = h.binding
         val pad14 = (14 * density).toInt()
@@ -888,6 +946,9 @@ class PostAdapter(
 
     companion object {
         /** 楼层行的 viewType */
+        /** payload：仅刷新评分 chip / stamp 文字 */
+        private const val PAYLOAD_RATING = "payload_rating"
+
         private const val TYPE_POST = 0
         /** 投票卡行的 viewType */
         private const val TYPE_POLL = 1

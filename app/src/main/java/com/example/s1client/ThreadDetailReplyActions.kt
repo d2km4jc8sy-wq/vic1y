@@ -434,7 +434,8 @@ internal fun ThreadDetailActivity.togglePostBookmark(post: Post) {
                 PostBookmarkManager.add(act, post, tid, subject,
                     TimeUtil.formatSmart(post.dateline))
                 pageAdapter.notifyBookmarksChanged()
-                Haptic.light(act)
+                // 震动统一在四键点击入口给（PostAdapter），这里不再重复给 light，
+                // 否则一次收藏会连震两次（selection + light）——违反"四键统一震动语言"。
                 S1Notify.show(act, "已收藏楼层", S1Notify.Type.SUCCESS)
             }
         }

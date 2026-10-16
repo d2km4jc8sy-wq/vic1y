@@ -267,30 +267,57 @@ class WheelJumpSheetView @JvmOverloads constructor(
         tvChip?.setTextColor(accentColor)
         tvChip?.background = roundedStroke(accentSoft, accentColor, 99f)
         holdView.armed = false
-        (chipFlashT ?: android.os.Handler(android.os.Looper.getMainLooper()).also { chipFlashT = it })
-            .postDelayed({
-                tvChip?.text = keep
-                holdView.armed = keepArmed
-                if (holdView.armed) {
-                    tvChip?.setTextColor(accentColor)
-                    tvChip?.background = roundedStroke(accentSoft, accentColor, 99f)
-                } else {
-                    tvChip?.setTextColor(subColor)
-                    tvChip?.background = rounded(0x00000000, 99f)
-                }
-            }, 1200)
+        val h = chipFlashT ?: android.os.Handler(android.os.Looper.getMainLooper()).also { chipFlashT = it }
+        chipRestoreRunnable?.let(h::removeCallbacks)
+        val r = Runnable {
+            tvChip?.text = keep
+            holdView.armed = keepArmed
+            if (holdView.armed) {
+                tvChip?.setTextColor(accentColor)
+                tvChip?.background = roundedStroke(accentSoft, accentColor, 99f)
+            } else {
+                tvChip?.setTextColor(subColor)
+                tvChip?.background = rounded(0x00000000, 99f)
+            }
+        }
+        chipRestoreRunnable = r
+        h.postDelayed(r, 1200)
     }
 
     private var chipFlashT: android.os.Handler? = null
+
+    /** 提示闪回任务（2026-10-16 泄漏修复）：闭包持有 tvChip/holdView 即整棵 View 树，
+     *  detach 后仍会跑完才释放 → 整张 Sheet 连同 Activity 被 Handler 挂住。
+     *  改为具名 Runnable + [cancelPendingTimers] 统一取消。 */
+    private var chipRestoreRunnable: Runnable? = null
+
     private fun flashChip(msg: String) {
         val keep = tvChip?.text
         tvChip?.text = msg
         tvChip?.setTextColor(0xFFE5484D.toInt())
-        (chipFlashT ?: android.os.Handler(android.os.Looper.getMainLooper()).also { chipFlashT = it })
-            .postDelayed({
-                tvChip?.text = keep
-                if (holdView.armed) tvChip?.setTextColor(accentColor) else tvChip?.setTextColor(subColor)
-            }, 900)
+        val h = chipFlashT ?: android.os.Handler(android.os.Looper.getMainLooper()).also { chipFlashT = it }
+        chipRestoreRunnable?.let(h::removeCallbacks)
+        val r = Runnable {
+            tvChip?.text = keep
+            if (holdView.armed) tvChip?.setTextColor(accentColor) else tvChip?.setTextColor(subColor)
+        }
+        chipRestoreRunnable = r
+        h.postDelayed(r, 900)
+    }
+
+    /** View detach 时取消所有待执行定时任务（防 Handler 持有 View 树泄漏） */
+    private fun cancelPendingTimers() {
+        autoCloseHandler.removeCallbacks(autoCloseRunnable)
+        val r = chipRestoreRunnable
+        if (r != null) {
+            chipFlashT?.removeCallbacks(r)
+            chipRestoreRunnable = null
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        cancelPendingTimers()
+        super.onDetachedFromWindow()
     }
 
     /** 滚轮当前值 */

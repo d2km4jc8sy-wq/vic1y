@@ -175,11 +175,18 @@ class PageAdapter(
     /** 已加载的最大页码 */
     fun getPageCount(): Int = maxPage
 
-    /** 评分数据更新后重绑已有楼层（不重建 adapter，竖向滚动位置不变） */
+    /**
+     * 评分数据更新后刷新已有楼层的评分控件（性能优化 2026-10-16）。
+     *
+     * 原实现是 `notifyDataSetChanged()` —— 整页 20 层全部重跑 onBindViewHolder
+     * （正文解析、表情加载、引用块重建、四钮复位全来一遍），评分数据异步到货时
+     * 长列表会明显掉帧并顶一下滚动位置。
+     * 现在改用 **payload 局部刷新**：只重绑评分 chip / stamp 的文字，
+     * 其余部分原样保留，开销从 O(页楼层数) 降到 O(当前可见楼层数)。
+     */
     fun notifyRatingsChanged() {
-        Log.d("S1FLICK", "REBIND(notifyRatingsChanged)")
         val adapters = liveAdapters.values.toList()
-        for (a in adapters) a.notifyDataSetChanged()
+        for (a in adapters) a.notifyRatingsOnly()
     }
 
     /**
