@@ -28,6 +28,8 @@
 - 涉及 UI 的切片，完成前必须真机验收（截图 + logcat 零 FATAL，注意过滤系统进程）。
 - **发现一个、锁死一个**：每修一个业务 bug，同步把它的"期望行为"写成一条测试锚点（IntegrationPathTest 模式）。
 - **打磨轮次即回归**：每轮真机反馈中发现的老 bug，修复后必须登记 PROGRESS 并入测试，防止回归。
+- **版本号即语义**（2026-10-16）：versionCode 必须随构建递增（现为 git 提交数自动化，见 app/build.gradle.kts），严禁回退；对外可装的每个版本打 git tag，并把 APK 与 mapping.txt 一起归档到 outputs/apk/。
+- **release 三件套**（2026-10-16）：对外分发的 release 包必须 ①已剥离调试日志（proguard -assumenosideeffects，Log.w/e 保留）②mapping.txt 随版归档 ③在 PROGRESS 留一行 changelog。构建产物为 unsigned 属正常（签名走 zipalign + apksigner 后置流程），不得视为构建失败。
 
 ## 6. 行为不变准则
 - 重构切片严禁改变运行行为；任何行为变化必须经用户明确拍板（参照 PROBLEMS P1-P4 决策模式）后执行。
