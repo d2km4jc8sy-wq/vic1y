@@ -88,6 +88,7 @@ import com.example.s1client.data.store.ReadHistoryStore
 import com.example.s1client.util.S1Notify
 import com.example.s1client.data.store.SettingStore
 import com.example.s1client.util.ThemeManager
+import com.example.s1client.feature_changelog.ChangelogActivity
 import com.example.s1client.util.applyS1Theme
 import com.example.s1client.data.store.dirSize
 import com.example.s1client.data.store.formatSize
@@ -345,9 +346,15 @@ fun SettingsScreen(onFinish: () -> Unit) {
         Group {
             SettingRow(
                 Icons.Outlined.Info, "关于",
-                sub = "S1 Client · V1.0",
+                // 版本号改读 BuildConfig（2026-10-17）：原硬编码 V1.0 与实际 1.1.0 脱节
+                sub = "S1 Client · V" + BuildConfig.VERSION_NAME,
                 onClick = { showAbout = true }
             ) {}
+            SettingRow(
+                Icons.Outlined.History, "更新日志",
+                sub = "版本与新特性",
+                onClick = { context.startActivity(ChangelogActivity.intent(context)) }
+            ) { Chevron() }
         }
 
         // ═══ 退出登录（确认弹窗式——长按式被手指遮挡确认文案，用户拍板回滚，宪法 11）═══
@@ -396,7 +403,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
         AlertDialog(
             onDismissRequest = { showAbout = false },
             title = { Text("关于", color = c.textMain) },
-            text = { Text("S1 Client\nV1.0\n\nStage1st 客户端", color = c.textMain) },
+            text = { Text("S1 Client\nV" + BuildConfig.VERSION_NAME + "\n\nStage1st 客户端", color = c.textMain) },
             confirmButton = {
                 TextButton(onClick = { showAbout = false }) { Text("知道了", color = c.accent) }
             }
