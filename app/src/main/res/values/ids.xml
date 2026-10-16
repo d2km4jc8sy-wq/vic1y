@@ -3,4 +3,6 @@
     <!-- 用于 PostAdapter 楼层 item 上挂载布局变化监听器，避免裸整数 key 触发
          "The key must be an application-specific resource id" 崩溃 -->
     <item name="tag_post_layout_listener" type="id" />
+    <!-- 阶段二③：图片区结构复用的键（同楼层重绑时 url 集合未变即跳过重建） -->
+    <item name="tag_image_key" type="id" />
 </resources>

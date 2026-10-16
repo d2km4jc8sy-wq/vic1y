@@ -589,13 +589,26 @@ class PostAdapter(
         // ===== 图片：楼主层置顶，其余楼层放正文下方（维持整组展示，不做段落穿插） =====
         val topContainer = h.binding.llTopImages
         val container = h.binding.llImages
-        topContainer.removeAllViews()
-        container.removeAllViews()
         val allUrls = parsed.imageUrls
         val host = if (isFirst) topContainer else container
         topContainer.visibility = if (isFirst && allUrls.isNotEmpty()) View.VISIBLE else View.GONE
         container.visibility = if (!isFirst && allUrls.isNotEmpty()) View.VISIBLE else View.GONE
-        if (allUrls.isNotEmpty()) {
+        // 阶段二③：图片区结构复用——同一楼层重绑（展开/评分回填/多选态切换等）时
+        // url 集合未变就跳过整段视图重建（原实现每次绑定 removeAllViews + 逐图新建，
+        // 是快速滚动与 notifyItemChanged 的 GC 大户）。键含 isFirst/shareSelectMode，
+        // 任一变化即整组重建，行为与旧实现一致；折叠分支早退不经过这里，视图留在
+        // 原容器（不可见），展开重绑时命中复用直接恢复。
+        val imageKey = "$isFirst|$shareSelectMode|" + allUrls.joinToString("|")
+        val needsBuild = allUrls.isNotEmpty() &&
+                h.itemView.getTag(R.id.tag_image_key) != imageKey
+        if (allUrls.isEmpty()) {
+            h.itemView.setTag(R.id.tag_image_key, null)
+        } else if (needsBuild) {
+            h.itemView.setTag(R.id.tag_image_key, imageKey)
+            topContainer.removeAllViews()
+            container.removeAllViews()
+        }
+        if (needsBuild) {
             val gallery = isFirst && allUrls.size > 1
             val cellH = (150 * density).toInt()
             val gap = (8 * density).toInt()
