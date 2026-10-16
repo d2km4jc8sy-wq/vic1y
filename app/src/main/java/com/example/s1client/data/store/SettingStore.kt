@@ -105,6 +105,16 @@ object SettingStore {
 
     /** 实验功能：转盘翻页（详情页翻页每档 tick 触觉）——默认关 */
     fun dialPaging(context: Context): Boolean = prefs(context).getBoolean("dial_paging", false)
+
+    // ————————— 深色跟随系统（阶段四 2026-10-17）—————————
+
+    /** 深色跟随系统：开启后系统深浅自动映射 焙茶↔Linear；手动选主题会自动关闭（ThemeManager） */
+    fun followSystemDark(context: Context): Boolean =
+        prefs(context).getBoolean("follow_system_dark", false)
+
+    fun setFollowSystemDark(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean("follow_system_dark", enabled).apply()
+    }
     fun setDialPaging(context: Context, on: Boolean) {
         prefs(context).edit().putBoolean("dial_paging", on).apply()
         bump()

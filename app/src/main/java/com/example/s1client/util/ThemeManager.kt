@@ -10,6 +10,7 @@ object ThemeManager {
     private const val KEY = "theme_index"
     /** 老版本索引 → 新索引的迁移只跑一次，避免把新版「粉色佳人」(=2) 误迁成 OLED */
     private const val KEY_MIGRATED = "theme_migrated_v1"
+    private const val KEY_FOLLOW = "follow_system_dark"
 
     // 主题索引（全部）
     const val THEME_LIGHT = 0       // 焙茶午后
@@ -37,6 +38,9 @@ object ThemeManager {
     )
 
     private var appContext: Context? = null
+
+    /** 深色跟随系统开关（默认关；存储在主题 prefs，随 ThemeManager 生命周期） */
+    private var followSystemDark = false
 
     /**
      * 当前主题索引。用 Compose 的 mutableStateOf 承载：
@@ -115,6 +119,14 @@ object ThemeManager {
             currentTheme = visible
             // 冷启动随机：不同主题不同的随机结果
             rollSessionRandoms()
+            // 深色跟随（2026-10-17）：启动时若开关开启，按当前系统深浅重映射
+            followSystemDark = prefs.getBoolean(KEY_FOLLOW, false)
+            if (followSystemDark) {
+                val systemDark = (context.resources.configuration.uiMode and
+                    android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                    android.content.res.Configuration.UI_MODE_NIGHT_YES
+                applyTheme(mapFollowSystem(systemDark), fromUser = false)
+            }
         }
     }
 
@@ -145,17 +157,56 @@ object ThemeManager {
     }
 
     fun setTheme(index: Int) {
+        applyTheme(index, fromUser = true)
+    }
+
+    /**
+     * 主题应用内核心（2026-10-17 深色跟随系统拆出）：
+     * fromUser=true 表示用户在主题面板手动选择 —— 自动退出跟随模式（用户显式接管）。
+     */
+    private fun applyTheme(index: Int, fromUser: Boolean) {
         // 兜底：任何调用方传进来隐藏主题索引，都按明暗意图落到可见主题，绝不串位
-        val next = migrateHiddenTheme(index).coerceIn(THEME_LIGHT, THEME_MAX)
-        if (next != currentTheme) {
-            currentTheme = next
+            val next = migrateHiddenTheme(index).coerceIn(THEME_LIGHT, THEME_MAX)
+            if (next != currentTheme) {
+                currentTheme = next
+                appContext?.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+                    ?.edit()?.putInt(KEY, currentTheme)?.apply()
+                // 切主题立刻重随：卡片风格/幻彩色板换一套
+                rollSessionRandoms()
+                // 即时生效的关键：Compose 此刻已经重组完成，把已登记过的 Activity 全部记为
+                // 新主题，这样它们下次 onResume 不会再走一遍 recreate（会白闪一下、还丢位置）。
+                appliedByActivity.keys.toList().forEach { appliedByActivity[it] = next }
+            }
+        // 手动选主题 = 用户显式接管：自动退出跟随模式
+        if (fromUser && followSystemDark) {
+            followSystemDark = false
             appContext?.getSharedPreferences(PREF, Context.MODE_PRIVATE)
-                ?.edit()?.putInt(KEY, currentTheme)?.apply()
-            // 切主题立刻重随：卡片风格/幻彩色板换一套
-            rollSessionRandoms()
-            // 即时生效的关键：Compose 此刻已经重组完成，把已登记过的 Activity 全部记为
-            // 新主题，这样它们下次 onResume 不会再走一遍 recreate（会白闪一下、还丢位置）。
-            appliedByActivity.keys.toList().forEach { appliedByActivity[it] = next }
+                ?.edit()?.putBoolean(KEY_FOLLOW, false)?.apply()
+        }
+    }
+
+    /** 系统深浅变化（S1App.onConfigurationChanged 转发）：跟随模式下重映射主题 */
+    fun onSystemNightModeChanged(systemDark: Boolean) {
+        if (!followSystemDark) return
+        applyTheme(mapFollowSystem(systemDark), fromUser = false)
+    }
+
+    /** 跟随映射（纯函数，可单测）：系统深色→Linear 墨蓝，浅色→焙茶午后 */
+    fun mapFollowSystem(systemDark: Boolean): Int =
+        if (systemDark) THEME_LINEAR else THEME_LIGHT
+
+    fun isFollowSystemDark(): Boolean = followSystemDark
+
+    /** 设置页开关入口：开启时立即按当前系统深浅应用映射 */
+    fun setFollowSystemDark(context: Context, enabled: Boolean) {
+        followSystemDark = enabled
+        appContext?.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+            ?.edit()?.putBoolean(KEY_FOLLOW, enabled)?.apply()
+        if (enabled) {
+            val dark = (context.resources.configuration.uiMode and
+                android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                android.content.res.Configuration.UI_MODE_NIGHT_YES
+            applyTheme(mapFollowSystem(dark), fromUser = false)
         }
     }
 
