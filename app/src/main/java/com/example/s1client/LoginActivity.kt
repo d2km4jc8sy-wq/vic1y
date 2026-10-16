@@ -83,6 +83,7 @@ import com.example.s1client.ui.design.S1Radius
 import com.example.s1client.data.AccountHistory
 import com.example.s1client.data.HistoryAccount
 import com.example.s1client.data.cache.ForumDataCache
+import com.example.s1client.data.session.SessionRepository
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.ui.theme.OledPalette
 import com.example.s1client.ui.theme.S1Theme
@@ -843,14 +844,15 @@ private fun CapsuleLogin(
                 val vs = resp.variables
                 val uid = vs?.memberUid
                 if (!uid.isNullOrEmpty() && uid != "0") {
-                    // 成功：写入缓存并持久化
-                    ForumDataCache.memberUid = uid
-                    ForumDataCache.memberUsername = vs.memberUsername?.takeIf { it.isNotBlank() } ?: name
-                    ForumDataCache.formhash = vs.formhash?.takeIf { it.isNotBlank() } ?: fh
-                    ForumDataCache.memberCredits = vs.memberCredits ?: "0"
-                    ForumDataCache.groupId = vs.groupId ?: ""
-                    ForumDataCache.groupTitle = vs.group?.groupTitle ?: ""
-                    ForumDataCache.saveUser()
+                    // 成功：写入缓存并持久化（写点收敛进 SessionRepository，阶段二）
+                    SessionRepository.adoptLogin(
+                        uid = uid,
+                        username = vs.memberUsername?.takeIf { it.isNotBlank() } ?: name,
+                        formhash = vs.formhash?.takeIf { it.isNotBlank() } ?: fh,
+                        credits = vs.memberCredits ?: "0",
+                        groupId = vs.groupId ?: "",
+                        groupTitle = vs.group?.groupTitle ?: ""
+                    )
                     // 记录历史登录账号（头像由 uid 动态生成，不落盘）
                     AccountHistory.add(ctx, ForumDataCache.memberUid, ForumDataCache.memberUsername)
 

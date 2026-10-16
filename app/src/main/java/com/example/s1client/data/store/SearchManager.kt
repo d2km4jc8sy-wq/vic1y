@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import com.example.s1client.data.cache.ForumDataCache
+import com.example.s1client.data.session.SessionRepository
 import com.example.s1client.util.SearchParser
 
 /**
@@ -69,7 +70,7 @@ object SearchManager {
         } catch (e: Exception) {
             null
         } ?: ""
-        if (fh.isNotBlank()) ForumDataCache.formhash = fh
+        if (fh.isNotBlank()) SessionRepository.refreshFormhash(fh)
         return fh
     }
 

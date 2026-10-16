@@ -81,6 +81,7 @@ import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.example.s1client.data.api.RetrofitClient
 import com.example.s1client.data.cache.ForumDataCache
+import com.example.s1client.data.session.SessionRepository
 import com.example.s1client.ui.AttendanceContent
 import com.example.s1client.ui.ConfettiBurst
 import com.example.s1client.ui.S1SystemBarSync
@@ -205,17 +206,16 @@ fun MineScreen(onFinish: () -> Unit) {
                     )
                 }
                 friendCount = parsed.friends.trim().toIntOrNull() ?: 0
-                if (parsed.regDate.isNotBlank()) ForumDataCache.memberRegDate = parsed.regDate
-                // 头衔与签名分开存：customstatus 是头衔，sightml 才是签名
+                // 头衔与签名分开存：customstatus 是头衔，sightml 才是签名（写点收敛进 SessionRepository）
                 fun usable(raw: String): String {
                     val t = raw.trim()
                     return if (t.isEmpty() || t == "0" || t == "null" || t == "-") "" else t
                 }
-                val titleVal = usable(parsed.customStatus)
-                if (titleVal.isNotEmpty()) ForumDataCache.groupTitle = titleVal
-                val sigVal = usable(parsed.signature)
-                if (sigVal.isNotEmpty()) ForumDataCache.memberSignature = sigVal
-                ForumDataCache.saveUser()
+                SessionRepository.refreshProfile(
+                    regDate = parsed.regDate,
+                    groupTitle = usable(parsed.customStatus),
+                    signature = usable(parsed.signature)
+                )
                 refresh++
             } catch (_: Exception) {
             }

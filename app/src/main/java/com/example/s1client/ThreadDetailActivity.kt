@@ -59,6 +59,7 @@ import androidx.viewpager2.widget.ViewPager2
 import coil.load
 import com.example.s1client.data.api.RetrofitClient
 import com.example.s1client.data.cache.ForumDataCache
+import com.example.s1client.data.session.SessionRepository
 import com.example.s1client.data.model.Post
 import com.example.s1client.databinding.ActivityThreadDetailBinding
 import com.example.s1client.databinding.DialogReplySheetBinding
@@ -73,6 +74,7 @@ import com.example.s1client.util.ImageUploader
 import com.example.s1client.util.JsonParser
 import com.example.s1client.util.S1Notify
 import com.example.s1client.util.TimeUtil
+import com.example.s1client.util.ThreadEntry
 import com.example.s1client.data.store.BlockedAuthorManager
 import com.example.s1client.data.store.HiddenPostManager
 import com.example.s1client.data.store.PostBookmarkManager
@@ -813,7 +815,7 @@ class ThreadDetailActivity : BaseActivity() {
                 val resp = RetrofitClient.api.getForumIndex()
                 val raw = resp.variables?.forumList.orEmpty()
                 if (raw.isNotEmpty()) {
-                    ForumDataCache.forumList = raw
+                    SessionRepository.refreshForumTree(raw)
                     android.util.Log.d("S1Section", "forumindex 按需加载：顶层 ${raw.size} 组")
                     pageAdapter.refreshSectionTag()
                 }
@@ -940,10 +942,7 @@ class ThreadDetailActivity : BaseActivity() {
                         "pid=$pendingScrollPid resumeFloor=$resumeFloor recPpp=$recordedPerPage"
                 )
                 if (startPage == 0) {
-                    startPage = if (resumeFloor > 1) {
-                        val ppp = if (recordedPerPage > 0) recordedPerPage else PAGE_SIZE
-                        ((resumeFloor - 1) / ppp) + 1
-                    } else 1
+                    startPage = ThreadEntry.guessFromFloor(resumeFloor, recordedPerPage)
                 }
 
                 // 把首屏这一页也占住：ViewPager2 首次绑定会走"占位分支"并回调
@@ -961,13 +960,12 @@ class ThreadDetailActivity : BaseActivity() {
                 // —— 拿到真实 ppp 后纠正一次页码 ——
                 // 上次的每页帖数可能和服务端现在的不一样，用旧值算出的页会偏。
                 // s1er 也是在第一页返回后按 live ppp 重新校正目标页。
-                if (resumeFloor > 1 && pendingScrollPid == null && perPage > 0) {
-                    val want = ((resumeFloor - 1) / perPage) + 1
-                    if (want != startPage && want <= totalPages.coerceAtLeast(1)) {
-                        val p2 = fetchOnePage(want)
-                        syncPageSocketsOnMain()
-                        if (p2.isNotEmpty()) { posts = p2; startPage = want }
-                    }
+                val want = ThreadEntry.correctionTarget(
+                    startPage, resumeFloor, pendingScrollPid != null, perPage, totalPages)
+                if (want != null) {
+                    val p2 = fetchOnePage(want)
+                    syncPageSocketsOnMain()
+                    if (p2.isNotEmpty()) { posts = p2; startPage = want }
                 }
 
                 hasMore = morePagesToLoad()

@@ -54,7 +54,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.viewpager2.widget.ViewPager2
 import coil.load
 import com.example.s1client.data.api.RetrofitClient
-import com.example.s1client.data.cache.ForumDataCache
+import com.example.s1client.data.session.SessionRepository
 import com.example.s1client.data.model.Post
 import com.example.s1client.databinding.ActivityThreadDetailBinding
 import com.example.s1client.databinding.DialogReplySheetBinding
@@ -411,7 +411,7 @@ internal suspend fun ThreadDetailActivity.fetchOnePage(page: Int): List<Post> = 
                 tid = tid, page = page,
                 authorid = if (isOnlyAuthor) authorId else null
             )
-            r.variables?.formhash?.let { ForumDataCache.formhash = it }
+            SessionRepository.refreshFormhash(r.variables?.formhash)
             r.variables?.thread?.fid?.let { if (it.isNotBlank()) threadFid = it }
             // 总页数 = (回复数 + 楼主层) / 每页楼层数
             r.variables?.thread?.let { t ->

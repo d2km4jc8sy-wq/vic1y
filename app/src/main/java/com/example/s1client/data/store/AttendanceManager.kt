@@ -5,6 +5,7 @@ import com.example.s1client.data.api.RetrofitClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.example.s1client.data.cache.ForumDataCache
+import com.example.s1client.data.session.SessionRepository
 import org.jsoup.Jsoup
 
 /**
@@ -132,7 +133,7 @@ object AttendanceManager {
         }
         if (!fromForumIndex.isNullOrBlank()) {
             // 回写全局缓存：收藏/评分/发帖等其它写操作也复用同一份，避免各拿各的
-            ForumDataCache.formhash = fromForumIndex
+            SessionRepository.refreshFormhash(fromForumIndex)
             return fromForumIndex
         }
 
