@@ -1,27 +1,6 @@
-import java.util.concurrent.TimeUnit
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-}
-
-// ===== versionCode 自动化（2026-10-16，优化报告 Phase1-①）=====
-// 取 git 提交数作为 versionCode：随提交单调递增，终结「103 个版本 versionCode 恒为 1」的历史。
-// git 不可用（未装 git / 无 .git 的构建环境）时回退到固定值，保证构建永不因此失败。
-// 回退值取当前提交数：今后 git 计数只会更大；若日后重开新历史，需要手动抬高此值。
-val fallbackVersionCode = 91
-val gitCommitCount: Int = run {
-    try {
-        // ProcessBuilder 直调，不依赖 Gradle providers.exec 的 API 版本差异
-        val proc = ProcessBuilder("git", "-C", rootDir.absolutePath, "rev-list", "--count", "HEAD")
-            .redirectErrorStream(true)
-            .start()
-        val out = proc.inputStream.bufferedReader().readText().trim()
-        proc.waitFor(10, TimeUnit.SECONDS)
-        out.toIntOrNull() ?: fallbackVersionCode
-    } catch (_: Throwable) {
-        fallbackVersionCode
-    }
 }
 
 android {
@@ -40,15 +19,14 @@ android {
     }
 
     namespace = "com.example.s1client"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.s1client"
         minSdk = 24
-        targetSdk = 34
-        // versionCode = git 提交数（见文件顶部）；versionName 升到 1.1.0：Beta 阶段起点
-        versionCode = gitCommitCount
-        versionName = "1.1.0"
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0"
     }
 
     compileOptions {
@@ -110,7 +88,7 @@ android {
 dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    // lifecycle-runtime-ktx 原本声明了两次（2.6.2 与 2.7.0），2026-10-16 去重保留高版本
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
 
     implementation("androidx.compose.foundation:foundation")
 
@@ -148,10 +126,4 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-
-    // Roborazzi 截图测试：CI Linux 上以 NATIVE 图形冒烟截图落盘（Windows 本机 NATIVE 起不来，CiSmokeCaptureTest 首行 Assume 跳过）。
-    // 1.8.0 与既有 Robolectric 4.11.1 + Compose BOM 2024.02.00 同时代可用；1.8 线不存在 alpha-13（仅 alpha-1..6 / rc-1..2 / 正式版 1.8.0）。
-    // 用 onRoot().captureRoboImage 手法，无需 JUnit rule，故不引 roborazzi-junit-rule（roborazzi-junit4 工件在 Maven Central 不存在）。
-    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.8.0")
-    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.8.0")
 }
