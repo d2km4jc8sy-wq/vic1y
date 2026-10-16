@@ -56,8 +56,10 @@ class StampOverlayView @JvmOverloads constructor(
         textAlign = Paint.Align.CENTER
     }
 
-    /** 高光扫光进度 0..1（只影响一道竖直亮带的位置） */
-    private var sweep = 0f
+    /** 高光扫光进度 0..1（只影响一道竖直亮带的位置）。
+     *  必须是 public：playStamp 里 ObjectAnimator(this, "sweep") 走反射找 setSweep/getSweep，
+     *  private 属性不生成访问器 → 扫光动画静默失效（用户实机反馈"动画效果变短了"的一部分）。 */
+    var sweep = 0f
 
     private val path = Path()
     private val box = RectF()
@@ -160,6 +162,8 @@ class StampOverlayView @JvmOverloads constructor(
         val sweepAnim = ObjectAnimator.ofFloat(this, "sweep", 0f, 1f).apply {
             duration = 260
             interpolator = DecelerateInterpolator()
+            // sweep 不是 View 属性，属性动画不会自动触发重绘，必须手动 invalidate
+            addUpdateListener { invalidate() }
         }
         // 显隐 + 缩放
         val fadeIn = ObjectAnimator.ofFloat(this, View.ALPHA, 0f, 1f).apply {
@@ -254,23 +258,26 @@ fun playStampOverlayOnNewPost(
     val size = (104 * d).toInt()
 
     val stamp = StampOverlayView(ctx)
-    // 不依赖父容器 gravity 解析（CoordinatorLayout 下 Gravity.CENTER 偶发失效 → 章落左上，
-    // 用户实机反馈"还是左上"）。改为基于 host 实测宽高的**显式居中**：post 后 host 已有尺寸，
-    // 直接算中心坐标放进 margin，任何 ViewGroup 父都能正确居中。
-    val lp = FrameLayout.LayoutParams(size, size)
-    stamp.layoutParams = lp
-    host.addView(stamp)
-    stamp.post {
-        val pw = host.width
-        val ph = host.height
-        lp.leftMargin = ((pw - size) / 2).coerceAtLeast(0)
-        lp.topMargin = ((ph - size) / 2 - (56 * d).toInt()).coerceAtLeast(0)
-        stamp.layoutParams = lp
-        stamp.requestLayout()
-        android.util.Log.d(
-            "S1Stamp",
-            "host=${pw}x${ph} size=$size left=${lp.leftMargin} top=${lp.topMargin} parent=${host.javaClass.simpleName}"
+    // 居中机制（2026-10-16 二次修复，用户实机再次反馈"还是左上"）：
+    // 上一版用带 margin 的 FrameLayout.LayoutParams 显式居中，日志里 margin 算对了
+    // （left=384/top=848）但章仍贴左上 —— 根因是 host 是 CoordinatorLayout 时，
+    // addView 会把不认识的 LayoutParams 转换成 CoordinatorLayout.LayoutParams，
+    // 而 MarginLayoutParams(ViewGroup.LayoutParams) 构造器【不复制 margin】，边距全变 0。
+    // 现在包一层全尺寸透明 FrameLayout，居中交给 FrameLayout 自己的 gravity 解析；
+    // 全尺寸 wrap 的 LayoutParams 转换不丢 width/height，任何父容器都成立。
+    // wrap 不吃触摸：非 clickable 的 ViewGroup 无子可消费事件时 dispatch 返回 false，
+    // 触摸会穿透到下层列表，动画约 1.2s 的窗口期内浏览不受影响。
+    val wrap = FrameLayout(ctx)
+    wrap.addView(
+        stamp,
+        FrameLayout.LayoutParams(size, size, android.view.Gravity.CENTER)
+    )
+    host.addView(
+        wrap,
+        android.view.ViewGroup.LayoutParams(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT
         )
-        stamp.playStamp { host.removeView(stamp) }
-    }
+    )
+    stamp.post { stamp.playStamp { host.removeView(wrap) } }
 }

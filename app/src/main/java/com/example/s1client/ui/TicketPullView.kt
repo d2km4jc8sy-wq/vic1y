@@ -78,14 +78,18 @@ class TicketPullView @JvmOverloads constructor(
     private val ticketW get() = 116f * density
 
     // ===== 状态 =====
-    private var pull = 0f
+    // pull / scanDeg 必须是 public（2026-10-16 根因修复）：回弹、抽出、插回、条码走位
+    // 全部走 ObjectAnimator(this, "pull"/"scanDeg", ...) 反射找 setPull/getPull，
+    // private 属性不生成访问器 → 动画【静默失效】（不崩溃但完全不动）。
+    // 实机症状完全对上："拉到一半松手不回位"、松手触发后的抽出/插回动画没影。
+    var pull = 0f
     private var dragging = false
     private var busy = false
     private var triggerArmed = false
     private var reachedLimit = false
     private var startY = 0f
     private var downTime = 0L
-    private var scanDeg = 0f
+    var scanDeg = 0f
     private var sweep = -1f// -1 = 无扫光；0..1 = 扫光位置
     // ===== 戏票档浓票纸调色板（从 Compose 侧桥接注入，宪法20「浮层用戏票」）=====
     // 默认 0 表示"未注入"，onDraw 回退到 attr 派生（兼容旧路径 / 自测）。
@@ -171,30 +175,42 @@ class TicketPullView @JvmOverloads constructor(
         buildTicketPath()
     }
 
-    /** 票据外形：圆角矩形 + 底部齿口（票据语汇，与便签同一套） */
+    /**
+     * 票据外形：圆角矩形 + 底部锯齿（撕票口）。
+     *
+     * 2026-10-16 几何重修（实机截图实证）：
+     * - 旧版静止时票纸大半悬在票夹**上方**（top = clipH - peek，方向算反），
+     *   灰票纸片与橙票夹条断裂成两截 —— 用户截图里的"先部分出现"残影；
+     * - 右缘锯齿收笔落在 bottom+r（越界）+ 退化 quadTo（起点=终点）→ 右下角多出一个尖角；
+     * - 右缘锯齿只有 5dp 深，观感不明显 → 移到底边（撕票口语汇，露出段正好可见）。
+     *
+     * 新几何（对齐 SwipeRefreshLayout 的"内容藏起来、拉动才露出来"机制）：
+     * 票纸恒 40dp 高，静止时整体藏在票夹后面、只露底部 18dp 锯齿段；
+     * 下拉时整张票向下抽出（slide = pull * 0.9，与手指同向），松手弹簧回位。
+     */
     private fun buildTicketPath() {
-        val shown = IDLE_PEEK * density + pull
-        ticketRect.set(
-            clipRect.left, clipH - shown + pull * 0.35f,
-            clipRect.right, clipH - shown + pull * 0.35f + 40f * density
-        )
+        val slide = pull * 0.9f
+        val top = clipRect.bottom - 22f * density + slide
+        val bottom = top + 40f * density
+        ticketRect.set(clipRect.left, top, clipRect.right, bottom)
         ticketPath.reset()
         val r = 5f * density
-        val teeth = 6
-        val depth = 5f * density
-        val toothH = ticketRect.height() / teeth
+        val teeth = 5
+        val depth = 4f * density
+        val toothW = ticketRect.width() / teeth
+        // 顺时针一笔：上边 → 右缘圆角 → 下缘锯齿（右→左）→ 左缘圆角
         ticketPath.moveTo(ticketRect.left + r, ticketRect.top)
         ticketPath.lineTo(ticketRect.right - r, ticketRect.top)
         ticketPath.quadTo(ticketRect.right, ticketRect.top, ticketRect.right, ticketRect.top + r)
+        ticketPath.lineTo(ticketRect.right, ticketRect.bottom)
         var i = 0
+        var x = ticketRect.right
         while (i < teeth) {
-            val y = ticketRect.top + r + i * toothH
-            ticketPath.lineTo(ticketRect.right, y + toothH / 2f)
-            ticketPath.lineTo(ticketRect.right - depth, y + toothH)
+            ticketPath.lineTo(x - toothW / 2f, ticketRect.bottom + depth)
+            x -= toothW
+            ticketPath.lineTo(x, ticketRect.bottom)
             i++
         }
-        ticketPath.lineTo(ticketRect.right - r, ticketRect.bottom)
-        ticketPath.quadTo(ticketRect.right, ticketRect.bottom, ticketRect.right - r, ticketRect.bottom)
         ticketPath.lineTo(ticketRect.left + r, ticketRect.bottom)
         ticketPath.quadTo(ticketRect.left, ticketRect.bottom, ticketRect.left, ticketRect.bottom - r)
         ticketPath.lineTo(ticketRect.left, ticketRect.top + r)
@@ -213,14 +229,8 @@ class TicketPullView @JvmOverloads constructor(
         val onText = paletteOnText
         val fg = if (triggerArmed) paper else onText
 
-        // 票夹（顶部固定）：主题 accent 实色块（一眼可辨"可下拉"），亮白细描边（B）
-        clipPaint.color = accentColor
-        canvas.drawRoundRect(clipRect, 2.5f * density, 2.5f * density, clipPaint)
-        edgePaint.color = accentLine
-        edgePaint.pathEffect = null
-        edgePaint.strokeWidth = 1.4f * density
-        canvas.drawRoundRect(clipRect, 2.5f * density, 2.5f * density, edgePaint)
-
+        // 画序：票纸先画 → 票夹后画盖在票纸上，形成"票插在夹里"的层叠。
+        // （旧版票夹先画、票纸后画，静止时票纸反而整段浮在票夹上方，截图实证断裂成两截）
         // 票纸：浓票纸深底（若注入 palette 则用它，否则 attr 派生）
         ticketPaint.color = if (triggerArmed) accentLine else paper
         canvas.drawPath(ticketPath, ticketPaint)
@@ -250,14 +260,24 @@ class TicketPullView @JvmOverloads constructor(
         canvas.drawRoundRect(inner, 2.5f * density, 2.5f * density, edgePaint)
         edgePaint.pathEffect = null
 
+        // 票夹（顶部固定）：主题 accent 实色块（一眼可辨"可下拉"），亮白细描边，
+        // 压住票纸"藏在夹里"的上半段 —— 静止时只露底部 18dp 锯齿撕票口
+        clipPaint.color = accentColor
+        canvas.drawRoundRect(clipRect, 2.5f * density, 2.5f * density, clipPaint)
+        edgePaint.color = accentLine
+        edgePaint.strokeWidth = 1.4f * density
+        canvas.drawRoundRect(clipRect, 2.5f * density, 2.5f * density, edgePaint)
+
         // ---- 票面内容：过阈值前画向下箭头，过阈值后亮起 + 翻成向上 ----
+        // 箭头锚在票身上段（top+20dp）：静止时藏在票夹后面，抽出过程中从夹口"冒出来"，
+        // 文字锚在票底（撕票口上方）：静止时正好落在 18dp 外露段里
         val cx = ticketRect.centerX()
-        val cy = ticketRect.centerY()
+        val ay = ticketRect.top + 20f * density
         barPaint.color = fg
         val ar = 5.5f * density
         val dir = if (triggerArmed) -1f else 1f
         canvas.save()
-        canvas.translate(cx, cy)
+        canvas.translate(cx, ay)
         canvas.scale(1f, dir)
         canvas.drawLine(0f, -ar, 0f, ar * 0.5f, barPaint)
         canvas.drawLine(-ar * 0.72f, 0f, 0f, ar * 0.5f, barPaint)
@@ -289,7 +309,7 @@ class TicketPullView @JvmOverloads constructor(
             canvas.drawText(
                 if (triggerArmed) "松手" else "拉票",
                 cx,
-                ticketRect.bottom - 7f * density,
+                ticketRect.bottom - 4.5f * density,
                 textPaint
             )
         }
@@ -316,7 +336,7 @@ class TicketPullView @JvmOverloads constructor(
     private fun hitTest(x: Float, y: Float): Boolean {
         val slop = 26f * density
         return x >= clipRect.left - slop && x <= clipRect.right + slop &&
-                y >= 0f && y <= clipRect.bottom + 150f * density
+                y >= 0f && y <= clipRect.bottom + 180f * density
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
