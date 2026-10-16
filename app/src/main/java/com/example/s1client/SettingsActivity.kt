@@ -38,6 +38,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Palette
@@ -88,6 +89,7 @@ import com.example.s1client.data.store.ReadHistoryStore
 import com.example.s1client.util.S1Notify
 import com.example.s1client.data.store.SettingStore
 import com.example.s1client.util.ThemeManager
+import com.example.s1client.util.applyS1Theme
 import com.example.s1client.feature_changelog.ChangelogActivity
 import com.example.s1client.util.applyS1Theme
 import com.example.s1client.data.store.dirSize
@@ -209,6 +211,22 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 sub = com.example.s1client.ui.themeNameShort(),
                 onClick = { showThemeSheet = true }
             ) { Chevron() }
+
+            // 深色跟随系统（阶段四 2026-10-17）：默认关；手动选主题自动退出跟随
+            var followDark by remember { mutableStateOf(SettingStore.followSystemDark(context)) }
+            SettingRow(
+                Icons.Outlined.DarkMode, "深色跟随系统",
+                sub = "系统深浅自动切换 焙茶 ↔ Linear；手动选主题会自动关闭"
+            ) {
+                S1Switch(
+                    checked = followDark,
+                    onCheckedChange = {
+                        SettingStore.setFollowSystemDark(context, it)
+                        ThemeManager.setFollowSystemDark(context, it)
+                        followDark = it
+                    }
+                )
+            }
 
             // 文字大小：行内 chips 即点即换（与快捷弹窗同一形态）
             SettingRow(Icons.Outlined.FormatSize, "文字大小") {

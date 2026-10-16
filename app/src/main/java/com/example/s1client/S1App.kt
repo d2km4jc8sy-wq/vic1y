@@ -67,6 +67,16 @@ class S1App : Application(), Application.ActivityLifecycleCallbacks {
         installCrashTracer()
     }
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // 深色跟随系统（阶段四 2026-10-17）：系统深浅变化时重映射主题
+        // （Application 级回调不依赖 Activity 的 configChanges 声明，必定收到 uiMode）
+        ThemeManager.onSystemNightModeChanged(
+            (newConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                android.content.res.Configuration.UI_MODE_NIGHT_YES
+        )
+    }
+
     private fun installCrashTracer() {
         val def = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
