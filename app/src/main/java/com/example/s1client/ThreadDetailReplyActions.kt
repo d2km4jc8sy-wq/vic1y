@@ -256,7 +256,31 @@ private fun ThreadDetailActivity.scrollToNewReplyWhenReady(
             page,
             pageAdapter.listIndexFromPostIndex(page, postIdx)
         )
-        if (ok) return
+        android.util.Log.d("S1Jump", "tryScroll page=$page idx=$postIdx children=${target.childCount} ok=$ok")
+        if (ok) {
+            // ok 只代表"指令已发出"，布局尚未执行 → 用 doOnPreDraw 在下一帧再确认一次：
+            // 若首帧后新楼层仍未进入视口（LinearLayoutManager 可能因缓存/动画吞掉首次请求），
+            // 再补发一次（最多 2 次）。否则用户看到的是"闪一下没动"（用户实机反馈）。
+            target.post {
+                val lm = target.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager
+                val found = lm?.findViewByPosition(
+                    pageAdapter.listIndexFromPostIndex(page, postIdx)
+                )
+                android.util.Log.d("S1Jump", "afterFrame found=${found != null} first=${lm?.findFirstVisibleItemPosition()}")
+                if (found == null && jumpScrollRetry < 4) {
+                    jumpScrollRetry++
+                    target.postDelayed({
+                        pageAdapter.scrollToPositionInPage(
+                            page,
+                            pageAdapter.listIndexFromPostIndex(page, postIdx)
+                        )
+                    }, 80)
+                }
+            }
+            return
+        }
+    } else {
+        android.util.Log.d("S1Jump", "notReady page=$page rv=${target != null} children=${target?.childCount}")
     }
     // 还没就绪：再等 60ms（总计最多 12 次）
     if (jumpScrollRetry < 12) {
@@ -265,12 +289,14 @@ private fun ThreadDetailActivity.scrollToNewReplyWhenReady(
     }
 }
 
-private var jumpScrollRetry = 0
-
 internal fun ThreadDetailActivity.jumpToNewReply(newPid: String) {
         if (newPid.isBlank() || newPid == "0") return
         if (jumpLoading) return
         jumpLoading = true
+        // 关键（2026-10-16）：本次已有明确目标楼层，禁用阅读进度恢复 ——
+        // 否则 tryScrollToTarget 会在我们之后执行，把位置滚回"上次看到的那一楼"，
+        // 表现为"日志说 ok=true、屏幕却闪一下没动"（用户实机反馈，感谢其指出思路）。
+        suppressResumeScroll = true
         lifecycleScope.launch {
     val act = this
             try {
@@ -311,6 +337,7 @@ internal fun ThreadDetailActivity.jumpToNewReply(newPid: String) {
                         target = loadedMaxPage
                     }
                 }
+                android.util.Log.d("S1Jump", "target=$target loadedMax=$loadedMaxPage newPid=$newPid")
                 if (target > 0) {
                     binding.vpPages.setCurrentItem(target - 1, true)
                     //跳转时机（2026-10-16 修复"回复后跳不过去"）：
@@ -345,6 +372,8 @@ internal fun ThreadDetailActivity.jumpToNewReply(newPid: String) {
                 }
             } finally {
                 jumpLoading = false
+                // 定位收尾后再放开进度恢复（多留 800ms，确保本次滚动已落地）
+                binding.root.postDelayed({ suppressResumeScroll = false }, 800)
             }
         }
     }

@@ -26,7 +26,7 @@ import com.example.s1client.util.Haptic
  * 为什么是落章：论坛回复的语义本就是「往楼里盖一个章」，票据语言里也有票根/印花，
  * 所以"一张小票据盖到新楼层上"同时踩中内容语义与视觉语言，不需要另造隐喻。
  *
- * 时序（总时长约 620ms）：
+ * 时序（总时长约 1s，停留 620ms —— 用户反馈 220ms "没来得及看就消失"）：
  * 1. 0→180ms  票据从 0.6 缩放 + 透明渐显，边框高光从左扫到右（盖章的光泽）
  * 2. 落定瞬间 触发 Haptic.SUCCESS（哒—嗒，与"咔哒盖章"同感），并轻微下沉回弹
  * 3. 180→420ms 停留，让用户看清章的样子
@@ -198,12 +198,12 @@ class StampOverlayView @JvmOverloads constructor(
             playTogether(
                 ObjectAnimator.ofFloat(this@StampOverlayView, View.ALPHA, 1f, 0f).apply {
                     duration = 200
-                    startDelay = 220
+                    startDelay = 620
                     interpolator = AccelerateInterpolator()
                 },
                 ObjectAnimator.ofFloat(this@StampOverlayView, View.TRANSLATION_Y, 0f, -18f * density).apply {
                     duration = 200
-                    startDelay = 220
+                    startDelay = 620
                     interpolator = AccelerateInterpolator()
                 }
             )

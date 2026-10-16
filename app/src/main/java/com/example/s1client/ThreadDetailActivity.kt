@@ -98,6 +98,15 @@ class ThreadDetailActivity : BaseActivity() {
     }
 
     internal lateinit var binding: ActivityThreadDetailBinding
+    /**
+     * 跳到新楼层的重试计数（2026-10-16）。
+     *
+     * 必须是 **Activity 实例字段**，不能放文件级：文件级变量编译成静态字段，
+     * 跨 Activity 实例共享且永不重置 —— 第一次跳转耗尽 12 次额度后，
+     * 后续所有跳转都不再重试，表现为"第一次能跳、退出再进就跳不动"（用户实机反馈）。
+     */
+    internal var jumpScrollRetry = 0
+
     internal var tid: String = ""
     internal var subject: String = ""
     internal var isFavorited: Boolean = false
@@ -123,6 +132,16 @@ class ThreadDetailActivity : BaseActivity() {
      * 服务端的每页帖数(ppp)会变，只存页码的话换页数后落点会漂。
      * 打开后由 [tryScrollToTarget] 消费，用完清零。
      */
+    /**
+     * 回复后定位新楼层期间为 true（2026-10-16）。
+     *
+     * 关键修复：`tryScrollToTarget` 的**阅读进度恢复**（resumeFloor）与
+     * `jumpToNewReply` 的**新楼层定位**会抢同一个滚动目标 —— 谁后执行谁赢。
+     * 表现为"日志说 ok=true、屏幕却闪一下回到上次看的位置"（用户实机反馈）。
+     * 本次回复已有明确目标楼层，必须让进度恢复让路。
+     */
+    internal var suppressResumeScroll = false
+
     private var resumeFloor: Int = 0
 
     /** 从本地进度里读出来的楼层 pid（楼层算不出下标时的兜底，用完即清） */
@@ -408,6 +427,8 @@ class ThreadDetailActivity : BaseActivity() {
      * 挂到滚动回调上才是确定性的。
      */
     private fun tryScrollToTarget(finalAttempt: Boolean = false) {
+        // 回复跳转中：让位给新楼层定位，别用进度恢复把它滚回去
+        if (suppressResumeScroll) return
         if (pendingScrollPid == null && resumeFloor <= 0) return
         // 正在"滚 + 校验"：别再插一轮，否则 onScrolled 会形成自激
         if (scrollVerifyJob?.isActive == true) return

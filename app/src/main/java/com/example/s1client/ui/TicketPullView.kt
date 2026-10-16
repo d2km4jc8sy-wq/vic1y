@@ -46,7 +46,7 @@ class TicketPullView @JvmOverloads constructor(
     companion object {
         /** 待命态透明度：不用全0 —— 全透明则用户看不到"这里能拉票"。
          *  给一点极低透明度（票夹淡显）既不抢戏，也给出可拉提示。 */
-        const val IDLE_ALPHA = 0.22f
+        const val IDLE_ALPHA = 0.55f
         /** 静止时票据露出高度（dp） */
         private const val IDLE_PEEK = 18f
     }
@@ -108,7 +108,7 @@ class TicketPullView @JvmOverloads constructor(
     }
 
     /** 票夹距视图顶部的偏移：留出 Tab 栏高度，否则票夹被 Tab 盖住看不见 */
-    private val clipTopOffset = 8f * density
+    private val clipTopOffset = 34f * density
 
     private val clipRect = RectF()
     private val ticketRect = RectF()
