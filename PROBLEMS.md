@@ -1,0 +1,38 @@
+# PROBLEMS · 行为决策待办（重构代理无权擅自改行为的事项）
+
+> 依照协议：不确定的地方记录，不擅自改功能行为。以下每项都需要用户拍板后才能动。
+
+## P1 · ✅ 已解决（2026-10-13 用户拍板：StateFlow 化不改对外行为）
+> 已落地：内部 MutableStateFlow + 同名属性语法 + 响应式只读出口；持久化语义不变。commit 8d1cdd0。
+> 原状：
+- 现状：11 个可变 var 被 11 个功能文件直接读写（AUDIT.md §3a/§4），是"拆东补西"的结构根源。
+- 目标形态：登录态（memberUid/Username/Credits/groupTitle/RegDate/Signature）收敛为 `SessionState`（StateFlow），版块列表/formhash 归 HomeRepository；功能只订阅不直改。
+- 阻塞点：StateFlow 化会改变 Compose 重组时机（当前是"手动改 var + 手动刷 UI"），属于**行为变化**，超出"只重构不改行为"边界。
+- 需要用户确认：A) 接受重组时机变化换取解耦；B) 保持现状仅做封装（私有字段+同名 var 访问器，零收益不建议）。
+
+## P2 · ✅ 已解决（2026-10-13 用户拍板：统一到 S1ColorTokens，保持视觉不变）
+> 已落地：三主题 heart 收敛 FF2C55 + HeartRed getter 走 palette.heart。commit 8d1cdd0。
+> 原状：
+- 现状：`HeartRed = Color(0xFFFF2C55)` 全主题写死；而热帖计数已用 `s1.heart`（palette 派生）。两套红并存。
+- 统一为 palette.heart = 每主题红色略有差异（视觉行为变化）。
+- 需要用户确认统一方向。
+
+## P3 · ✅ 已解决（2026-10-13 用户拍板：MockK 伪造登录态）
+> 已落地：test/fake/FakeAuthRepository.kt + AuthFlowTest 4 用例（登录态预置/端点 stub/私信解析管线）。生产代码零改动。
+> 原状：
+- 这三个页面需登录 Cookie 才能抓样本；Cookie 由 Keystore 加密无法出 app 进程。
+- 可行路线：①BODY 日志抓包（改 debug 日志级别 → 装机 → 用户手点页面 → logcat 提取，需要一次装机+手点）；②用户浏览器另存 HTML。
+- 阻塞等待用户选择路线。
+
+## P4 · ✅ 已解决（2026-10-13 用户拍板：保留设置页入口含主题名显示；我的页换浏览历史）
+> 已落地：设置页主题行保留；我的页主题卡→浏览历史快捷卡；双份死代码清除。commit 待查 git log。
+> 原状：
+- 两处都能改主题（审计确认功能重复但用户未提出收敛），记录备查，未动。
+
+## P5 · 截图测试环境阻塞
+- Roborazzi 截图测试依赖 Robolectric NATIVE 图形模式；本机 NATIVE 启动即 UnsatisfiedLinkError（RenderNodeNatives），被迫全局 LEGACY。
+- 解除条件：升级 Robolectric/开启 GPU（ci 机器）后，按"7 主题 × 3 关键页"补截图对比测试。
+
+## P6 · GitHub 备份需要认证凭据
+- 远程已配置（origin → github.com/d2km4jc8sy-wq/vic1y），但推送需要 PAT。
+- 解除条件：用户提供 Personal Access Token（repo 权限）→ 配置 credential 后推送 main。
