@@ -38,3 +38,15 @@
 -keepclassmembers class **$WhenMappings {
     <fields>;
 }
+
+# ===== release 剥离调试日志（2026-10-16，优化报告 Phase1-②）=====
+# Log.v/d 调用直接从 release 字节码移除：全项目 92 处日志里 49 处 Log.d 含完整 URL，
+# 不剥离会随包分发、logcat 可拼出用户浏览轨迹。Log.w/e 保留（崩溃诊断要用）。
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+}
+
+# 崩溃堆栈可还原：保留行号，配合 outputs/mapping/release/mapping.txt 反混淆
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
