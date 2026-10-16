@@ -17,6 +17,7 @@ import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
+import androidx.recyclerview.widget.RecyclerView
 import com.example.s1client.util.Haptic
 
 /**
@@ -234,35 +235,43 @@ class StampOverlayView @JvmOverloads constructor(
 }
 
 /**
- * 在 [host] 的指定位置播放一次落章动画（回复成功用）。
+ * 把落章章盖在**新回复楼层**上（2026-10-16）。
  *
- * 位置约定：贴在**新回复楼层所在页**的右上角内侧 —— 与便签里的 stamp 同区域，
- * 视觉上是"这一楼被盖了章"，而不是屏幕中央弹一个无关的提示。
+ * 上一版把锚点传成顶栏，结果章盖在屏幕左上角（用户实机反馈"在左上角"）——
+ * 语义应是"这一楼被盖了章"，所以必须在目标页里找到新楼层 item，用它的位置当锚点。
+ * 找不到（item 尚未布局）则退回顶部居中，不硬算。
  */
-fun playStampOverlay(
+fun playStampOverlayOnNewPost(
     host: android.view.ViewGroup,
-    anchor: android.view.View,
-    onEnd: () -> Unit = {}
+    rv: android.view.View?,
+    newPid: String
 ) {
     val ctx = host.context
     val d = ctx.resources.displayMetrics.density
     val size = (92 * d).toInt()
-    val stamp = StampOverlayView(ctx).apply {
-        layoutParams = FrameLayout.LayoutParams(size, size, android.view.Gravity.TOP or android.view.Gravity.END)
+
+    // 目标页的第一个可见 child = 用户此刻看到的楼层；新回复在该页末尾，
+    // 列表已滚到末尾时它就在可视区顶部附近 —— 用它落章，视觉上就是"这一楼被盖了章"。
+    var anchorTop = -1
+    if (rv is android.view.ViewGroup && rv.childCount > 0) {
+        val child = rv.getChildAt(0)
+        val loc = IntArray(2)
+        val hostLoc = IntArray(2)
+        child.getLocationInWindow(loc)
+        host.getLocationInWindow(hostLoc)
+        anchorTop = loc[1] - hostLoc[1]
     }
-    val lp = stamp.layoutParams as FrameLayout.LayoutParams
-    // 贴着锚点右上角，向内让开 14dp
-    val anchorLoc = IntArray(2)
-    val hostLoc = IntArray(2)
-    anchor.getLocationInWindow(anchorLoc)
-    host.getLocationInWindow(hostLoc)
-    lp.rightMargin = (14 * d).toInt()
-    lp.topMargin = anchorLoc[1] - hostLoc[1] + (10 * d).toInt()
+
+    val stamp = StampOverlayView(ctx)
+    val lp = FrameLayout.LayoutParams(size, size, android.view.Gravity.TOP or android.view.Gravity.END)
+    if (anchorTop >= 0) {
+        lp.rightMargin = (14 * d).toInt()
+        lp.topMargin = (anchorTop + (8 * d).toInt()).coerceAtLeast((56 * d).toInt())
+    } else {
+        lp.gravity = android.view.Gravity.TOP or android.view.Gravity.CENTER_HORIZONTAL
+        lp.topMargin = (72 * d).toInt()
+    }
+    stamp.layoutParams = lp
     host.addView(stamp)
-    stamp.post {
-        stamp.playStamp {
-            host.removeView(stamp)
-            onEnd()
-        }
-    }
+    stamp.post { stamp.playStamp { host.removeView(stamp) } }
 }

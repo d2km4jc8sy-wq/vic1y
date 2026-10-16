@@ -236,6 +236,37 @@ internal fun ThreadDetailActivity.showReplySheet() {
      * 不去猜总页数：一直往后翻，直到某一页里出现自己的新 pid 为止。
      */
 
+/**
+ * 等目标页 RecyclerView 布局完成后再滚到新楼层（重试封顶 720ms）。
+ *
+ * 为什么需要重试：ViewPager2 切页后，RecyclerView 要等onCreateViewHolder 跑完才有
+ * LayoutManager 与可滚动内容。发一次 scrollToPositionInPage 在这之前会被静默丢弃，
+ * 且没有任何报错 —— 这正是"回复后跳不过去"的根因。
+ */
+private fun ThreadDetailActivity.scrollToNewReplyWhenReady(
+    page: Int,
+    rv: RecyclerView?
+) {
+    val target = rv ?: pageAdapter.rvForPage(page)
+    val ready = target != null && target.adapter != null && target.childCount > 0
+    if (ready && target != null) {
+        val last = (pageAdapter.getPage(page)?.size ?: 1) - 1
+        val postIdx = if (last > 0) last else 0
+        val ok = pageAdapter.scrollToPositionInPage(
+            page,
+            pageAdapter.listIndexFromPostIndex(page, postIdx)
+        )
+        if (ok) return
+    }
+    // 还没就绪：再等 60ms（总计最多 12 次）
+    if (jumpScrollRetry < 12) {
+        jumpScrollRetry++
+        binding.root.postDelayed({ scrollToNewReplyWhenReady(page, rv) }, 60)
+    }
+}
+
+private var jumpScrollRetry = 0
+
 internal fun ThreadDetailActivity.jumpToNewReply(newPid: String) {
         if (newPid.isBlank() || newPid == "0") return
         if (jumpLoading) return
@@ -282,14 +313,35 @@ internal fun ThreadDetailActivity.jumpToNewReply(newPid: String) {
                 }
                 if (target > 0) {
                     binding.vpPages.setCurrentItem(target - 1, true)
-                    binding.vpPages.postDelayed({
-                        val last = (pageAdapter.getPage(target)?.size ?: 1) - 1
-                        val postIdx = if (last > 0) last else 0
-                        pageAdapter.scrollToPositionInPage(
-                            target,
-                            pageAdapter.listIndexFromPostIndex(target, postIdx)
-                        )
-                    }, 400)
+                    //跳转时机（2026-10-16 修复"回复后跳不过去"）：
+                    // 原实现是 postDelayed(400) 赌时序 —— ViewPager2 的切页动画与
+                    // RecyclerView 布局都还没完成，滚动指令被丢弃，表现为"闪一下没跳"。
+                    // 现在改成**等目标页 RV 真正可用再跳**，最多重试 12 次 × 60ms（720ms 封顶）。
+                    val rv = pageAdapter.rvForPage(target)
+                    if (rv != null && rv.adapter != null) {
+                        scrollToNewReplyWhenReady(target, rv)
+                    } else {
+                        // 目标页还没创建（ViewPager2 只创建相邻页），等它 onCreate 完成后再试
+                        binding.vpPages.postDelayed({
+                            val rv2 = pageAdapter.rvForPage(target)
+                            if (rv2 != null && rv2.adapter != null) {
+                                scrollToNewReplyWhenReady(target, rv2)
+                            } else {
+                                binding.vpPages.postDelayed({ scrollToNewReplyWhenReady(target, null) }, 120)
+                            }
+                        }, 120)
+                    }
+                    // 回复落章动画（2026-10-16）：盖在**新楼层**上，而不是顶栏
+                    // （上一版锚点传topBar，实机反馈章跑到了屏幕左上角）。
+                    jumpScrollRetry = 0
+                    binding.root.postDelayed({
+                        val host = binding.root as? android.view.ViewGroup
+                        if (host != null) {
+                            com.example.s1client.ui.playStampOverlayOnNewPost(
+                                host, pageAdapter.rvForPage(target), newPid
+                            )
+                        }
+                    }, 320)
                 }
             } finally {
                 jumpLoading = false
@@ -353,16 +405,9 @@ internal fun ThreadDetailActivity.sendReplyWithQuote(
                 val ok = pid.isNotBlank() && pid != "0"
                 if (ok) {
                     DraftStore.clear(act, DraftStore.keyForReply(tid))
-                    // 落章动画替代干巴巴的 toast（2026-10-16）：
-                    // 章盖在新楼层所属页的右上角（与便签 stamp 同区），视觉上= "这一楼被盖了章"。
-                    val host = act.binding.root as? android.view.ViewGroup
-                    if (host != null) {
-                        com.example.s1client.ui.playStampOverlay(host, act.binding.topBar)
-                        onDone(pid)
-                    } else {
-                        toast("回复成功", S1Notify.Type.SUCCESS)
-                        onDone(pid)
-                    }
+                    // 落章动画由 jumpToNewReply 在定位到新楼层后触发（位置才对），
+                    // 这里不再弹 toast —— 成功已有视觉反馈。
+                    onDone(pid)
                 } else {
                     toast("回复失败：" + msgStr.ifBlank { msgVal.ifBlank { "pid=$pid" } })
                 }
