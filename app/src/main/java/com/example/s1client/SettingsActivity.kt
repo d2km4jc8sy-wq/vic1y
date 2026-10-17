@@ -38,6 +38,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Person
@@ -91,6 +92,7 @@ import com.example.s1client.data.store.SettingStore
 import com.example.s1client.util.ThemeManager
 import com.example.s1client.util.applyS1Theme
 import com.example.s1client.feature_changelog.ChangelogActivity
+import com.example.s1client.feature_network.NetworkParamsActivity
 import com.example.s1client.util.applyS1Theme
 import com.example.s1client.data.store.dirSize
 import com.example.s1client.data.store.formatSize
@@ -357,6 +359,12 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 sub = "字号/字体恢复默认，不影响版块屏蔽与历史",
                 onClick = { showResetAppearance = true }
             ) {}
+
+            SettingRow(
+                Icons.Outlined.Language, "网络参数",
+                sub = "基础网址 / IP 直连（DNS 污染自救）",
+                onClick = { context.startActivity(NetworkParamsActivity.intent(context)) }
+            ) { Chevron() }
         }
 
         // ═══ 关于 ═══

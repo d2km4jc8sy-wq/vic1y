@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Cookie
 import okhttp3.CookieJar
+import okhttp3.Dns
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -23,6 +24,7 @@ import com.example.s1client.data.store.SecureStore
 object RetrofitClient {
     private const val TAG = "RetrofitClient"
     private const val BASE_URL = "https://stage1st.com/2b/"
+    internal const val MAIN_HOST = "stage1st.com"
     private const val COOKIE_PREF = "s1_cookie_prefs"
     private const val COOKIE_KEY = "cookies"
     private const val DESKTOP_UA =
@@ -30,6 +32,76 @@ object RetrofitClient {
         "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
     private var appContext: Context? = null
+
+    // ===== 网络参数（阶段四 P8，2026-10-17）：DNS 覆盖 + 基础网址重写 =====
+    // 快照由 NetworkParamsActivity 写入；Dns 与重写拦截器每次请求实时读取——
+    // 参数变化即时生效，无需重建客户端。null = 未设置（全默认直连主域）。
+    data class NetworkOverride(
+        val forceBaseUrl: Boolean,
+        val baseUrlHost: String,
+        val baseUrlScheme: String,
+        val baseUrlPort: Int,
+        val forceIp: Boolean,
+        val ips: List<String>
+    )
+
+    @Volatile
+    private var networkOverride: NetworkOverride? = null
+
+    fun applyNetworkOverride(o: NetworkOverride?) {
+        networkOverride = o
+    }
+
+    /** 该 host 是否走论坛语义（S1 头/Cookie 域判定）；含基础网址替换后的自定义域 */
+    private fun isForumHost(host: String): Boolean {
+        if (host.endsWith("stage1st.com")) return true
+        val o = networkOverride ?: return false
+        return o.forceBaseUrl && host == o.baseUrlHost
+    }
+
+    /** DNS 覆盖：强制 IP 模式下，论坛域解析到指定 IP（SNI/证书仍按原域名校验） */
+    private fun pinnedIps(hostname: String): List<java.net.InetAddress>? {
+        val o = networkOverride ?: return null
+        if (!o.forceIp || o.ips.isEmpty()) return null
+        if (!isForumHost(hostname)) return null
+        val pinned = o.ips.mapNotNull { raw ->
+            runCatching {
+                val addr = java.net.InetAddress.getByName(raw)
+                java.net.InetAddress.getByAddress(hostname, addr.address)
+            }.getOrNull()
+        }
+        return pinned.ifEmpty { null }
+    }
+
+    internal fun parseNetworkOverride(
+        forceBaseUrl: Boolean,
+        baseUrlRaw: String,
+        forceIp: Boolean,
+        ipRaw: String
+    ): NetworkOverride? {
+        var host: String? = null
+        var scheme = "https"
+        var port = 443
+        if (forceBaseUrl) {
+            val uri = runCatching { java.net.URI(baseUrlRaw.trim()) }.getOrNull() ?: return null
+            host = uri.host?.lowercase()
+            if (host.isNullOrBlank()) return null
+            scheme = uri.scheme?.lowercase()?.ifBlank { "https" } ?: "https"
+            port = if (uri.port > 0) uri.port else if (scheme == "https") 443 else 80
+        }
+        val ips = if (forceIp)
+            ipRaw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        else emptyList()
+        if (forceIp && ips.isEmpty()) return null
+        return NetworkOverride(
+            forceBaseUrl = forceBaseUrl,
+            baseUrlHost = host.orEmpty(),
+            baseUrlScheme = scheme,
+            baseUrlPort = port,
+            forceIp = forceIp,
+            ips = ips
+        )
+    }
     private val cookieStore = mutableMapOf<String, MutableMap<String, Cookie>>()
 
     private val cookieJar = object : CookieJar {
@@ -151,10 +223,33 @@ object RetrofitClient {
         }
         OkHttpClient.Builder()
             .cookieJar(cookieJar)
+            .dns(object : Dns {
+                override fun lookup(hostname: String): List<java.net.InetAddress> {
+                    return pinnedIps(hostname) ?: Dns.SYSTEM.lookup(hostname)
+                }
+            })
+            .addInterceptor { chain ->
+                // 基础网址重写（P8）：主域请求整 host 换到备用域（证书/SNI 按备用域自带，Cookie 按域隔离）
+                var request = chain.request()
+                networkOverride?.let { o ->
+                    if (o.forceBaseUrl && request.url.host == MAIN_HOST) {
+                        runCatching {
+                            request = request.newBuilder()
+                                .url(request.url.newBuilder()
+                                    .scheme(o.baseUrlScheme)
+                                    .host(o.baseUrlHost)
+                                    .port(o.baseUrlPort)
+                                    .build())
+                                .build()
+                        }
+                    }
+                }
+                chain.proceed(request)
+            }
             .addInterceptor(logging)
             .addInterceptor { chain ->
                 val original = chain.request()
-                val isS1 = original.url.host.endsWith("stage1st.com")
+                val isS1 = isForumHost(original.url.host)
                 val b = original.newBuilder()
                     .header("User-Agent", DESKTOP_UA)
                     .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
@@ -185,9 +280,31 @@ object RetrofitClient {
         OkHttpClient.Builder()
             .cookieJar(cookieJar)
             .protocols(listOf(Protocol.HTTP_1_1))
+            .dns(object : Dns {
+                override fun lookup(hostname: String): List<java.net.InetAddress> {
+                    return pinnedIps(hostname) ?: Dns.SYSTEM.lookup(hostname)
+                }
+            })
+            .addInterceptor { chain ->
+                var request = chain.request()
+                networkOverride?.let { o ->
+                    if (o.forceBaseUrl && request.url.host == MAIN_HOST) {
+                        runCatching {
+                            request = request.newBuilder()
+                                .url(request.url.newBuilder()
+                                    .scheme(o.baseUrlScheme)
+                                    .host(o.baseUrlHost)
+                                    .port(o.baseUrlPort)
+                                    .build())
+                                .build()
+                        }
+                    }
+                }
+                chain.proceed(request)
+            }
             .addInterceptor { chain ->
                 val original = chain.request()
-                val isS1 = original.url.host.endsWith("stage1st.com")
+                val isS1 = isForumHost(original.url.host)
                 val b = original.newBuilder()
                     .header("User-Agent", DESKTOP_UA)
                     .header("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
