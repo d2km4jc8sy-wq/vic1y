@@ -374,6 +374,15 @@ class PostAdapter(
             if (!shareSelectMode) onFavoriteClick?.invoke(post)
         }
 
+        // 触达区外扩（阶段四 P15 无障碍，2026-10-17）：便签四小钮 22dp 视觉不变，
+        // 触达区向四周外扩 8dp 达到 38dp（宪法第 12 条）——解决「按钮周围点了没反应」的死区。
+        // 组代理挂一次即可（相对位置不随绑定变化）；皮肤切换隐藏四钮时路由自然失效（GONE 不命中）。
+        com.example.s1client.util.TouchDelegateHelper.expandHalo(
+            parent = h.binding.llNoteButtons,
+            children = listOf(h.binding.btnNoteFav, h.binding.btnNoteQuote, h.binding.btnNoteRate, h.binding.btnNoteMore),
+            haloPx = (8f * h.itemView.resources.displayMetrics.density).toInt()
+        )
+
         // 评分行：数据来自网页版 HTML 的 ratelog（移动版 API 没有）。
         // v3.1：列表层评分展示已由主楼评分 chip / 便签倾斜 stamp 承担；汇总行里的
         // 「N 人参与」等信息按 Q1 拍板收进详情层（点击 chip/stamp 进入），此处不再显示。
