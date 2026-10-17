@@ -106,6 +106,16 @@ android {
     }
 }
 
+// ===== 7×3 截图矩阵单独跑（PROBLEMS P5 增强，2026-10-17）=====
+// ThemeMatrixCaptureTest 的 NATIVE 图形模式会污染同 JVM 的后续 compose 测试
+// （ComponentTest 的 AppNotIdleException，CI run 39003987274 实证）——
+// 默认 test 任务排除它；CI 用 -PrunMatrix 单独调用（独立 JVM）+ 上传截图。
+tasks.withType<Test> {
+    if (!project.hasProperty("runMatrix")) {
+        exclude("**/ThemeMatrixCaptureTest*")
+    }
+}
+
 dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
