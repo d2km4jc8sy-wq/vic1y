@@ -9,6 +9,7 @@ import androidx.activity.viewModels
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.s1client.ui.TicketPullView
 import com.example.s1client.ui.ticketPaletteFor
+import com.example.s1client.ui.CameraLeverView
 import com.example.s1client.ui.RopeRefreshView
 import com.example.s1client.data.store.BlacklistManager
 import com.example.s1client.util.Haptic
@@ -419,9 +420,13 @@ fun ForumFeedPage(
                     }
 
                     // 下拉刷新（顶部右侧）：默认「抽票」实现。
-                    // 方案可切换：PULL_IMPL = 0 抽票据 / 1 相机过片扳手（实验室备选）/ 2 原绳子
+                    // 方案可切换：PULL_IMPL = 0 抽票据 / 1 相机过片扳手（实验开关）/ 2 原绳子
                     // —— 三个实现接口一致，改这里一个数字即可切换。
-                    val PULL_IMPL = 0
+                    // 2026-10-18 实验区上架（拍板 1）：相机扳手由设置页「实验功能」开关控制，
+                    // 关闭（默认）= 0 走现状票夹，零行为变化。
+                    val PULL_IMPL =
+                        if (com.example.s1client.data.store.SettingStore.cameraLeverRefresh(context)) 1
+                        else 0
                     // 绳子下拉刷新（顶部右侧）。
                     // 系统下拉刷新只在列表滚到顶时才生效，翻了几页后就拉不动了；
                     // 这根绳子是独立控件，任何时候都能拉下来 —— 拉到底 = 回到板块第一页并刷新。
@@ -433,6 +438,27 @@ fun ForumFeedPage(
                             tween(durationMillis = 120) else
                             tween(durationMillis = 280, delayMillis = 350)
                     )
+                    // 实验功能（相机扳手 PULL_IMPL=1）隐现联动，照 HTML 行为（拍板 5）：
+                    // 滚动中隐藏、停手 ~200ms 浮现；进场 600ms 后现身一次（HTML 800ms 入场仪式感）。
+                    // 与票夹的 ticketRevealed 独立——相机模式下两者互斥（key 重建，不会同屏）。
+                    var leverRevealed by remember { mutableStateOf(false) }
+                    LaunchedEffect(gridState, PULL_IMPL) {
+                        if (PULL_IMPL != 1) return@LaunchedEffect
+                        delay(600)
+                        leverRevealed = true
+                        snapshotFlow { gridState.isScrollInProgress }
+                            .distinctUntilChanged()
+                            .collect { scrolling ->
+                                if (scrolling) leverRevealed = false
+                                else {
+                                    delay(200)
+                                    leverRevealed = true
+                                }
+                            }
+                    }
+                    // 快门白闪 alpha（相机扳手 onShutter 驱动；收敛版：只白闪不压暗——拍板 3）
+                    val flashAlpha = remember { Animatable(0f) }
+
                     // 桥接戏票档浓票纸（宪法20）：在 composable 上下文算好 palette，再喂给 update lambda
                     val s1PullPalette = ticketPaletteFor(LocalS1Colors.current)
                     // 2026-10-17（用户反馈）：票夹默认隐藏——常驻票夹在首页首屏压住右列
@@ -447,6 +473,9 @@ fun ForumFeedPage(
                                         .displayMetrics.heightPixels).toInt()
                         }
                     }
+                    // key(开关)：AndroidView 的 factory 只跑一次，切换 PULL_IMPL 换的是
+                    // 不同 View 类型，必须靠 key 强制重建实例（拍板 1：设置改秒切）。
+                    androidx.compose.runtime.key(PULL_IMPL) {
                     AndroidView(
                         factory = { ctx ->
                             val doRefresh = onRefresh
@@ -459,7 +488,24 @@ fun ForumFeedPage(
                                         doRefresh()
                                     }
                                 }
-                                // 1 = 相机过片扳手（实验室备选，用户方案，待实现）
+                                // 1 = 相机过片扳手（实验开关，HTML 原型移植，2026-10-18 设计者直派）
+                                1 -> CameraLeverView(ctx).apply {
+                                    this.onShutter = {
+                                        // 快门白闪：48ms 冲到 0.95 再 360ms 衰减（HTML flashAnim 0.4s 节奏）
+                                        scope.launch {
+                                            flashAlpha.snapTo(0f)
+                                            flashAlpha.animateTo(0.95f, tween(48))
+                                            flashAlpha.animateTo(0f, tween(360))
+                                        }
+                                    }
+                                    this.onRefresh = {
+                                        // 同绳子语义：刷新必须回到第一页，并把列表滚回顶部，
+                                        // 否则数据换了但视口还停在半空中
+                                        scope.launch { gridState.animateScrollToItem(0) }
+                                        doRefresh()
+                                    }
+                                }
+                                // 2 = 原绳子
                                 else -> RopeRefreshView(ctx).apply {
                                 alpha = RopeRefreshView.IDLE_ALPHA
                                 // 控件 04：刷新珠子注入主题三色（原版三色追逐）
@@ -481,8 +527,19 @@ fun ForumFeedPage(
                             // 2026-10-17：票夹改为「滚动超过视口 ~8% 才现身」——默认位完全让路
                             // 给卡片（不画、不拦截触摸）；现身后的滚动淡出仍走 pullAlpha。
                             // INVISIBLE = 不绘制且不参与触摸，彻底解决「下方帖子难点进」。
-                            view.visibility = if (ticketRevealed) android.view.View.VISIBLE
-                            else android.view.View.INVISIBLE
+                            // 相机扳手例外（2026-10-18）：隐现动画在 View 内 alpha/位移自理，
+                            // 走 INVISIBLE 会在首页顶部把它永久藏掉（ticketRevealed 仅票夹语义）。
+                            view.visibility = when {
+                                view is CameraLeverView -> android.view.View.VISIBLE
+                                ticketRevealed -> android.view.View.VISIBLE
+                                else -> android.view.View.INVISIBLE
+                            }
+                            // 相机扳手分支：revealed（滚动隐现）与 refreshing（曝光中）权威回写
+                            //（宪法 23.A.3：页面状态驱动控件，控件不自猜）
+                            (view as? CameraLeverView)?.let { v ->
+                                v.setRevealed(leverRevealed)
+                                v.setRefreshing(refreshing)
+                            }
                             // 桥接戏票档浓票纸（宪法20）：每次重组按当前主题注入 palette
                             (view as? TicketPullView)?.let { v ->
                                 // 刷新态由 HomeFeed 状态权威驱动（2026-10-16 根因修复：
@@ -498,18 +555,38 @@ fun ForumFeedPage(
                                 )
                             }
                         },
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            // 水平定位链：end 2dp + 控件内 clipRightGap 8dp = 票纸右缘
-                            // 距屏 10dp，与瀑布流 contentPadding end 严格对齐（外框贴合）
-                            .padding(top = TopBarHeight, end = 2.dp)
-                            // 宽度必须包住整张票（116dp）+ 右对齐余量：旧版 96dp 窄容器
-                            // 让票纸左右各溢出 10dp，alpha<1 时被离屏层按边界裁切
-                            // = "淡入先部分出现、回 1 才整体弹出"
-                            .size(width = 140.dp, height = 300.dp)
-                            .zIndex(2f)
-                            // 滚动时整体淡出（FAB 行为）：解决"固定在右上压住卡片/与内容混叠"
-                            .alpha(pullAlpha)
+                        modifier = if (PULL_IMPL == 1)
+                            // 相机扳手：62×170dp（HTML 尺寸；浮现位移在 View 内完成不越界，
+                            // 宪法 23.B）；end 13dp = HTML right:16px 的斐波那契取整
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = TopBarHeight, end = 13.dp)
+                                .size(width = 62.dp, height = 170.dp)
+                                .zIndex(2f)
+                        else
+                            // 票夹（现状）：水平定位链 end 2dp + 控件内 clipRightGap 8dp =
+                            // 票纸右缘距屏 10dp，与瀑布流 contentPadding end 严格对齐（外框贴合）
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                // 宽度必须包住整张票（116dp）+ 右对齐余量：旧版 96dp 窄容器
+                                // 让票纸左右各溢出 10dp，alpha<1 时被离屏层按边界裁切
+                                // = "淡入先部分出现、回 1 才整体弹出"
+                                .padding(top = TopBarHeight, end = 2.dp)
+                                .size(width = 140.dp, height = 300.dp)
+                                .zIndex(2f)
+                                // 滚动时整体淡出（FAB 行为）：解决"固定在右上压住卡片/与内容混叠"
+                                .alpha(pullAlpha)
+                    )
+                    } // key(PULL_IMPL) 结束
+
+                    // 实验功能：快门全屏白闪 overlay（相机扳手 onShutter 驱动；
+                    // 无点击语义不拦截触摸；alpha=0 时不可见。宪法 16：用户主动低频操作，
+                    // 属 L2 级反馈——收敛版只白闪不压暗，拍板 3）
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .zIndex(8f)
+                            .background(Color.White.copy(alpha = flashAlpha.value))
                     )
 
                     // 方案 01 移植版：底部 WheelJumpSheet（grab+状态 chip+停稳武装+长按 1s ring）

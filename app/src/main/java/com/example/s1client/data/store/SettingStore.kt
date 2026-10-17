@@ -107,6 +107,10 @@ object SettingStore {
     /** 实验功能：转盘翻页（详情页翻页每档 tick 触觉）——默认关 */
     fun dialPaging(context: Context): Boolean = prefs(context).getBoolean("dial_paging", false)
 
+    /** 实验功能：相机过片扳手刷新（开启后首页右上浮件换成相机扳手，拨动松手触发刷新）——默认关 */
+    fun cameraLeverRefresh(context: Context): Boolean =
+        prefs(context).getBoolean("camera_lever_refresh", false)
+
     // ————————— 深色跟随系统（阶段四 2026-10-17）—————————
 
     /** 深色跟随系统：开启后系统深浅自动映射 焙茶↔Linear；手动选主题会自动关闭（ThemeManager） */
@@ -118,6 +122,12 @@ object SettingStore {
     }
     fun setDialPaging(context: Context, on: Boolean) {
         prefs(context).edit().putBoolean("dial_paging", on).apply()
+        bump()
+    }
+
+    fun setCameraLeverRefresh(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean("camera_lever_refresh", on).apply()
+        // bump 触发整 App 重组：首页 PULL_IMPL 读取即时切换（宪法 23.A.3 权威驱动）
         bump()
     }
 

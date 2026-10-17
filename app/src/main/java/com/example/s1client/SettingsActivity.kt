@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Logout
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.outlined.Delete
@@ -448,11 +449,21 @@ fun SettingsScreen(onFinish: () -> Unit) {
 
         // ═══ 实验功能 ═══
         // 2026-10-15：转盘翻页实验剔除（与预期出入）；分组保留，后续新想法在此上架
+        // 2026-10-18：相机扳手刷新上架（设计者直派，HTML 原型移植，默认关）
         GroupTitle("实验功能")
         Group {
-            SettingRow(Icons.Outlined.Tune, "更多实验功能筹备中",
-                sub = "新交互想法会先在这里上架试玩，稳定后转正"
-            ) { Chevron() }
+            var camLever by remember { mutableStateOf(SettingStore.cameraLeverRefresh(context)) }
+            SettingRow(Icons.Outlined.PhotoCamera, "相机扳手刷新",
+                sub = "开启后首页右上换成相机，下拉扳手松手触发刷新"
+            ) {
+                S1Switch(
+                    checked = camLever,
+                    onCheckedChange = {
+                        SettingStore.setCameraLeverRefresh(context, it)
+                        camLever = it
+                    }
+                )
+            }
         }
 
         // ═══ 发帖 ═══
