@@ -128,3 +128,5 @@
 - 2026-10-17 字体导入修复真机验证通过（一加13T）：S1Font 日志 family覆盖=true，真机截图全局手写体生效（outputs/shots/p16_font_applied.png）。PROBLEMS P10 关闭。用户此前测试失效的完整解释：旧装机包是编译失败时期的陈旧 APK（无 P10）+ P10 之前的根因（应用层从未实现）。
 
 - 2026-10-17 GitHub Release v1.1.0 上线（用户指令"此版本 apk 上传到 GitHub 对应的下载入口"）：签名包 S1Client-v1.1.0-release.apk（6.2MB，CN=S1Client 证书）上传 Release asset；更新日志追加本轮重要功能；releases/latest API 端到端验证通过（tag=v1.1.0 assets=1）——检查更新渠道从此有真实数据，未来发版走同一入口。
+
+- 2026-10-17 CI 全绿确认 + P15 触达区落地推送（bbd02dd）：forkEvery(1) 修复后 CI 连续三轮绿（a356f73/bbd02dd/后续）；触达区外扩真机待用户日常体感复核。PROBLEMS P15 触达部分标记完成（9sp 字号部分仍待拍板）。
