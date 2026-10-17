@@ -11,6 +11,7 @@ import com.example.s1client.data.model.SubForum
 import com.example.s1client.data.store.BlockedAuthorManager
 import com.example.s1client.data.store.DataSaverStore
 import com.example.s1client.data.store.ReadHistoryStore
+import com.example.s1client.data.store.SettingStore
 import com.example.s1client.data.store.HiddenPostManager
 import com.example.s1client.util.TimeUtil
 import kotlinx.coroutines.Dispatchers
@@ -343,7 +344,10 @@ class PostViewModel(app: Application) : AndroidViewModel(app) {
             _readTids.value = next
             prefs.edit().putStringSet(KEY_READ, next).apply()
         }
-        ReadHistoryStore.add(getApplication(), tid, title)
+        // 阅读历史开关（R1 低成本批）：关闭时不落库，已有的历史数据保留
+        if (SettingStore.recordHistory(getApplication())) {
+            ReadHistoryStore.add(getApplication(), tid, title)
+        }
     }
 
     /** 塞抹布 */
