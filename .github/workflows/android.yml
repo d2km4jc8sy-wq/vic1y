@@ -50,5 +50,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: screenshots
-          path: app/build/screenshots/
-          if-no-files-found: ignore
+          path: |
+            app/build/screenshots/*.png
+            app/build/screenshots/matrix_report.txt
+          if-no-files-found: error
