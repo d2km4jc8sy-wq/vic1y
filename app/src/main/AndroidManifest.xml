@@ -94,5 +94,6 @@
         <activity android:name="com.example.s1client.feature_network.NetworkParamsActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
+        <activity android:name="com.example.s1client.feature_privacy.PrivacyActivity" android:exported="false" android:screenOrientation="portrait" />
 </application>
 </manifest>

@@ -41,6 +41,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Palette
@@ -408,6 +409,13 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 Icons.Outlined.CloudDownload, "检查更新",
                 sub = "从发布渠道获取最新版本",
                 onClick = { checkForUpdates() }
+            ) { Chevron() }
+
+            // 隐私政策（PROBLEMS P13）：内置全文，分发合规配套
+            SettingRow(
+                Icons.Outlined.PrivacyTip, "隐私政策",
+                sub = "我们不收集任何个人数据",
+                onClick = { context.startActivity(com.example.s1client.feature_privacy.PrivacyActivity.intent(context)) }
             ) { Chevron() }
         }
 
