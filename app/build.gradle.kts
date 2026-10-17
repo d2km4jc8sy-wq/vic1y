@@ -45,9 +45,9 @@ android {
         applicationId = "com.example.s1client"
         minSdk = 24
         targetSdk = 35
-        // versionCode = git 提交数（见文件顶部）；versionName 1.1.0：Beta 阶段起点
+        // versionCode = git 提交数（见文件顶部）；versionName 1.1.1：三档/图标切换/备份恢复批
         versionCode = gitCommitCount
-        versionName = "1.1.0"
+        versionName = "1.1.1"
     }
 
     compileOptions {
