@@ -139,7 +139,11 @@ object SettingStore {
         val name = customFontName(context) ?: return null
         if (!fontFile(context).exists()) return null
         if (cachedTypeface != null && typefaceCacheKey == name) return cachedTypeface
-        val tf = runCatching { android.graphics.Typeface.createFromFile(fontFile(context)) }.getOrNull()
+        val f = fontFile(context)
+        val tf = runCatching { android.graphics.Typeface.createFromFile(f) }
+            .onFailure { err -> android.util.Log.e("S1Font", "createFromFile 失败: ${err.message}") }
+            .getOrNull()
+        android.util.Log.d("S1Font", "load: name=$name exists=${f.exists()} size=${f.length()} tf=${tf != null}")
         cachedTypeface = tf
         typefaceCacheKey = name
         return tf

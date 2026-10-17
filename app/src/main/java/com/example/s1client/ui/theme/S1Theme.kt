@@ -398,9 +398,11 @@ fun S1Theme(
         val family: androidx.compose.ui.text.font.FontFamily = try {
             val frameworkTypeface = android.graphics.Typeface.createFromFile(customFontFile)
             androidx.compose.ui.text.font.FontFamily(frameworkTypeface)
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
+            android.util.Log.e("S1Font", "theme: createFromFile 失败: ${e.message}")
             androidx.compose.ui.text.font.FontFamily.Default
         }
+        android.util.Log.d("S1Font", "theme: file=${customFontFile.exists()} family覆盖=${family != androidx.compose.ui.text.font.FontFamily.Default}")
         applyFontFamily(materialTypography(), family)
     } else {
         materialTypography()
