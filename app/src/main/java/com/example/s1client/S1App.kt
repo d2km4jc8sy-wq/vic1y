@@ -1,6 +1,7 @@
 package com.example.s1client
 
 import android.app.Activity
+import com.example.s1client.data.store.SettingStore
 import android.app.Application
 import android.os.Bundle
 import com.example.s1client.data.api.RetrofitClient
@@ -44,7 +45,8 @@ class S1App : Application(), Application.ActivityLifecycleCallbacks {
             .build()
         val imageDiskCache = coil.disk.DiskCache.Builder()
             .directory(cacheDir.resolve("image_cache"))
-            .maxSizeBytes(100L * 1024 * 1024)
+            // 缓存上限档位化（R1 低成本批）：设置→数据管理可调，默认 100MB 与历史行为一致
+            .maxSizeBytes(SettingStore.cacheCapMb(this).coerceAtLeast(50).toLong() * 1024L * 1024L)
             .build()
 
         coil.Coil.setImageLoader(

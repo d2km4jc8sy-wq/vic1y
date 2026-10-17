@@ -131,10 +131,11 @@ object SettingStore {
     }
 
     /**
-     * 图片磁盘缓存上限（MB）：256/512/1024/2048 档，默认 512。
+     * 图片磁盘缓存上限（MB）：100/256/512/1024/2048 档，默认 100
+     * （与历史行为一致——S1App 曾把 Coil 默认 250MB 收紧到 100MB）。
      * S1App 构建 Coil DiskCache 时读取（maxSizeBytes）。
      */
-    fun cacheCapMb(context: Context): Int = prefs(context).getInt("cache_cap_mb", 512)
+    fun cacheCapMb(context: Context): Int = prefs(context).getInt("cache_cap_mb", 100)
 
     fun setCacheCapMb(context: Context, mb: Int) {
         prefs(context).edit().putInt("cache_cap_mb", mb).apply()
