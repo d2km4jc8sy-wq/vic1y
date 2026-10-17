@@ -60,4 +60,17 @@ object AppIconManager {
         apply(context, next.id)
         return next.label
     }
+
+    /**
+     * 启动自愈（2026-10-17 修复"点图标进应用详情"）：
+     * 覆盖安装不会重置 PackageManager 的组件开关记录——若曾切到后来被删除的
+     * 变体（如旧占位蓝/绿/紫），PMS 残留"默认禁用+已删变体启用"，升级后
+     * 桌面入口指向不存在的组件，launcher 兜底跳应用详情。
+     * 本方法在 S1App 启动时调用：SP 记录失效则回退默认；并重申整套 alias
+     * 启用状态（幂等，治 PMS 残留错乱）。
+     */
+    fun ensureValid(context: Context) {
+        val cur = current(context)
+        apply(context, if (VARIANTS.any { it.id == cur }) cur else "default")
+    }
 }
