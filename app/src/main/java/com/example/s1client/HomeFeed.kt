@@ -52,6 +52,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
@@ -65,6 +66,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
@@ -456,8 +458,38 @@ fun ForumFeedPage(
                                 }
                             }
                     }
-                    // 快门白闪 alpha（相机扳手 onShutter 驱动；收敛版：只白闪不压暗——拍板 3）
-                    val flashAlpha = remember { Animatable(0f) }
+                    // 快门刷新遮罩 alpha（相机扳手 PULL_IMPL=1；refreshing 权威驱动，
+                    // 宪法 23.A.3）。轻量版（拍板 3 · 2026-10-18 设计者选"补个轻量版"）：
+                    // HTML 原样 = 压暗 85% + blur 10px；去模糊、压暗降至 60%，
+                    // 保留 📷 脉冲 + 「快门曝光中...」；300ms 淡入淡出（HTML 0.3s）。
+                    // 白闪已按设计者 2026-10-18 反馈去掉（刺眼），快门瞬间改由
+                    // 「扳手回位 + 相机退场 + 遮罩淡入」三段式表达。
+                    val maskAlpha = remember { Animatable(0f) }
+                    LaunchedEffect(refreshing) {
+                        maskAlpha.animateTo(if (refreshing) 1f else 0f, tween(300))
+                    }
+                    // 遮罩内容只在 >0.01 时参与组合（derivedStateOf：阈值翻转才重组，不跟帧）
+                    val maskVisible by remember {
+                        androidx.compose.runtime.derivedStateOf { maskAlpha.value > 0.01f }
+                    }
+                    // 📷 图标脉冲（HTML rmPulse 1s：scale 1↔1.15 + alpha 0.8↔1）
+                    val shutterPulse = rememberInfiniteTransition(label = "shutterPulse")
+                    val pulseScale by shutterPulse.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 1.15f,
+                        animationSpec = infiniteRepeatable(
+                            tween(500, easing = FastOutSlowInEasing), RepeatMode.Reverse
+                        ),
+                        label = "pulseScale"
+                    )
+                    val pulseAlpha by shutterPulse.animateFloat(
+                        initialValue = 0.8f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            tween(500, easing = FastOutSlowInEasing), RepeatMode.Reverse
+                        ),
+                        label = "pulseAlpha"
+                    )
 
                     // 桥接戏票档浓票纸（宪法20）：在 composable 上下文算好 palette，再喂给 update lambda
                     val s1PullPalette = ticketPaletteFor(LocalS1Colors.current)
@@ -490,14 +522,6 @@ fun ForumFeedPage(
                                 }
                                 // 1 = 相机过片扳手（实验开关，HTML 原型移植，2026-10-18 设计者直派）
                                 1 -> CameraLeverView(ctx).apply {
-                                    this.onShutter = {
-                                        // 快门白闪：48ms 冲到 0.95 再 360ms 衰减（HTML flashAnim 0.4s 节奏）
-                                        scope.launch {
-                                            flashAlpha.snapTo(0f)
-                                            flashAlpha.animateTo(0.95f, tween(48))
-                                            flashAlpha.animateTo(0f, tween(360))
-                                        }
-                                    }
                                     this.onRefresh = {
                                         // 同绳子语义：刷新必须回到第一页，并把列表滚回顶部，
                                         // 否则数据换了但视口还停在半空中
@@ -537,7 +561,9 @@ fun ForumFeedPage(
                             // 相机扳手分支：revealed（滚动隐现）与 refreshing（曝光中）权威回写
                             //（宪法 23.A.3：页面状态驱动控件，控件不自猜）
                             (view as? CameraLeverView)?.let { v ->
-                                v.setRevealed(leverRevealed)
+                                // 曝光期间相机退场（HTML：遮罩出场时组件隐藏），
+                                // 刷新结束随 leverRevealed 重浮现——扳手回位→相机退场→遮罩→回归
+                                v.setRevealed(leverRevealed && !refreshing)
                                 v.setRefreshing(refreshing)
                             }
                             // 桥接戏票档浓票纸（宪法20）：每次重组按当前主题注入 palette
@@ -579,15 +605,44 @@ fun ForumFeedPage(
                     )
                     } // key(PULL_IMPL) 结束
 
-                    // 实验功能：快门全屏白闪 overlay（相机扳手 onShutter 驱动；
+                    // 实验功能：快门刷新遮罩 overlay（相机扳手 PULL_IMPL=1 · refreshing 驱动；
                     // 无点击语义不拦截触摸；alpha=0 时不可见。宪法 16：用户主动低频操作，
-                    // 属 L2 级反馈——收敛版只白闪不压暗，拍板 3）
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .zIndex(8f)
-                            .background(Color.White.copy(alpha = flashAlpha.value))
-                    )
+                    // 属 L2 级反馈。轻量版（拍板 3）：压暗 60% 无 blur；白闪已按设计者
+                    // 2026-10-18 反馈去除（刺眼）。色彩纪律：scrim 为固定深色拟物压暗层
+                    // （宪法 18 固有色例外——语义恒深、不随主题翻转故无主题间差异）；
+                    // 其上图标文字用固定浅白，保双主题可读（宪法 15 可读性优先）
+                    if (PULL_IMPL == 1) {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .zIndex(8f)
+                                .background(Color(0xFF121214).copy(alpha = 0.6f * maskAlpha.value))
+                        ) {
+                            if (maskVisible) {
+                                Column(
+                                    modifier = Modifier.align(Alignment.Center),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.PhotoCamera,
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.92f),
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .scale(if (maskVisible) pulseScale else 1f)
+                                            .alpha(if (maskVisible) pulseAlpha else 0.9f)
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                    Text(
+                                        text = "快门曝光中...",
+                                        fontSize = 13.sp,
+                                        letterSpacing = 2.sp,
+                                        color = Color.White.copy(alpha = 0.92f)
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     // 方案 01 移植版：底部 WheelJumpSheet（grab+状态 chip+停稳武装+长按 1s ring）
                     val s1ForSheet = LocalS1Colors.current

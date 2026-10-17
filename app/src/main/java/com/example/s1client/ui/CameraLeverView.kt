@@ -22,8 +22,10 @@ import com.example.s1client.R
  * 自绘一次过；HTML 数值已锁定到 companion 常量并有单测锚点防回归）。
  *
  * 结构：右上角浮件——相机机身（52dp 圆角方）+ 镜头 + 过片扳手（38×8dp 金属条，右端为轴）。
- * 手势：向下拨动扳手（分档咔哒震感）→ 过 55° 发光提示「松手拍摄」→ 松手触发刷新
- * （快门组合震 + 扳手 300ms 回位 + onShutter 全屏白闪回调 + onRefresh）。
+ * 手势：向下拨动扳手（分档咔哒震感）→ 过 55° 发光就绪 → 松手触发刷新
+ * （快门组合震 + 扳手 300ms 回位 + onRefresh）。
+ * 曝光中反馈在页面层（HomeFeed 刷新遮罩 overlay：📷 脉冲 + 「快门曝光中...」），
+ * 本控件不画任何提示文字（2026-10-18 设计者反馈：提示字与白闪去掉，护眼）。
  *
  * 配色纪律（宪法 18）：
  * - 发光 / 提示字 / 镜面反光全部主题派生（s1Accent / s1TextTertiary，onDraw 自愈取色）；
@@ -76,9 +78,7 @@ class CameraLeverView @JvmOverloads constructor(
         const val LEVER_LEN_DP = 38f
         const val LEVER_H_DP = 8f
         const val KNOB_DP = 14f
-        /** 提示字（HTML 9px 过小；宪法 15 可读性优先抬到 12sp） */
-        const val HINT_SP = 12f
-        /** View 建议尺寸：宽 62dp + 高 60(缓冲)+52(机身)+30(扳手)+~28(提示) */
+        /** View 建议尺寸：宽 62dp + 高 60(缓冲)+52(机身)+扳手全摆程(~106→ knob 底 ~166) */
         const val VIEW_W_DP = 62f
         const val VIEW_H_DP = 170f
     }
@@ -97,7 +97,6 @@ class CameraLeverView @JvmOverloads constructor(
 
     // ————————— 主题派生色（resolveAttr，onDraw 自愈跟色） —————————
     private var accentColor = 0
-    private var hintIdleColor = 0
     private fun resolveAttr(attr: Int): Int {
         val tv = android.util.TypedValue()
         context.theme.resolveAttribute(attr, tv, true)
@@ -105,10 +104,8 @@ class CameraLeverView @JvmOverloads constructor(
     }
     private fun refreshThemeColors() {
         val accent = resolveAttr(R.attr.s1Accent)
-        val hintIdle = resolveAttr(R.attr.s1TextTertiary)
-        if (accent != accentColor || hintIdle != hintIdleColor) {
+        if (accent != accentColor) {
             accentColor = accent
-            hintIdleColor = hintIdle
             invalidate()
         }
     }
@@ -116,8 +113,6 @@ class CameraLeverView @JvmOverloads constructor(
     // ————————— 回调 —————————
     /** 触发刷新（调用方负责滚回第一页并走刷新流程） */
     var onRefresh: (() -> Unit)? = null
-    /** 快门瞬间回调（Compose 侧放全屏白闪 overlay） */
-    var onShutter: (() -> Unit)? = null
 
     // ————————— 状态 —————————
     private var angle = BASE_ANGLE
@@ -140,18 +135,12 @@ class CameraLeverView @JvmOverloads constructor(
     private val leverPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val knobPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.CENTER
-        letterSpacing = 0.08f
-        isFakeBoldText = false
-    }
     private val bodyRect = RectF()
     private val tmpRect = RectF()
 
     init {
         alpha = 0f
         translationY = REVEAL_SHIFT_DP * d
-        hintPaint.textSize = HINT_SP * resources.displayMetrics.scaledDensity
         refreshThemeColors()
     }
 
@@ -162,7 +151,6 @@ class CameraLeverView @JvmOverloads constructor(
     /** 扳手轴心：机身中线 +20dp、机底 +8dp（HTML zone 右缘 = 中线+20，条中心 y = 机底+8） */
     private val leverPivotX get() = bodyCx + 20f * d
     private val leverPivotY get() = bodyBottomY + 8f * d
-    private val hintBaseline get() = bodyBottomY + 28f * d + 12f * d
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -240,15 +228,6 @@ class CameraLeverView @JvmOverloads constructor(
         )
         canvas.drawCircle(tmpRect.left + 4f * d, leverPivotY, KNOB_DP / 2 * d, knobPaint)
         canvas.restore()
-
-        // ---- 提示字：拨动过片 / 松手拍摄 / 曝光中... ----
-        val hint = when {
-            exposing -> "曝光中..."
-            ready -> "松手拍摄"
-            else -> "拨动过片"
-        }
-        hintPaint.color = if (ready || exposing) accentColor else hintIdleColor
-        canvas.drawText(hint, cx, hintBaseline, hintPaint)
     }
 
     // ————————— 手势：只有扳手区消费触摸，其余穿透给下方卡片 —————————
@@ -302,13 +281,12 @@ class CameraLeverView @JvmOverloads constructor(
         return false
     }
 
-    /** 松手触发：快门震 + 扳手 300ms 回位 + 白闪回调 + 刷新回调 */
+    /** 松手触发：快门震 + 扳手 300ms 回位 + 刷新回调 */
     private fun fire() {
         busy = true
         exposing = true
         // HTML vibrate[20,50,100] 快门节奏 ≈ SUCCESS「哒哒—嗒」组合震
         com.example.s1client.util.Haptic.success(context)
-        onShutter?.invoke()
         resetAnimator?.cancel()
         resetAnimator = ValueAnimator.ofFloat(angle, BASE_ANGLE).apply {
             duration = 300L
