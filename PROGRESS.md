@@ -109,3 +109,11 @@
   - 41d7b2a+4bbb52c 深色跟随系统：ThemeManager 跟随模式（mapFollowSystem 纯函数 + applyTheme 拆分 + 手动选主题自动退出跟随）+ SettingStore 持久化 + S1App.onConfigurationChanged 转发 + 设置页外观组开关行（默认关=零行为变化）。系统深→Linear、浅→焙茶；FollowSystemThemeTest 3 用例锚定映射与可见主题约束。设计要点：不碰主题架构红线（调色板体系原样），只加映射层。
   - 备用域名容灾——**需求作废**：研究员实测（notes_domains.md，主域+7 候选逐一 DNS/HTTP/内容探测）：当前无任何可用的 Discuz 备用/镜像域（www/bbs.stage1st.com 同 IP 未开服 404、saraba1st DNS 注销、stage1st.net/s1.lu 为异社区、bbs.imoutolove.me 实为 South+ 系、ac.stage3rd.com 为 Spb 独立站）；唯一健康入口 = 主域。原"备用域切换"需求前提不成立，不做假功能；客户端侧已有 retryOnConnectionFailure + 60s callTimeout 兜底。Cookie 互通备选空间（www/bbs 子域未来开服）已留档。
   - 本地：145 用例 0 失败 + assembleDebug 绿。装 OnePlus 13T 待用户日常复核深色跟随开关。
+
+- 2026-10-17 发布工程第二轮（用户三需求：网络参数页/检查更新/字体导入修复）：
+  - 69219f9 网络参数页（PROBLEMS P8，feature_network 模板目录）：强制替换基础网址 + 强制使用 IP 列表（默认值=当前正确数据 47.97.161.219，s1er 同款）。实现走 OkHttp Dns 覆盖（IP 直连时 SNI/证书仍按原域名校验，比 s1er 的 Host 头方案稳）+ 首位重写拦截器（基础网址整 host 切换，Cookie 按域隔离=切换后重登录）；参数快照 @Volatile 每请求实时读取，变化即时生效无需重建；无效输入自动回落主域。设置页数据管理组入口。NetworkParamsTest 7 用例锚定解析契约。
+  - 6354d9e 检查更新（PROBLEMS P9，feature_update）：GitHub Releases latest 渠道 + 分段数值版本比较（1.10>1.9）+ 发现新版本弹窗（版本/说明/忽略此版/稍后提醒/立即更新=浏览器下载）+ 忽略此版本地持久化 + 设置页关于组入口。UpdateCheckerTest 7 用例。注：仓库私有且无 Release → 检查结果如实提示「渠道暂无发布」；转公开/自建 JSON 后零改动生效。
+  - 字体导入「测试失败」根因确诊：导入仅存储文件+名字，**应用层从未实现**（fontFile 全项目零消费方）——半成品功能。修复方案已设计（S1Theme LocalTextStyle 覆盖盖 Compose 侧 + LayoutInflater.Factory2 盖 View 侧），列入下轮首个切片（PROBLEMS P10 保持 OPEN）。
+  - ⚠ 事故二连（已全部恢复，经验入账）：①工作区过期副本覆盖 D 盘——build.gradle.kts 丢 versionCode 自动化、manifest 丢 allowBackup/exported 修复（compileSdk 编辑时用错副本），装机 versionName=1.0 才暴露，aapt2 badging 精确确诊后按提交历史恢复；②PowerShell 双引号 \n 字面量事故再犯（ChangelogScreen Icon 块挤成一行 + waitForIdle 替换语句异常吞掉弹窗写入）——多行代码注入一律 python 字节级操作或 edit 工具，禁用双引号 \n 拼接。流程铁律新增：exec 直改 D 盘后必须立刻回同步工作区；装机前必须 aapt2 dump badging 验版本。
+  - 设备切换：小米10 Ultra（Android 13 已 root）→ 一加 13T PKX110（Android 16 未 root，serial 6a8a1c57）。Android 16 + targetSdk 35 首验通过（边到边无破版、零 FATAL、1.1.0 运行中）。新机需重新登录；UI 自动化受限（未 root）。
+  - 本地：159 用例（152+7 检查更新）0 失败 + assembleDebug 绿；真机零 FATAL。
