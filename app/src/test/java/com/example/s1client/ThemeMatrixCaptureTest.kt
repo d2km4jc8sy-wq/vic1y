@@ -79,6 +79,7 @@ class ThemeMatrixCaptureTest {
         val h = 2000
         val dir = File("build/screenshots").apply { mkdirs() }
         val failures = mutableListOf<String>()
+        val reportLines = mutableListOf<String>()
 
         // 预热：Application 先建好、ThemeManager.init() 落定（appContext 就位），
         // 之后循环内的 setTheme 才能立即生效并持久化，不被存档默认值覆盖。
@@ -119,6 +120,12 @@ class ThemeMatrixCaptureTest {
                         "MATRIX $name req=$theme effective=${ThemeManager.currentTheme} " +
                             "pngBytes=${png.length()} uniqueColors=${sampled.size}"
                     )
+                    reportLines.add(
+                        "$name | req=$theme | eff=${ThemeManager.currentTheme} | " +
+                            "bytes=${png.length()} | uniqueColors=${sampled.size} | " +
+                            "min=${page.minUniqueColors} | " +
+                            (if (sampled.size >= page.minUniqueColors) "PASS" else "FAIL")
+                    )
                     assertTrue(
                         "$name 渲染应为真实内容（唯一颜色数=${sampled.size}，下限=${page.minUniqueColors}）",
                         sampled.size >= page.minUniqueColors
@@ -137,6 +144,11 @@ class ThemeMatrixCaptureTest {
             }
         }
 
+        // 实测报告落盘（随 artifact 上传，供阈值标定与人工审阅）
+        runCatching {
+            val rf = File("build/screenshots/matrix_report.txt")
+            rf.writeText(reportLines.joinToString("\n") + "\n")
+        }
         assertTrue(
             "矩阵存在未达标组合（${failures.size}/$totalCombos）:\n" + failures.joinToString("\n"),
             failures.isEmpty()
