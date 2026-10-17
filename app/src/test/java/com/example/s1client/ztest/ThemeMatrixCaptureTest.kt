@@ -41,9 +41,11 @@ import java.io.File
  * Linear 墨蓝(6)。故 theme1/3 实渲染 Linear、theme2/4 实渲染焙茶午后；落盘文件仍按
  * 请求索引命名，未来放开隐藏主题时矩阵自动接管真实渲染，无需改测试。
  *
- * 断言阈值按页分档（首 5 万像素唯一颜色数，实测可调）：
- * main ≥ 10（离线态 PostViewModel 降级 Loading 骨架，颜色偏少属正常）、
- * settings ≥ 30、changelog ≥ 50。另有：文件存在 + 大小 > 0 字节。
+ * 断言阈值按页分档（首 5 万像素唯一颜色数；2026-10-17 按 CI run 39021446210 /
+ * commit b6c44bc 的 matrix_report.txt 实测标定）：
+ * main ≥ 150（实测 321–459）、settings ≥ 12（实测：浅色 256、深色 19–20——
+ * 暗/深色主题顶栏本就平坦，12 仍高于"Compose 未挂载时趋近个位数"的失败特征）、
+ * changelog ≥ 100（实测 156–169）。另有：文件存在 + 大小 > 0 字节。
  * 单组失败不中断矩阵：记录后继续跑完 21 组，最后一次性汇总，CI 一轮看全貌。
  *
  * Windows 本机 NATIVE runtime 缺失（Robolectric 4.11.1 只发 Linux/macOS
@@ -71,9 +73,9 @@ class ThemeMatrixCaptureTest {
         )
 
         val pages = listOf(
-            Page("main", 10, MainActivity::class.java),
-            Page("settings", 30, SettingsActivity::class.java),
-            Page("changelog", 50, ChangelogActivity::class.java),
+            Page("main", 150, MainActivity::class.java),
+            Page("settings", 12, SettingsActivity::class.java),
+            Page("changelog", 100, ChangelogActivity::class.java),
         )
         val themes = ThemeManager.THEME_LIGHT..ThemeManager.THEME_LINEAR
         val totalCombos = themes.count() * pages.size
