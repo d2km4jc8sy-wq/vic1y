@@ -90,9 +90,10 @@ object SettingStore {
     fun stripTail(message: String): String =
         message.replace(Regex("""\[size=1]\[color=gray]——.*?\[/color]\[/size]\s*$"""), "").trimEnd()
 
-    // ————————— 文字大小（八档 2026-10-17 补档：12/13/14/15/16/17/18/20，对标 fontSize） —————————
+    // ————————— 文字大小（四档 12/14/16/18；2026-10-17 曾扩八档，经用户指出越权后回滚，
+    // 记录见 PROGRESS——可见设置项增删属行为变更，须逐项拍板） —————————
 
-    val FONT_SIZES = intArrayOf(12, 13, 14, 15, 16, 17, 18, 20)
+    val FONT_SIZES = intArrayOf(12, 14, 16, 18)
     private const val DEFAULT_BODY_SIZE = 14
 
     fun fontSize(context: Context): Int =
