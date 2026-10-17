@@ -111,6 +111,9 @@ android {
 // （ComponentTest 的 AppNotIdleException，CI run 39003987274 实证）——
 // 默认 test 任务排除它；CI 用 -PrunMatrix 单独调用（独立 JVM）+ 上传截图。
 tasks.withType<Test> {
+    // forkEvery(1)：每个测试类独立 JVM——NATIVE 截图类（矩阵/冒烟）的图形状态
+    // 不再泄漏到同沙箱的后续测试（ComponentTest AppNotIdle 三连，CI+本地双实证）
+    setForkEvery(1)
     if (!project.hasProperty("runMatrix")) {
         exclude("**/ThemeMatrixCaptureTest*")
     }
