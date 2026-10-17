@@ -169,6 +169,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
     var showClearHistory by remember { mutableStateOf(false) }
     var showResetAppearance by remember { mutableStateOf(false) }
     var showDiag by remember { mutableStateOf(false) }
+    var showClearCache by remember { mutableStateOf(false) }
     var diagText by remember { mutableStateOf("") }
     var showTailEdit by remember { mutableStateOf(false) }
     // —— 检查更新状态（PROBLEMS P9）——
@@ -396,21 +397,11 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 onClick = { showClearHistory = true }
             ) {}
 
+            // 防误点（用户拍板 2026-10-17）：清除前弹确认
             SettingRow(
                 Icons.Outlined.Delete, "清除图片缓存",
                 sub = cacheText,
-                onClick = {
-                    scope.launch {
-                        val cleared = withContext(Dispatchers.IO) {
-                            val dir = imageCacheDir(context)
-                            val size = dirSize(dir)
-                            dir.deleteRecursively()
-                            size
-                        }
-                        cacheText = formatSize(0L)
-                        S1Notify.show(context, "已清除图片缓存", S1Notify.Type.SUCCESS)
-                    }
-                }
+                onClick = { showClearCache = true }
             ) {}
 
             // 图片缓存上限（R1）：点击在五档间循环，重启后对 Coil DiskCache 生效
@@ -419,6 +410,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 Icons.Outlined.DataUsage, "图片缓存上限",
                 sub = "当前 $cacheCap MB · 点击切换",
                 onClick = {
+                    Haptic.selection(context)
                     val opts = intArrayOf(100, 256, 512, 1024, 2048)
                     val idx = opts.indexOf(cacheCap).let { if (it < 0) 0 else it }
                     val next = opts[(idx + 1) % opts.size]
@@ -433,6 +425,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 Icons.Outlined.FormatSize, "每楼层图片上限",
                 sub = (if (imgCap > 0) "当前 $imgCap 张" else "当前不限") + " · 点击切换",
                 onClick = {
+                    Haptic.selection(context)
                     val opts = intArrayOf(0, 3, 6, 9)
                     val idx = opts.indexOf(imgCap).let { if (it < 0) 0 else it }
                     val next = opts[(idx + 1) % opts.size]
@@ -591,6 +584,29 @@ fun SettingsScreen(onFinish: () -> Unit) {
             },
             confirmButton = {
                 TextButton(onClick = { showDiag = false }) { Text("关闭", color = c.accent) }
+            }
+        )
+    }
+    if (showClearCache) {
+        AlertDialog(
+            onDismissRequest = { showClearCache = false },
+            title = { Text("清除图片缓存", color = c.textMain) },
+            text = { Text("将删除已缓存的图片文件（当前 $cacheText），不影响帖子和登录数据。确定吗？", color = c.textSub) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showClearCache = false
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            imageCacheDir(context).deleteRecursively()
+                        }
+                        cacheText = formatSize(0L)
+                        Haptic.selection(context)
+                        S1Notify.show(context, "已清除图片缓存", S1Notify.Type.SUCCESS)
+                    }
+                }) { Text("确定", color = Color(0xFFFF3B30)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearCache = false }) { Text("取消", color = c.textSub) }
             }
         )
     }
