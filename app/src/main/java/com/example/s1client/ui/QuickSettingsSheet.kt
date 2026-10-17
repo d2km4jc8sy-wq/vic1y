@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Palette
@@ -46,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.s1client.data.store.DataSaverStore
+import com.example.s1client.data.store.ImageLoadPolicy
 import com.example.s1client.data.store.SettingStore
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.util.Haptic
@@ -76,7 +78,8 @@ fun QuickSettingsSheet(
     var fontSize by remember { mutableIntStateOf(SettingStore.fontSize(context)) }
     var fontName by remember { mutableStateOf(SettingStore.customFontName(context)) }
     var hapticOn by remember { mutableStateOf(Haptic.enabled) }
-    val dataSaver by DataSaverStore.enabled.collectAsState()
+    val imagePolicy by DataSaverStore.policy.collectAsState()
+    val avatarPolicy by DataSaverStore.avatarPolicy.collectAsState()
 
     val fontPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -191,13 +194,29 @@ fun QuickSettingsSheet(
                 if (on) Haptic.selection(context)
             }
 
-            // —— 省流模式（开关）——
-            SheetSwitchRow(
+            // —— 图片加载三档（点1/点2，2026-10-17）：点击循环 ——
+            SheetNavRow(
                 icon = Icons.Outlined.DataUsage,
-                title = "省流模式",
-                sub = "图片不自动加载，点按才载入",
-                checked = dataSaver
-            ) { on -> DataSaverStore.set(context, on) }
+                title = "图片加载",
+                sub = "始终 / 仅 Wi-Fi / 手动（手动=原省流，进详情看图）",
+                value = imagePolicy.label(),
+                onClick = {
+                    com.example.s1client.util.Haptic.selection(context)
+                    DataSaverStore.setPolicy(context, imagePolicy.next())
+                }
+            )
+
+            // —— 头像加载三档（独立于图片）——
+            SheetNavRow(
+                icon = Icons.Outlined.AccountCircle,
+                title = "头像加载",
+                sub = "独立于图片加载 · 关闭后显示字母头像",
+                value = avatarPolicy.label(),
+                onClick = {
+                    com.example.s1client.util.Haptic.selection(context)
+                    DataSaverStore.setAvatarPolicy(context, avatarPolicy.next())
+                }
+            )
 
             SheetDivider()
 

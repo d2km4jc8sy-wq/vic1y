@@ -29,6 +29,7 @@ class S1App : Application(), Application.ActivityLifecycleCallbacks {
         RetrofitClient.init(this)
         ForumDataCache.init(this)
         ThemeManager.init(this)
+        com.example.s1client.util.NetworkMonitor.init(this)
         BlockedAuthorManager.init(this)
         com.example.s1client.data.store.FavoriteManager.initLocal(this)
         HiddenPostManager.init(this)

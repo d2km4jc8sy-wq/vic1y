@@ -38,6 +38,7 @@ import com.example.s1client.R
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.data.store.BlockedAuthorManager
 import com.example.s1client.data.store.DataSaverStore
+import com.example.s1client.data.store.ImageLoadPolicy
 import com.example.s1client.util.S1Notify
 import com.example.s1client.data.store.dirSize
 import com.example.s1client.data.store.formatSize
@@ -67,7 +68,7 @@ fun QuickActionsSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // 省流模式：与首页瀑布流共用 DataSaverStore，改这里首页立即生效
-    val dataSaver by DataSaverStore.enabled.collectAsState()
+    val imagePolicy by com.example.s1client.data.store.DataSaverStore.policy.collectAsState()
     val blockedCount by BlockedAuthorManager.blockedFlow.collectAsState(initial = BlockedAuthorManager.allBlocked())
 
     var cacheText by remember { mutableStateOf("") }
@@ -112,20 +113,17 @@ fun QuickActionsSheet(
                 S1Notify.show(context, "已清理图片缓存", S1Notify.Type.SUCCESS)
             }
 
-            // 省流模式（原在首页锤子菜单里，移到「我的」集中管理）
+            // 图片加载三档（点1/点2，2026-10-17）：点击循环 始终→仅Wi-Fi→手动
             ActionRow(
                 iconRes = R.drawable.ic_clean_cache,
-                label = "省流模式",
-                trailing = if (dataSaver) "已开启" else "已关闭",
+                label = "图片加载",
+                trailing = imagePolicy.label(),
                 tint = c.textMain
             ) {
-                val next = !dataSaver
-                DataSaverStore.set(context, next)
-                S1Notify.show(
-                    context,
-                    if (next) "已开启省流：不加载封面图" else "已关闭省流",
-                    S1Notify.Type.SUCCESS
-                )
+                com.example.s1client.util.Haptic.selection(context)
+                val nextP = imagePolicy.next()
+                DataSaverStore.setPolicy(context, nextP)
+                S1Notify.show(context, "图片加载：${nextP.label()}", S1Notify.Type.SUCCESS)
             }
 
             // 吐抹布（黑名单管理，原在首页锤子菜单里）

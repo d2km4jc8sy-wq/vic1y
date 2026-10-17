@@ -47,6 +47,8 @@ import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material3.AlertDialog
@@ -88,6 +90,7 @@ import com.example.s1client.ui.ThemeSwatch
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.data.store.DataSaverStore
+import com.example.s1client.data.store.ImageLoadPolicy
 import com.example.s1client.util.Haptic
 import com.example.s1client.data.store.ReadHistoryStore
 import com.example.s1client.util.S1Notify
@@ -196,25 +199,42 @@ fun SettingsScreen(onFinish: () -> Unit) {
 
     // —— 可变设置状态（即时生效、即时持久化，无「保存」按钮，对标 s1er）——
     var hapticEnabled by remember { mutableStateOf(Haptic.enabled) }
-    val dataSaver by DataSaverStore.enabled.collectAsState()
+    var imgPolicyState by remember { mutableStateOf(DataSaverStore.policy()) }
+    var avPolicyState by remember { mutableStateOf(DataSaverStore.avatarPolicy()) }
     var tail by remember { mutableStateOf(SettingStore.postTail(context)) }
     var cacheText by remember { mutableStateOf("计算中…") }
 
     // —— 外观（R6 回归：让「全部设置」真的是全集，弹窗只是快捷副本）——
     var fontSize by remember { mutableIntStateOf(SettingStore.fontSize(context)) }
     var fontName by remember { mutableStateOf(SettingStore.customFontName(context)) }
+    // —— 字体导入预览（点5 防破坏，2026-10-17）：选文件先预览+覆盖检测，应用才落盘 ——
+    var fontPreview by remember { mutableStateOf<com.example.s1client.util.FontInspector.Preview?>(null) }
     val fontPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            SettingStore.importFont(context, uri)
-                .onSuccess {
-                    fontName = it
-                    S1Notify.show(context, "字体已导入：$it", S1Notify.Type.SUCCESS)
+            Thread {
+                val result = runCatching {
+                    val name = context.contentResolver.query(uri, null, null, null, null)?.use { c ->
+                        val idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (idx >= 0 && c.moveToFirst()) c.getString(idx) else null
+                    } ?: "custom.ttf"
+                    if (!name.endsWith(".ttf", true) && !name.endsWith(".otf", true))
+                        error("只支持 .ttf / .otf 字体文件")
+                    val tmp = java.io.File(context.cacheDir, "font_preview.tmp")
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        tmp.outputStream().use { output -> input.copyTo(output) }
+                    } ?: error("无法读取所选文件")
+                    val tf = runCatching { android.graphics.Typeface.createFromFile(tmp) }
+                        .getOrNull() ?: error("字体文件损坏或不受支持")
+                    val cov = com.example.s1client.util.FontInspector.coverage(tf)
+                    com.example.s1client.util.FontInspector.Preview(name, tf, cov, tmp, uri)
                 }
-                .onFailure {
-                    S1Notify.show(context, it.message ?: "导入失败", S1Notify.Type.ERROR)
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    result.onSuccess { fontPreview = it }
+                        .onFailure { S1Notify.show(context, it.message ?: "无法读取字体", S1Notify.Type.ERROR) }
                 }
+            }.start()
         }
     }
 
@@ -308,6 +328,70 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 sub = fontName ?: "默认字体",
                 onClick = { fontPicker.launch(arrayOf("*/*")) }
             ) { Chevron() }
+
+            // 应用图标切换（点3，2026-10-17）：默认/蓝/绿/紫 activity-alias 循环
+            var iconVariant by remember { mutableStateOf(com.example.s1client.util.AppIconManager.current(context)) }
+            SettingRow(
+                Icons.Outlined.Palette, "应用图标",
+                sub = "当前 ${com.example.s1client.util.AppIconManager.labelOf(iconVariant)} · 点击切换（桌面刷新可能有延迟）",
+                onClick = {
+                    Haptic.selection(context)
+                    iconVariant = com.example.s1client.util.AppIconManager.cycle(context)
+                }
+            ) {}
+
+            // 字体预览对话框（点5 防破坏）：预渲染 + 字形覆盖率，应用才落盘
+            fontPreview?.let { pv ->
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { pv.tmpFile.delete(); fontPreview = null },
+                    title = { Text("字体预览 · ${pv.name}", fontSize = 16.sp) },
+                    text = {
+                        Column {
+                            val ffa = androidx.compose.ui.text.font.FontFamily(pv.typeface)
+                            Text("Stage1st 岁月史书 0123", fontFamily = ffa, fontSize = 16.sp)
+                            Text("今天也没有人盖楼，楼层 12345 层。", fontFamily = ffa, fontSize = 14.sp)
+                            Text("ABCDEFGHIJKLMN abcdefghijklmn", fontFamily = ffa, fontSize = 13.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                "字形覆盖 ${pv.coverage.coveragePercent}%（抽样 ${pv.coverage.total} 字 · 缺 ${pv.coverage.missingCount} 字）",
+                                fontSize = 12.sp, color = c.textSub
+                            )
+                            if (pv.coverage.missingSample.isNotEmpty()) {
+                                Text(
+                                    "缺字示例：${pv.coverage.missingSample.joinToString("")}",
+                                    fontSize = 12.sp, color = c.heart
+                                )
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "应用后全 App 生效；取消不写入任何数据。",
+                                fontSize = 11.sp, color = c.textSub.copy(alpha = 0.8f)
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            SettingStore.importFont(context, pv.uri)
+                                .onSuccess {
+                                    fontName = it
+                                    S1Notify.show(
+                                        context,
+                                        "字体已导入：$it（字形覆盖 ${pv.coverage.coveragePercent}%）",
+                                        S1Notify.Type.SUCCESS
+                                    )
+                                }
+                                .onFailure { S1Notify.show(context, it.message ?: "导入失败", S1Notify.Type.ERROR) }
+                            pv.tmpFile.delete()
+                            fontPreview = null
+                        }) { Text("应用并替换", color = c.accent) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { pv.tmpFile.delete(); fontPreview = null }) {
+                            Text("取消", color = c.textSub)
+                        }
+                    }
+                )
+            }
         }
 
         // ═══ 交互 ═══
@@ -325,12 +409,29 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 )
             }
 
-            SettingRow(Icons.Outlined.DataUsage, "省流模式", sub = "图片不自动加载，点按才载入") {
-                S1Switch(
-                    checked = dataSaver,
-                    onCheckedChange = { DataSaverStore.set(context, it) }
-                )
-            }
+            // 图片加载三档（点1/点2，2026-10-17）：始终/仅 Wi-Fi/手动 点击循环；默认=始终
+            SettingRow(
+                Icons.Outlined.DataUsage, "图片加载",
+                sub = "当前 ${imgPolicyState.label()} · 点击切换",
+                onClick = {
+                    Haptic.selection(context)
+                    val next = imgPolicyState.next()
+                    DataSaverStore.setPolicy(context, next)
+                    imgPolicyState = next
+                }
+            ) {}
+
+            // 头像加载三档（点2）：独立于图片加载，默认=始终
+            SettingRow(
+                Icons.Outlined.Person, "头像加载",
+                sub = "当前 ${avPolicyState.label()} · 点击切换（独立于图片加载）",
+                onClick = {
+                    Haptic.selection(context)
+                    val next = avPolicyState.next()
+                    DataSaverStore.setAvatarPolicy(context, next)
+                    avPolicyState = next
+                }
+            ) {}
 
             // 记录阅读历史（R1 低成本批）：关闭后不落库，存量保留
             var recordHist by remember { mutableStateOf(SettingStore.recordHistory(context)) }
@@ -403,6 +504,50 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 sub = cacheText,
                 onClick = { showClearCache = true }
             ) {}
+
+            // 本地备份/恢复（点4，2026-10-17）：SP 快照打包 ZIP（不含 Cookie/图片/投票缓存）
+            val exportLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.CreateDocument("application/zip")
+            ) { uri ->
+                if (uri != null) {
+                    val r = runCatching {
+                        context.contentResolver.openOutputStream(uri)?.use {
+                            com.example.s1client.util.BackupManager.export(context, it).getOrThrow()
+                        } ?: error("无法写入所选位置")
+                    }
+                    r.onSuccess {
+                        S1Notify.show(context, "备份完成：$it 项设置与数据", S1Notify.Type.SUCCESS)
+                    }.onFailure {
+                        S1Notify.show(context, it.message ?: "备份失败", S1Notify.Type.ERROR)
+                    }
+                }
+            }
+            val importLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.OpenDocument()
+            ) { uri ->
+                if (uri != null) {
+                    val r = runCatching {
+                        context.contentResolver.openInputStream(uri)?.use {
+                            com.example.s1client.util.BackupManager.import(context, it).getOrThrow()
+                        } ?: error("无法读取所选文件")
+                    }
+                    r.onSuccess {
+                        S1Notify.show(context, "已恢复 $it 个模块 · 重启 App 后生效", S1Notify.Type.SUCCESS)
+                    }.onFailure {
+                        S1Notify.show(context, it.message ?: "恢复失败", S1Notify.Type.ERROR)
+                    }
+                }
+            }
+            SettingRow(
+                Icons.Outlined.Save, "备份到文件",
+                sub = "设置·阅读历史·屏蔽体系·收藏·草稿 → ZIP（不含 Cookie/图片）",
+                onClick = { exportLauncher.launch("s1client-backup.zip") }
+            ) { Chevron() }
+            SettingRow(
+                Icons.Outlined.Restore, "从文件恢复",
+                sub = "选择本应用导出的 ZIP，覆盖同名数据 · 重启生效",
+                onClick = { importLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }
+            ) { Chevron() }
 
             // 图片缓存上限（R1）：点击在五档间循环，重启后对 Coil DiskCache 生效
             var cacheCap by remember { mutableStateOf(SettingStore.cacheCapMb(context)) }

@@ -272,6 +272,8 @@ fun XhsPostCard(
     post: Post,
     coverStyle: Int,
     dataSaver: Boolean,
+    /** 头像独立加载开关（2026-10-17 点2：三档策略在调用方算成布尔；false=字母渐变头像兜底） */
+    avatarAutoLoad: Boolean = true,
     /** 已读过的帖子：标题降一档不透明度，刷过的一眼跳过 */
     read: Boolean = false,
     onAvatarClick: () -> Unit,
@@ -764,7 +766,7 @@ fun XhsPostCard(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    if (avatarUrlStr != null) {
+                    if (avatarUrlStr != null && avatarAutoLoad) {
                         AsyncImage(
                             model = avatarUrlStr,
                             contentDescription = null,

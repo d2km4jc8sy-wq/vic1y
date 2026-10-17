@@ -284,6 +284,11 @@ fun XhsHomeScreen(viewModel: PostViewModel, resumeSignal: androidx.compose.runti
     /** 首页塞抹布二次确认的目标帖（作者） */
     val allForums by viewModel.allForums.collectAsState()
     val dataSaver by viewModel.dataSaver.collectAsState()
+    // 图片/头像三档策略（2026-10-17 点1/点2）：布尔在调用方算好（shouldAutoLoad 纯函数）
+    val imagePolicy by com.example.s1client.data.store.DataSaverStore.policy.collectAsState()
+    val avatarPolicy by com.example.s1client.data.store.DataSaverStore.avatarPolicy.collectAsState()
+    val isMetered by com.example.s1client.util.NetworkMonitor.metered.collectAsState()
+    val avatarAutoLoad = com.example.s1client.data.store.ImageLoadPolicy.shouldAutoLoad(avatarPolicy, isMetered)
     val blockedAuthors by viewModel.blockedAuthors.collectAsState()
     val readTids by viewModel.readTids.collectAsState()
     // 底栏「提醒」未读数：拉到后驱动图标变状态（红点 + 数字）
@@ -612,7 +617,9 @@ fun XhsHomeScreen(viewModel: PostViewModel, resumeSignal: androidx.compose.runti
                             onSelectType = { viewModel.setTypeFilter(tab.fid, it) },
                             onRequestCollapse = { collapseFilter(tab.fid) },
                             onChipsTouch = { chipsTouchActive.value = it },
-                            dataSaver = dataSaver,
+                            dataSaver = !com.example.s1client.data.store.ImageLoadPolicy
+                                .shouldAutoLoad(imagePolicy, isMetered),
+                            avatarAutoLoad = avatarAutoLoad,
                             onRetry = { viewModel.refresh(tab.fid) },
                             onRefresh = {
                                 // 下拉刷新触发（松手越过阈值）时给一下轻震，和绳子/翻页反馈一致

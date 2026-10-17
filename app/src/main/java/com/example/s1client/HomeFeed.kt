@@ -157,6 +157,8 @@ fun ForumFeedPage(
     onRequestCollapse: () -> Unit = {},
     onChipsTouch: (Boolean) -> Unit = {},
     dataSaver: Boolean,
+    /** 头像独立加载（三档策略算好的布尔；false=字母头像兜底不联网） */
+    avatarAutoLoad: Boolean,
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
@@ -406,6 +408,7 @@ fun ForumFeedPage(
                                 post = post,
                                 coverStyle = coverStyle,
                                 dataSaver = dataSaver,
+                                avatarAutoLoad = avatarAutoLoad,
                                 read = post.tid in readTids,
                                 onAvatarClick = { onAvatarClick(post) },
                                 onMarkRead = { onMarkRead(post) },
