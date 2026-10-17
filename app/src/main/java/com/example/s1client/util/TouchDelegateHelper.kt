@@ -38,6 +38,32 @@ object TouchDelegateHelper {
     }
 
     /**
+     * 最近邻命中（纯函数，可单测；2026-10-17 防误触整改）。
+     *
+     * 背景：相邻小钮外扩后触达区会重叠（便签四钮 22dp+间距 8dp，外扩 8dp
+     * 后每对相邻钮重叠 8dp）。若按"先注册先命中"，重叠带全归左钮——
+     * 想点右钮的左缘会误触左钮。
+     *
+     * 规则：在所有**包含** (x,y) 的候选里，选**矩形中心**离点最近者；
+     * 距离并列（正中点）归索引靠前者（稳定）；无候选包含返回 -1。
+     */
+    fun nearestHit(rects: List<Rect>, x: Int, y: Int): Int {
+        var best = -1
+        var bestDistSq = Long.MAX_VALUE
+        for ((i, r) in rects.withIndex()) {
+            if (!r.contains(x, y)) continue
+            val dx = r.centerX() - x.toLong()
+            val dy = r.centerY() - y.toLong()
+            val d = dx * dx + dy * dy
+            if (d < bestDistSq) {
+                bestDistSq = d
+                best = i
+            }
+        }
+        return best
+    }
+
+    /**
      * 给 [children] 的每个 view 外扩 [haloPx] 的隐形触达区并挂组合代理。
      * parent 尚未布局（宽高为 0）时通过 post 延迟到布局完成后再挂。
      */

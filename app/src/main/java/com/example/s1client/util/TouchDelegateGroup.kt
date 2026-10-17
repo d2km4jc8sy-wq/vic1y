@@ -36,12 +36,11 @@ class TouchDelegateGroup(private val parent: View) : TouchDelegate(Rect(), paren
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val x = event.x.toInt()
         val y = event.y.toInt()
-        // 后加入的优先（与视图层级遮挡语义一致）
-        for ((rect, delegate) in entries.asReversed()) {
-            if (rect.contains(x, y)) {
-                return delegate.onTouchEvent(event)
-            }
-        }
-        return super.onTouchEvent(event)
+        // 最近邻路由（2026-10-17 防误触）：重叠带归矩形中心更近的钮，
+        // 距离并列归先注册者；无命中走父容器原有分发（穿透到卡片）。
+        val rects = entries.map { it.rect }
+        val idx = TouchDelegateHelper.nearestHit(rects, x, y)
+        return if (idx >= 0) entries[idx].delegate.onTouchEvent(event)
+        else super.onTouchEvent(event)
     }
 }

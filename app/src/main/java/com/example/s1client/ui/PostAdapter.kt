@@ -860,6 +860,13 @@ class PostAdapter(
             b.btnScoreChip.setBackgroundResource(Ps1Skin.chipRes())
             b.btnScoreChip.visibility = View.VISIBLE
             b.llPsButtons.visibility = View.VISIBLE
+            // 主楼手柄四钮触达补足 38dp（34dp 可视 + 2dp halo；中心距 47dp 无重叠，
+            // 最近邻路由兜底——与便签四钮同一机制，2026-10-17 防误触整改）
+            com.example.s1client.util.TouchDelegateHelper.expandHalo(
+                parent = b.llPsButtons,
+                children = listOf(b.btnFavoritePost, b.btnQuote, b.btnRate, b.btnMore),
+                haloPx = (2f * h.itemView.resources.displayMetrics.density).toInt()
+            )
             b.llNoteButtons.visibility = View.GONE
             // 主楼与便签共用主题文字色（ViewHolder 复用时必须重刷）
             b.tvPostTime.setTextColor(themeInk)
