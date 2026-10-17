@@ -46,9 +46,9 @@
 - fixture 与断言见 RatingParserContractTest（fixture: viewthread_p1_guest.html，13 行 = 7 正 + 6 负）。
 
 ## 待办队列（用户 2026-10-17 指令「切记加入待办」）
-- P8 · 网络参数页（设置→数据管理组）：强制替换基础网址开关+输入框（默认 https://stage1st.com/2b/）、强制使用 IP 列表开关+输入框（默认 47.97.161.219，s1er 同款数据）。实现走 OkHttp Dns 覆盖（IP 直连不改 Host，证书/SNI 天然合法）。【本轮实施】
-- P9 · 检查更新（关于组，对齐 s1er 图2/图3）：检查更新行 + 发现新版本弹窗（版本号/说明/忽略此版/稍后提醒/立即更新）。版本清单走可配置 URL 的 JSON，失败静默降级。【本轮实施】
-- P10 · 字体导入「测试失败」根因：导入仅存储文件+名字，**应用层从未实现**（fontFile 全项目零消费方）——补全局字体应用（S1Theme LocalTextStyle 覆盖 + LayoutInflater.Factory2 盖 View 侧）。【本轮实施】
+- P8 · ✅ 已完成（2026-10-17，69219f9）：网络参数页已上线，Dns 覆盖 + 基础网址重写拦截器，无效输入回落主域。NetworkParamsTest 7 用例锚定。
+- P9 · ✅ 已完成（2026-10-17，6354d9e）：检查更新行 + 发现新版本弹窗（忽略此版/稍后提醒/立即更新）。当前仓库私有无 Release → 如实提示「渠道暂无发布」；转公开后零改动生效。UpdateCheckerTest 7 用例锚定。
+- P10 · ✅ 已完成（2026-10-17，真机验证）：应用层补齐（S1Theme Typography 15 档覆盖 + PostAdapter 楼层正文 + customTypeface 缓存）+ 反射改 Typeface.createFromFile 直调。真机截图全局手写体生效。其余 View 文本按需扩展。
 - P11 · s1er 设置功能对齐审计：逐项核对 s1er 设置页，缺的功能对齐加入（首项：检查更新=P9）。【下轮】
 - P12 · 个人资料编辑（头衔/签名/头像/改密）：需真机抓 spacecp 表单。【待用户配合】
 - P13 · 隐私政策 + 分发准备（仓库私有，发布渠道待定）。【下轮】
