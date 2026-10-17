@@ -143,6 +143,8 @@ dependencies {
     // 单元测试（JVM，不进 APK）
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.11.1")
+    // JVM 单测里 org.json 是桩：引入真实现让 JSON 解析契约可测
+    testImplementation("org.json:json:20240303")
     testImplementation("io.mockk:mockk:1.13.10")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("androidx.compose.ui:ui-test-junit4")

@@ -40,6 +40,7 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Palette
@@ -92,6 +93,7 @@ import com.example.s1client.data.store.SettingStore
 import com.example.s1client.util.ThemeManager
 import com.example.s1client.util.applyS1Theme
 import com.example.s1client.feature_changelog.ChangelogActivity
+import com.example.s1client.feature_update.UpdateChecker
 import com.example.s1client.feature_network.NetworkParamsActivity
 import com.example.s1client.util.applyS1Theme
 import com.example.s1client.data.store.dirSize
@@ -143,7 +145,26 @@ fun SettingsScreen(onFinish: () -> Unit) {
     var showClearHistory by remember { mutableStateOf(false) }
     var showResetAppearance by remember { mutableStateOf(false) }
     var showTailEdit by remember { mutableStateOf(false) }
+    // —— 检查更新状态（PROBLEMS P9）——
+    var checkingUpdate by remember { mutableStateOf(false) }
+    var updateInfo by remember { mutableStateOf<UpdateChecker.UpdateInfo?>(null) }
 
+    fun checkForUpdates() {
+        if (checkingUpdate) return
+        checkingUpdate = true
+        S1Notify.show(context, "正在检查更新…")
+        scope.launch {
+            updateInfo = null
+            when (val r = UpdateChecker.check(context, BuildConfig.VERSION_NAME)) {
+                is UpdateChecker.CheckResult.Available -> updateInfo = r.info
+                is UpdateChecker.CheckResult.UpToDate ->
+                    S1Notify.show(context, "已是最新版本", S1Notify.Type.SUCCESS)
+                is UpdateChecker.CheckResult.Failed ->
+                    S1Notify.show(context, "检查失败：${r.message}", S1Notify.Type.ERROR)
+            }
+            checkingUpdate = false
+        }
+    }
     val loggedIn = ForumDataCache.isLoggedIn()
 
     // —— 可变设置状态（即时生效、即时持久化，无「保存」按钮，对标 s1er）——
@@ -381,6 +402,13 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 sub = "版本与新特性",
                 onClick = { context.startActivity(ChangelogActivity.intent(context)) }
             ) { Chevron() }
+
+            // 检查更新（PROBLEMS P9，对齐 s1er 图2）：发布渠道 + 发现新版本弹窗（图3）
+            SettingRow(
+                Icons.Outlined.CloudDownload, "检查更新",
+                sub = "从发布渠道获取最新版本",
+                onClick = { checkForUpdates() }
+            ) { Chevron() }
         }
 
         // ═══ 退出登录（确认弹窗式——长按式被手指遮挡确认文案，用户拍板回滚，宪法 11）═══
@@ -424,6 +452,39 @@ fun SettingsScreen(onFinish: () -> Unit) {
     }
     if (showThemeSheet) {
         ThemePickerSheet(onDismiss = { showThemeSheet = false })
+    }
+    updateInfo?.let { info ->
+        AlertDialog(
+            onDismissRequest = { updateInfo = null },
+            title = { Text("发现新版本", color = c.textMain) },
+            text = {
+                Text(
+                    "发现新版本 ${info.version}（当前 V${BuildConfig.VERSION_NAME}）。" +
+                        if (info.notes.isNotBlank()) "\n\n${info.notes.take(300)}" else "",
+                    color = c.textMain
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    updateInfo = null
+                    val url = info.apkUrl ?: info.pageUrl
+                    if (url != null) {
+                        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                    } else {
+                        S1Notify.show(context, "未提供下载链接", S1Notify.Type.INFO)
+                    }
+                }) { Text("立即更新", color = c.accent) }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        UpdateChecker.setIgnoredVersion(context, info.version)
+                        updateInfo = null
+                    }) { Text("忽略此版", color = c.textSub) }
+                    TextButton(onClick = { updateInfo = null }) { Text("稍后提醒", color = c.textSub) }
+                }
+            }
+        )
     }
     if (showAbout) {
         AlertDialog(

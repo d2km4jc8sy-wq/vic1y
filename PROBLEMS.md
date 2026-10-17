@@ -44,3 +44,13 @@
 - 影响：内联明细少负分行；汇总与完整历史均正确。
 - 可选：①保持现状（内联只看好消息，完整历史看全量）②修 RatingParser 桌面分支同时收 xi1+xg1（契约测试同步改 13 条，PROBLEMS 闭环）。
 - fixture 与断言见 RatingParserContractTest（fixture: viewthread_p1_guest.html，13 行 = 7 正 + 6 负）。
+
+## 待办队列（用户 2026-10-17 指令「切记加入待办」）
+- P8 · 网络参数页（设置→数据管理组）：强制替换基础网址开关+输入框（默认 https://stage1st.com/2b/）、强制使用 IP 列表开关+输入框（默认 47.97.161.219，s1er 同款数据）。实现走 OkHttp Dns 覆盖（IP 直连不改 Host，证书/SNI 天然合法）。【本轮实施】
+- P9 · 检查更新（关于组，对齐 s1er 图2/图3）：检查更新行 + 发现新版本弹窗（版本号/说明/忽略此版/稍后提醒/立即更新）。版本清单走可配置 URL 的 JSON，失败静默降级。【本轮实施】
+- P10 · 字体导入「测试失败」根因：导入仅存储文件+名字，**应用层从未实现**（fontFile 全项目零消费方）——补全局字体应用（S1Theme LocalTextStyle 覆盖 + LayoutInflater.Factory2 盖 View 侧）。【本轮实施】
+- P11 · s1er 设置功能对齐审计：逐项核对 s1er 设置页，缺的功能对齐加入（首项：检查更新=P9）。【下轮】
+- P12 · 个人资料编辑（头衔/签名/头像/改密）：需真机抓 spacecp 表单。【待用户配合】
+- P13 · 隐私政策 + 分发准备（仓库私有，发布渠道待定）。【下轮】
+- P14 · 预测性返回迁移（enableOnBackInvokedCallback + OnBackPressedDispatcher 改造，随 targetSdk 36）。【下轮】
+- P15 · 便签四小钮 9sp 字号升 10-11sp（触达区外扩随 notifyFloorsChanged 轮已排期，字号属视觉变更单独拍板）。【待拍板】
