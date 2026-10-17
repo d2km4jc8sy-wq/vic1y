@@ -329,17 +329,6 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 onClick = { fontPicker.launch(arrayOf("*/*")) }
             ) { Chevron() }
 
-            // 应用图标切换（点3，2026-10-17）：默认/蓝/绿/紫 activity-alias 循环
-            var iconVariant by remember { mutableStateOf(com.example.s1client.util.AppIconManager.current(context)) }
-            SettingRow(
-                Icons.Outlined.Palette, "应用图标",
-                sub = "当前 ${com.example.s1client.util.AppIconManager.labelOf(iconVariant)} · 点击切换（桌面刷新可能有延迟）",
-                onClick = {
-                    Haptic.selection(context)
-                    iconVariant = com.example.s1client.util.AppIconManager.cycle(context)
-                }
-            ) {}
-
             // 字体预览对话框（点5 防破坏）：预渲染 + 字形覆盖率，应用才落盘
             fontPreview?.let { pv ->
                 androidx.compose.material3.AlertDialog(
@@ -430,6 +419,17 @@ fun SettingsScreen(onFinish: () -> Unit) {
                     val next = avPolicyState.next()
                     DataSaverStore.setAvatarPolicy(context, next)
                     avPolicyState = next
+                }
+            ) {}
+
+            // 应用图标切换（点3，2026-10-17）：默认/经典圆环/蓝/绿/紫 activity-alias 循环（紧挨头像切换）
+            var iconVariant by remember { mutableStateOf(com.example.s1client.util.AppIconManager.current(context)) }
+            SettingRow(
+                Icons.Outlined.Palette, "应用图标",
+                sub = "当前 ${com.example.s1client.util.AppIconManager.labelOf(iconVariant)} · 点击切换（桌面刷新可能有延迟）",
+                onClick = {
+                    Haptic.selection(context)
+                    iconVariant = com.example.s1client.util.AppIconManager.cycle(context)
                 }
             ) {}
 
