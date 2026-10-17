@@ -124,3 +124,5 @@
   - 字体导入根因确诊（P10）：导入仅存储不应用——应用层从未实现。修复三件套已就位未提交验证：S1Theme 反射换 Typeface.createFromFile + SettingStore.customTypeface 缓存 + PostAdapter 正文应用。
   - ⚠ CI 矩阵拉锯（runs 39003987274/38941998848/38943132517/38945117772）：7×3 矩阵测试的 NATIVE 图形模式污染同 JVM 后续 compose 测试（ComponentTest AppNotIdleException 三连实证；隔离/排除/换包位三组对照实验闭环确认）。定稿：默认 test 任务排除矩阵（build.gradle runMatrix 属性门），CI workflow 用独立步骤 -PrunMatrix 单独跑（独立 JVM 不污染）+ 截图 artifact。阈值降为渲染证明下限（≥8 色），matrix_report.txt 随 artifact 上传供标定。
   - 本地：162 用例（矩阵排除）0 失败 + assembleDebug 绿。
+
+- 2026-10-17 字体导入修复真机验证通过（一加13T）：S1Font 日志 family覆盖=true，真机截图全局手写体生效（outputs/shots/p16_font_applied.png）。PROBLEMS P10 关闭。用户此前测试失效的完整解释：旧装机包是编译失败时期的陈旧 APK（无 P10）+ P10 之前的根因（应用层从未实现）。
