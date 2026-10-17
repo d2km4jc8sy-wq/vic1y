@@ -403,7 +403,7 @@
                 android:layout_height="1dp"
                 android:layout_weight="1" />
 
-            <!-- 手柄四钮容器：仅主楼显示（34dp 钮 + 9sp 功能标签，教学面） -->
+            <!-- 手柄四钮容器：仅主楼显示（34dp 钮 + 11sp 功能标签，教学面；2026-10-17 点单 9sp→11sp，把手总宽 175sp 恒定） -->
             <LinearLayout
                 android:id="@+id/llPsButtons"
                 android:layout_width="wrap_content"
@@ -436,7 +436,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="3dp"
                         android:text="收藏"
-                        android:textSize="9sp"
+                        android:textSize="11sp"
                         android:textColor="?attr/s1TextTertiary" />
                 </LinearLayout>
 
@@ -464,7 +464,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="3dp"
                         android:text="回复"
-                        android:textSize="9sp"
+                        android:textSize="11sp"
                         android:textColor="?attr/s1TextTertiary" />
                 </LinearLayout>
 
@@ -492,7 +492,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="3dp"
                         android:text="评分"
-                        android:textSize="9sp"
+                        android:textSize="11sp"
                         android:textColor="?attr/s1TextTertiary" />
                 </LinearLayout>
 
@@ -519,7 +519,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="3dp"
                         android:text="更多"
-                        android:textSize="9sp"
+                        android:textSize="11sp"
                         android:textColor="?attr/s1TextTertiary" />
                 </LinearLayout>
             </LinearLayout>
