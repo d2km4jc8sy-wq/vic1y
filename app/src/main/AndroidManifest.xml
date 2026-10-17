@@ -49,10 +49,10 @@
             </intent-filter>
         </activity-alias>
         <activity-alias
-            android:name=".MainAliasBlue"
+            android:name=".MainAliasLemon"
             android:enabled="false"
             android:exported="true"
-            android:icon="@drawable/ic_variant_blue"
+            android:icon="@drawable/ic_variant_lemon"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -61,10 +61,10 @@
             </intent-filter>
         </activity-alias>
         <activity-alias
-            android:name=".MainAliasGreen"
+            android:name=".MainAliasCream"
             android:enabled="false"
             android:exported="true"
-            android:icon="@drawable/ic_variant_green"
+            android:icon="@drawable/ic_variant_cream"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -73,10 +73,22 @@
             </intent-filter>
         </activity-alias>
         <activity-alias
-            android:name=".MainAliasPurple"
+            android:name=".MainAliasLilac"
             android:enabled="false"
             android:exported="true"
-            android:icon="@drawable/ic_variant_purple"
+            android:icon="@drawable/ic_variant_lilac"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".MainAliasPink"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@drawable/ic_variant_pink"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>

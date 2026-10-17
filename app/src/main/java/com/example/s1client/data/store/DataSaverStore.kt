@@ -99,6 +99,10 @@ object DataSaverStore {
     fun avatarPolicy(): ImageLoadPolicy = _avatarPolicy.value
     fun isOn(): Boolean = _policy.value == ImageLoadPolicy.MANUAL
 
+    /** View 体系（详情页等非 Compose 场景）即时判断：当前网络下 [p] 是否自动加载 */
+    fun autoLoadNow(p: ImageLoadPolicy): Boolean =
+        ImageLoadPolicy.shouldAutoLoad(p, com.example.s1client.util.NetworkMonitor.metered.value)
+
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREF, Context.MODE_PRIVATE)
 }

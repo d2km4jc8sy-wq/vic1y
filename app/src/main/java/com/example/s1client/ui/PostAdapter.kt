@@ -253,12 +253,17 @@ class PostAdapter(
         h.binding.tvPostAvatarLetter.background = makeCircleGradient(authorName.hashCode())
 
         h.binding.ivPostAvatar.alpha = 0f
-        post.authorId?.let { buildAvatarUrl(it) }?.let { url ->
-            h.binding.ivPostAvatar.load(url) {
-                listener(
-                    onSuccess = { _, _ -> h.binding.ivPostAvatar.alpha = 1f },
-                    onError = { _, _ -> h.binding.ivPostAvatar.alpha = 0f }
-                )
+        // 头像三档全局化（2026-10-17 点2 扩展）：详情页楼层头像同样受策略约束，关闭时字母头像兜底
+        val avatarAuto = com.example.s1client.data.store.DataSaverStore
+            .autoLoadNow(com.example.s1client.data.store.DataSaverStore.avatarPolicy())
+        if (avatarAuto) {
+            post.authorId?.let { buildAvatarUrl(it) }?.let { url ->
+                h.binding.ivPostAvatar.load(url) {
+                    listener(
+                        onSuccess = { _, _ -> h.binding.ivPostAvatar.alpha = 1f },
+                        onError = { _, _ -> h.binding.ivPostAvatar.alpha = 0f }
+                    )
+                }
             }
         }
 
@@ -694,20 +699,29 @@ class PostAdapter(
                 }
 
                 val isS1 = url.contains("stage1st.com")
-                Log.d("S1IMG", "开始加载 (S1=" + isS1 + "): " + url)
-                iv.load(url) {
-                    listener(
-                        onSuccess = { _, result ->
-                            Log.d("S1IMG", "✓ 成功 [" + url + "] 数据源=" + result.dataSource)
-                            placeholder.visibility = View.GONE
-                        },
-                        onError = { _, err ->
-                            Log.e("S1IMG", "✗ 失败 [" + url + "] -> " +
-                                    err.throwable.javaClass.simpleName + ": " +
-                                    err.throwable.message)
-                            placeholder.visibility = View.VISIBLE
-                        }
-                    )
+                // 图片三档全局化（2026-10-17 点1 扩展）：详情页正文图同样受策略约束；
+                // 非自动加载时 placeholder 变"点击加载"，点击后帖内加载（iv 点击仍进查看器）
+                val imgAuto = com.example.s1client.data.store.DataSaverStore
+                    .autoLoadNow(com.example.s1client.data.store.DataSaverStore.policy())
+                if (imgAuto) {
+                    Log.d("S1IMG", "开始加载 (S1=" + isS1 + "): " + url)
+                    iv.load(url) {
+                        listener(
+                            onSuccess = { _, result ->
+                                Log.d("S1IMG", "✓ 成功 [" + url + "] 数据源=" + result.dataSource)
+                                placeholder.visibility = View.GONE
+                            },
+                            onError = { _, err ->
+                                Log.e("S1IMG", "✗ 失败 [" + url + "] -> " +
+                                        err.throwable.javaClass.simpleName + ": " +
+                                        err.throwable.message)
+                                placeholder.visibility = View.VISIBLE
+                            }
+                        )
+                    }
+                } else {
+                    placeholder.text = "图片已省流\n点击加载"
+                    placeholder.visibility = View.VISIBLE
                 }
 
                 if (shareSelectMode) {
@@ -729,11 +743,22 @@ class PostAdapter(
                         true
                     }
                     placeholder.setOnClickListener {
-                        try {
-                            val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                            ctx.startActivity(intent)
-                        } catch (e: Exception) {
-                            S1Notify.show(ctx, "无法打开浏览器", S1Notify.Type.ERROR)
+                        if (imgAuto) {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                ctx.startActivity(intent)
+                            } catch (e: Exception) {
+                                S1Notify.show(ctx, "无法打开浏览器", S1Notify.Type.ERROR)
+                            }
+                        } else {
+                            // 省流档：占位点击 = 帖内加载本图（加载后点图进查看器不变）
+                            placeholder.visibility = View.GONE
+                            iv.load(url) {
+                                listener(
+                                    onSuccess = { _, _ -> placeholder.visibility = View.GONE },
+                                    onError = { _, _ -> placeholder.visibility = View.VISIBLE }
+                                )
+                            }
                         }
                     }
                 }

@@ -818,12 +818,17 @@ class ThreadDetailActivity : BaseActivity() {
         binding.tvTopAvatarLetter.background =
             com.example.s1client.ui.PostAdapter.makeCircleGradient(name.hashCode())
         binding.ivTopAvatar.alpha = 0f
+        // 头像三档全局化（2026-10-17 点2 扩展）：详情页顶部头像受策略约束，关闭时字母头像兜底
+        val topAvatarOk = com.example.s1client.data.store.DataSaverStore
+            .autoLoadNow(com.example.s1client.data.store.DataSaverStore.avatarPolicy())
         post.authorId?.let { com.example.s1client.ui.PostAdapter.buildAvatarUrl(it) }?.let { url ->
-            binding.ivTopAvatar.load(url) {
-                listener(
-                    onSuccess = { _, _ -> binding.ivTopAvatar.alpha = 1f },
-                    onError = { _, _ -> binding.ivTopAvatar.alpha = 0f }
-                )
+            if (topAvatarOk) {
+                binding.ivTopAvatar.load(url) {
+                    listener(
+                        onSuccess = { _, _ -> binding.ivTopAvatar.alpha = 1f },
+                        onError = { _, _ -> binding.ivTopAvatar.alpha = 0f }
+                    )
+                }
             }
         }
         if (!post.authorId.isNullOrBlank()) {

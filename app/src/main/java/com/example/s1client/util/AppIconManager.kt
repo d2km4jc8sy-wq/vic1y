@@ -20,9 +20,10 @@ object AppIconManager {
     val VARIANTS = listOf(
         Variant("default", "MainAliasDefault", "默认"),
         Variant("legacy", "MainAliasLegacy", "经典圆环"),
-        Variant("blue", "MainAliasBlue", "蓝"),
-        Variant("green", "MainAliasGreen", "绿"),
-        Variant("purple", "MainAliasPurple", "紫")
+        Variant("lemon", "MainAliasLemon", "柠檬黄"),
+        Variant("cream", "MainAliasCream", "奶油底"),
+        Variant("lilac", "MainAliasLilac", "丁香紫"),
+        Variant("pink", "MainAliasPink", "粉色")
     )
 
     private const val KEY = "app_icon_variant"
