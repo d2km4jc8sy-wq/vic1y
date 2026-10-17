@@ -90,9 +90,9 @@ object SettingStore {
     fun stripTail(message: String): String =
         message.replace(Regex("""\[size=1]\[color=gray]——.*?\[/color]\[/size]\s*$"""), "").trimEnd()
 
-    // ————————— 文字大小（四档，对标 fontSize 12/14/16/18） —————————
+    // ————————— 文字大小（八档 2026-10-17 补档：12/13/14/15/16/17/18/20，对标 fontSize） —————————
 
-    val FONT_SIZES = intArrayOf(12, 14, 16, 18)
+    val FONT_SIZES = intArrayOf(12, 13, 14, 15, 16, 17, 18, 20)
     private const val DEFAULT_BODY_SIZE = 14
 
     fun fontSize(context: Context): Int =
@@ -118,6 +118,34 @@ object SettingStore {
     fun setDialPaging(context: Context, on: Boolean) {
         prefs(context).edit().putBoolean("dial_paging", on).apply()
         bump()
+    }
+
+    // ————————— 浏览与数据行为（阶段四 R1 低成本批，2026-10-17）—————————
+
+    /** 记录阅读历史：关闭后 ReadHistoryStore.add 直接跳过（对标 s1er 记录阅读历史开关），默认开 */
+    fun recordHistory(context: Context): Boolean =
+        prefs(context).getBoolean("record_history", true)
+
+    fun setRecordHistory(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean("record_history", on).apply()
+    }
+
+    /**
+     * 图片磁盘缓存上限（MB）：256/512/1024/2048 档，默认 512。
+     * S1App 构建 Coil DiskCache 时读取（maxSizeBytes）。
+     */
+    fun cacheCapMb(context: Context): Int = prefs(context).getInt("cache_cap_mb", 512)
+
+    fun setCacheCapMb(context: Context, mb: Int) {
+        prefs(context).edit().putInt("cache_cap_mb", mb).apply()
+    }
+
+    /** 每楼层图片上限：0=不限（默认），3/6/9 档。PostAdapter 渲染楼层图片时 take 截断 */
+    fun maxImagesPerFloor(context: Context): Int =
+        prefs(context).getInt("max_images_per_floor", 0)
+
+    fun setMaxImagesPerFloor(context: Context, n: Int) {
+        prefs(context).edit().putInt("max_images_per_floor", n).apply()
     }
 
     /** 全局文字缩放系数 = fontSize / 14 */
