@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -133,6 +134,28 @@ class SettingsActivity : ComponentActivity() {
     }
 }
 
+
+/** 诊断信息文本（设置→关于→诊断信息）：版本/机型/缓存/偏好 + 最近日志尾部（debug 构建可读） */
+private fun buildDiagText(context: android.content.Context): String {
+    val sb = StringBuilder()
+    sb.appendLine("版本: " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")")
+    sb.appendLine("Android: " + android.os.Build.VERSION.RELEASE + " (SDK " + android.os.Build.VERSION.SDK_INT + ")")
+    sb.appendLine("机型: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL)
+    val dir = imageCacheDir(context)
+    sb.appendLine("图片缓存: " + formatSize(dirSize(dir)) + "（上限 " + SettingStore.cacheCapMb(context) + " MB）")
+    sb.appendLine("字号档: " + SettingStore.fontSize(context) + " · 阅读历史: " + (if (SettingStore.recordHistory(context)) "开" else "关"))
+    sb.appendLine("楼层图片上限: " + SettingStore.maxImagesPerFloor(context).let { if (it > 0) "${'$'}it 张" else "不限" })
+    sb.appendLine()
+    sb.appendLine("—— 最近日志（尾部 60 行）——")
+    runCatching {
+        val proc = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-t", "60"))
+        val out = proc.inputStream.bufferedReader().readText()
+        proc.waitFor()
+        sb.append(out.takeLast(3000))
+    }.onFailure { sb.append("无法读取日志（需要 debug 构建）: ").append(it.message) }
+    return sb.toString()
+}
+
 @Composable
 fun SettingsScreen(onFinish: () -> Unit) {
     val c = LocalS1Colors.current
@@ -145,6 +168,8 @@ fun SettingsScreen(onFinish: () -> Unit) {
     var showAbout by remember { mutableStateOf(false) }
     var showClearHistory by remember { mutableStateOf(false) }
     var showResetAppearance by remember { mutableStateOf(false) }
+    var showDiag by remember { mutableStateOf(false) }
+    var diagText by remember { mutableStateOf("") }
     var showTailEdit by remember { mutableStateOf(false) }
     // —— 检查更新状态（PROBLEMS P9）——
     var checkingUpdate by remember { mutableStateOf(false) }
@@ -305,6 +330,18 @@ fun SettingsScreen(onFinish: () -> Unit) {
                     onCheckedChange = { DataSaverStore.set(context, it) }
                 )
             }
+
+            // 记录阅读历史（R1 低成本批）：关闭后不落库，存量保留
+            var recordHist by remember { mutableStateOf(SettingStore.recordHistory(context)) }
+            SettingRow(Icons.Outlined.History, "记录阅读历史", sub = "关闭后不再保存最近浏览记录") {
+                S1Switch(
+                    checked = recordHist,
+                    onCheckedChange = {
+                        SettingStore.setRecordHistory(context, it)
+                        recordHist = it
+                    }
+                )
+            }
         }
 
         // ═══ 实验功能 ═══
@@ -373,6 +410,34 @@ fun SettingsScreen(onFinish: () -> Unit) {
                         cacheText = formatSize(0L)
                         S1Notify.show(context, "已清除图片缓存", S1Notify.Type.SUCCESS)
                     }
+                }
+            ) {}
+
+            // 图片缓存上限（R1）：点击在五档间循环，重启后对 Coil DiskCache 生效
+            var cacheCap by remember { mutableStateOf(SettingStore.cacheCapMb(context)) }
+            SettingRow(
+                Icons.Outlined.DataUsage, "图片缓存上限",
+                sub = "当前 $cacheCap MB · 点击切换",
+                onClick = {
+                    val opts = intArrayOf(100, 256, 512, 1024, 2048)
+                    val idx = opts.indexOf(cacheCap).let { if (it < 0) 0 else it }
+                    val next = opts[(idx + 1) % opts.size]
+                    SettingStore.setCacheCapMb(context, next)
+                    cacheCap = next
+                }
+            ) {}
+
+            // 每楼层图片上限（R1）：点击在 不限/3/6/9 间循环
+            var imgCap by remember { mutableStateOf(SettingStore.maxImagesPerFloor(context)) }
+            SettingRow(
+                Icons.Outlined.FormatSize, "每楼层图片上限",
+                sub = (if (imgCap > 0) "当前 $imgCap 张" else "当前不限") + " · 点击切换",
+                onClick = {
+                    val opts = intArrayOf(0, 3, 6, 9)
+                    val idx = opts.indexOf(imgCap).let { if (it < 0) 0 else it }
+                    val next = opts[(idx + 1) % opts.size]
+                    SettingStore.setMaxImagesPerFloor(context, next)
+                    imgCap = next
                 }
             ) {}
 
@@ -501,6 +566,31 @@ fun SettingsScreen(onFinish: () -> Unit) {
             text = { Text("S1 Client\nV" + BuildConfig.VERSION_NAME + "\n\nStage1st 客户端", color = c.textMain) },
             confirmButton = {
                 TextButton(onClick = { showAbout = false }) { Text("知道了", color = c.accent) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showAbout = false
+                    diagText = buildDiagText(context)
+                    showDiag = true
+                }) { Text("诊断信息", color = c.textSub) }
+            }
+        )
+    }
+    if (showDiag) {
+        AlertDialog(
+            onDismissRequest = { showDiag = false },
+            title = { Text("诊断信息", color = c.textMain) },
+            text = {
+                Column(
+                    Modifier
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(diagText, color = c.textSub, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDiag = false }) { Text("关闭", color = c.accent) }
             }
         )
     }
