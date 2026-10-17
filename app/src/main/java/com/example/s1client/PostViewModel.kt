@@ -14,6 +14,7 @@ import com.example.s1client.data.store.ReadHistoryStore
 import com.example.s1client.data.store.SettingStore
 import com.example.s1client.data.store.HiddenPostManager
 import com.example.s1client.util.TimeUtil
+import com.example.s1client.util.unescapeHtmlEntities
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -488,7 +489,10 @@ internal fun com.example.s1client.data.model.Thread.toPost(
     val hasImage = cover != null || (attachment?.toIntOrNull() ?: 0) > 0
     return Post(
         id = tid?.toIntOrNull() ?: 0,
-        title = subject ?: "无标题",
+        // R11（审计报告 2026-10-18 第 9 轮）：模型边界统一反转义 HTML 实体。
+        // 原来 title = subject 直出，服务端返回的「&amp;」会原样显示成「&amp;amp;」；
+        // 此处解一次，feed / 搜索 / 浏览历史 / Peek / 我的页 / 详情页 intent 全链受益。
+        title = unescapeHtmlEntities(subject) ?: "无标题",
         coverUrl = cover,
         coverAspect = aspect,
         tag = category,

@@ -101,21 +101,20 @@ object NoticeJsonParser {
         }
     }
 
-    /** 去掉 HTML 标签，留纯文本（note 里只有 <a> 之类简单标签，正则够用） */
+    /**
+     * 去掉 HTML 标签，留纯文本（note 里只有 <a> 之类简单标签，正则够用）
+     *
+     * R11 收敛（2026-10-18 第 9 轮审计）：原来此处把 &amp; 放在 &lt; 前面解，
+     * `&amp;lt;` 会被双重解码成 `<`（顺序 bug）。公共函数已把 &amp; 置于末位，换之。
+     */
     fun stripHtml(html: String): String =
-        html.replace(Regex("<[^>]*>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .trim()
+        unescapeHtmlEntities(html.replace(Regex("<[^>]*>"), ""))?.trim() ?: ""
 
     /** 取 note 里的**全部**链接。注意不能只取第一个 —— 见下方注释。 */
     private fun allHrefs(html: String): List<String> =
         Regex("""href\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
             .findAll(html)
-            .map { it.groupValues[1].replace("&amp;", "&").trim() }
+            .map { unescapeHtmlEntities(it.groupValues[1])?.trim() ?: "" }
             .filter { it.isNotBlank() }
             .toList()
 

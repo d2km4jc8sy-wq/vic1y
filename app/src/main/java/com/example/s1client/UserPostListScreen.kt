@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.s1client.data.model.UserPostItem
+import com.example.s1client.util.unescapeHtmlEntities
 import com.example.s1client.ui.design.AccentPink
 import com.example.s1client.ui.design.BgColor
 import com.example.s1client.ui.design.BgColorBottom
@@ -190,7 +191,7 @@ fun UserPostListScreen(
 /** HTML 列表项 → 统一列表项模型（作者信息由页面注入） */
 private fun UserPostItem.toPost(uid: String?, name: String?): Post = Post(
     id = tid.toIntOrNull() ?: 0,
-    title = subject.ifBlank { "(无标题)" },
+    title = unescapeHtmlEntities(subject).orEmpty().ifBlank { "(无标题)" },
     coverUrl = null,
     tag = forum.takeIf { it.isNotBlank() },
     authorName = name,

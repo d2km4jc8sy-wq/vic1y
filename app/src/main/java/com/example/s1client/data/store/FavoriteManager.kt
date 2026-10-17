@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.util.UserPostParser
+import com.example.s1client.util.unescapeHtmlEntities
 
 /**
  * 收藏 / 取消收藏。
@@ -162,7 +163,10 @@ object FavoriteManager {
         return try {
             val actionRaw = Regex("""<form[^>]*?action="([^"]+)"""").find(html)?.groupValues?.get(1)
                 ?: return Result(failed = true, message = "未找到表单")
-            val action = actionRaw.replace("&amp;", "&")
+            // R11 收敛（2026-10-18 第 9 轮审计）：form action URL 的实体解码。
+            // 原来只解 &amp;（URL 查询参数分隔符必须还原）；现统一走公共函数，
+            // 其余实体在 URL 中极少见，单次 replace 不会过度解码。
+            val action = unescapeHtmlEntities(actionRaw) ?: actionRaw
 
             val params = Regex("""<input[^>]*?name="([^"]+)"[^>]*?value="([^"]*)"""")
                 .findAll(html).map { it.groupValues[1] to it.groupValues[2] }.toList()

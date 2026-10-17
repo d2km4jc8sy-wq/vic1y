@@ -153,7 +153,16 @@ internal fun ThreadDetailActivity.showReplySheet() {
             DraftStore.save(act, draftKey, nv.text)
         }
         // 面板关了就断掉回调，避免上传回来时面板已销毁
-        dialog.setOnDismissListener { onReplyImageUploaded = null }
+        // B3 修复（审计报告 v2 2026-10-18 第 9 轮）：dismiss 时一并清掉引用预览。
+        // 原来只有「取消」钮（下方 clickable）与「发送成功」（doSend 内）清 quotedPost，
+        // 返回手势 / 点面板外 dismiss 不清 → 下次开面板时 :130 又读到旧引用，
+        // 经底部输入框发「真回复」会带上一条旧引用预览并随文发出。
+        // 安全说明：doSend 里 quote 是 :130 取的局部快照，dismiss 清 quotedPost
+        // 不会影响本次已发出的引用内容。
+        dialog.setOnDismissListener {
+            onReplyImageUploaded = null
+            quotedPost = null
+        }
 
         fun doSend() {
             android.util.Log.d("S1Reply", "doSend 触发, draftKey=$draftKey, 文本长度=${replyValue.value.text.length}")

@@ -52,6 +52,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -155,6 +156,22 @@ fun MineScreen(onFinish: () -> Unit) {
     var confettiKey by remember { mutableIntStateOf(0) }
 
     var loggedIn by remember { mutableStateOf(ForumDataCache.isLoggedIn()) }
+    // R9 修复（审计报告 v2 2026-10-18 第 9 轮）：登录态改 resume 复检，与 MainActivity
+    // 的 homeLoggedIn（:366-368）保持同一机制。原来是组合期一次性快照 ——
+    // 游客态进「我的」页 → 点头像（:274 登录入口）→ 登录成功 finish 返回后，
+    // 本页仍停留在未登录态（无用户名/无签名/无三功能格/无签到），必须手动切走再切回才恢复。
+    // MineActivity 用的是普通 startActivity，收不到 LoginActivity 的 setResult，
+    // 所以只能在 resume 时复检 ForumDataCache（登录成功的唯一权威写点是 SessionRepository）。
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                loggedIn = ForumDataCache.isLoggedIn()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     var refresh by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 

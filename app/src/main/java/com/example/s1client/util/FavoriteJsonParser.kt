@@ -95,13 +95,9 @@ object FavoriteJsonParser {
     }
 
     private fun stripTags(html: String): String =
-        html.replace(Regex("<[^>]*>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .trim()
+        // R11 收敛（2026-10-18 第 9 轮审计）：原来此处把 &amp; 放在 &lt; 前面解，
+        // `&amp;lt;` 会被双重解码成 `<`（顺序 bug）。公共函数已把 &amp; 置于末位，换之。
+        unescapeHtmlEntities(html.replace(Regex("<[^>]*>"), ""))?.trim() ?: ""
 
     private const val DEFAULT_PER_PAGE = 20
 }

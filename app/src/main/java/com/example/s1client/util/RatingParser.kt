@@ -374,9 +374,12 @@ object RatingParser {
                 (body.contains("window.location.href") && body.contains("viewthread"))
     }
 
-    private fun decode(s: String): String = s
-        .replace("&amp;", "&").replace("&lt;", "<")
-        .replace("&gt;", ">").replace("&quot;", "\"").replace("&#39;", "'")
+    /**
+     * R11 收敛（2026-10-18 第 9 轮审计）：原为此处私有一份 5 实体 replace 链，
+     * 与 PostContentParser / FavoriteJsonParser / NoticeJsonParser 各写各的。
+     * 现统一走公共 [unescapeHtmlEntities]，行为不变（口径本就照它定的）。
+     */
+    private fun decode(s: String): String = unescapeHtmlEntities(s) ?: s
 
     private fun RateFormOptions.Companion.withDefaults(error: String): RateFormOptions {
         return RateFormOptions(

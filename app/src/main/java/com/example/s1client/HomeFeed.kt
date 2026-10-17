@@ -465,8 +465,21 @@ fun ForumFeedPage(
                     // 白闪已按设计者 2026-10-18 反馈去掉（刺眼），快门瞬间改由
                     // 「扳手回位 + 相机退场 + 遮罩淡入」三段式表达。
                     val maskAlpha = remember { Animatable(0f) }
+                    // R13 修复（审计报告 v2 2026-10-18 第 9 轮）：原来 refreshing 为 true 时
+                    // 只 animateTo(1f) 没有任何退场兜底 —— 一旦 isRefreshing 因请求异常未复位
+                    // （ViewModel 状态机漏一支 / 进程被打断），遮罩会永久停在 60% 压暗盖住整个首页，
+                    // 且无取消入口。加 10s 上限强制退场：超时只退遮罩（视觉兜底），
+                    // refreshing 状态本身不变，仍由状态机自行收敛。
+                    // 注：10s 为审查员取值，属防御性下限；设计者可推翻（见回执拍板节）。
+                    val REFRESH_MASK_TIMEOUT_MS = 10_000L
                     LaunchedEffect(refreshing) {
-                        maskAlpha.animateTo(if (refreshing) 1f else 0f, tween(300))
+                        if (refreshing) {
+                            maskAlpha.animateTo(1f, tween(300))
+                            delay(REFRESH_MASK_TIMEOUT_MS)
+                            maskAlpha.animateTo(0f, tween(300))
+                        } else {
+                            maskAlpha.animateTo(0f, tween(300))
+                        }
                     }
                     // 遮罩内容只在 >0.01 时参与组合（derivedStateOf：阈值翻转才重组，不跟帧）
                     val maskVisible by remember {

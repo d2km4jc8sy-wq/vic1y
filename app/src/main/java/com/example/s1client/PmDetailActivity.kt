@@ -27,7 +27,10 @@ import com.example.s1client.databinding.ItemPmMessageBinding
 import com.example.s1client.ui.showUserCardDialog
 import com.example.s1client.util.avatarUrl
 import com.example.s1client.util.toast
+import com.example.s1client.util.unescapeHtmlEntities
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.example.s1client.util.PmParser
 
 class PmDetailActivity : BaseActivity() {
@@ -115,10 +118,23 @@ class PmDetailActivity : BaseActivity() {
         val msg = binding.etReply.text.toString().trim()
         if (msg.isEmpty()) { toast("内容不能为空"); return }
         binding.btnSend.isEnabled = false
+
+        // R10 修复（审计报告 v2 2026-10-18 第 9 轮）：
+        // 原来这里直读 ForumDataCache.formhash，缓存空/过期即放弃并弹死路提示
+        // 「请先刷新主页获取登录令牌」——既无兜底、也把责任推给用户（设计者实测差点连发）。
+        // 同项目已有 4 处现成兜底实现：AttendanceManager.fetchFormhash /
+        // FavoriteManager.fetchFormhash / SearchManager.fetchFormhash / 回帖 inline
+        // （ThreadDetailReplyActions:391-394）—— 私信是第 5 个写路径却一个都没用上。
+        // 此处补上，口径对齐 AttendanceManager：forumindex 现拉 → 失败回退缓存。
+        // 取令牌期间显示 progressBar 作「请求中可见反馈」，不再让用户盲等。
+        binding.progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
-            val fh = ForumDataCache.formhash
+            val fh = withContext(Dispatchers.IO) {
+                try { RetrofitClient.api.getForumIndex().variables?.formhash } catch (_: Exception) { null }
+            } ?: ForumDataCache.formhash
+            binding.progressBar.visibility = View.GONE
             if (fh.isBlank()) {
-                toast("请先刷新主页获取登录令牌")
+                toast("登录令牌获取失败，请稍候再试")
                 binding.btnSend.isEnabled = true
                 return@launch
             }
@@ -132,6 +148,7 @@ class PmDetailActivity : BaseActivity() {
                 }
                 is ApiResult.Failure -> toast(r.error.userMessage)
             }
+            binding.progressBar.visibility = View.GONE
             binding.btnSend.isEnabled = true
         }
     }
@@ -272,13 +289,12 @@ class PmMessageAdapter(
     override fun getItemCount() = items.size
 
     private fun stripBbcode(s: String): String {
-        return s.replace(Regex("""<br\s*/?>"""), "\n")
-            .replace(Regex("""<[^>]+>"""), "")
-            .replace(Regex("""\[/?[a-zA-Z0-9=]+]"""), "")
-            .replace("&nbsp;", " ")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .trim()
+        // R11 收敛（2026-10-18 第 9 轮审计）：原来此处私有一份 4 实体 replace 链，
+        // 且 &amp; 前置（`&amp;lt;` 会被双重解码）。公共函数顺序正确且覆盖全，换之。
+        return unescapeHtmlEntities(
+            s.replace(Regex("""<br\s*/?>"""), "\n")
+                .replace(Regex("""<[^>]+>"""), "")
+                .replace(Regex("""\[/?[a-zA-Z0-9=]+]"""), "")
+        )?.trim() ?: s.trim()
     }
 }

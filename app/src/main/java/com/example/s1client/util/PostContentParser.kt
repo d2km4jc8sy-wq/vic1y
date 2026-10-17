@@ -47,11 +47,11 @@ object PostContentParser {
         // 命中缓存直接返回，跳过整段正则解析
         parseCache.get(html)?.let { return it }
 
-        var text = html
-            .replace("&lt;", "<").replace("&gt;", ">")
-            .replace("&quot;", "\"").replace("&#39;", "'")
-            .replace("&apos;", "'").replace("&nbsp;", " ")
-            .replace("&amp;", "&")
+        // R11 收敛（2026-10-18 第 9 轮审计）：原来此处是一份手写的 6 实体 replace 链
+        //（顺序本就正确：&amp; 置于末位防双重解码）。现改为调用公共函数，行为等价，
+        // 消除与 RatingParser / NoticeJsonParser / FavoriteJsonParser 的重复实现。
+        // 函数入口上方已判 isNullOrBlank，此处 html 必非空，?: html 仅为满足空安全类型。
+        var text = unescapeHtmlEntities(html) ?: html
 
         // ===== 1. 处理引用（Discuz 用 <div class="reply_wrap">）=====
         val replyWrapRegex = Regex(
