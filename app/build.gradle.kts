@@ -1,4 +1,5 @@
 import java.util.concurrent.TimeUnit
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -68,15 +69,23 @@ android {
 
     // 签名口令不再明文写在脚本里：从 local.properties 读（该文件不入库）。
     // 缺失时 release 构建会明确报错，而不是悄悄用弱口令打包。
-    val signingStore = file(
-        (project.findProperty("s1.storeFile") as String?) ?: "s1client.jks"
-    )
-    val signingStorePassword = (project.findProperty("s1.storePassword") as String?)
-        ?: ""
-    val signingKeyPassword = (project.findProperty("s1.keyPassword") as String?)
-        ?: signingStorePassword
-    val signingKeyAlias = (project.findProperty("s1.keyAlias") as String?)
-        ?: "s1client"
+    //
+    // R1 修复（2026-10-18 审计报告）：Gradle 不会自动把 local.properties 变成项目属性，
+    // 原先只用 findProperty 读 s1.*，导致四键恒为空 → signingConfigs 永不创建 →
+    // release 恒出 unsigned（历来靠 zipalign+apksigner 两段式手工兜底）。
+    // 现在显式加载 local.properties 作为回退源；命令行 -Ps1.* 与 gradle.properties 仍最高优先。
+    val localProps = Properties()
+    val localPropsFile = rootProject.file("local.properties")
+    if (localPropsFile.exists()) {
+        localPropsFile.inputStream().use { localProps.load(it) }
+    }
+    fun s1Prop(key: String): String? =
+        (project.findProperty(key) as String?) ?: localProps.getProperty(key)
+
+    val signingStore = file(s1Prop("s1.storeFile") ?: "s1client.jks")
+    val signingStorePassword = s1Prop("s1.storePassword") ?: ""
+    val signingKeyPassword = s1Prop("s1.keyPassword") ?: signingStorePassword
+    val signingKeyAlias = s1Prop("s1.keyAlias") ?: "s1client"
 
     signingConfigs {
         if (signingStorePassword.isNotBlank() && signingStore.exists()) {
