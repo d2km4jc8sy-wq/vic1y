@@ -391,21 +391,13 @@ fun S1Theme(
     // 用反射探测 File/Path 两种构造：不同 Compose 版本 platform.Font 的公开面不同，
     // 反射保证任何版本都能编译，运行时找不到就优雅回退系统字体。
     val typography = if (customFontFile != null) {
+        // 阶段四 P10（2026-10-17）：原实现反射探测 androidx.compose.ui.text.platform.Font——
+        // 该内部类在 Compose 1.6（BOM 2024.02）不存在，catch 静默回退系统字体，
+        // 导致「字体导入永远看不到效果」。改为直接框架调用 Typeface.createFromFile，
+        // FontFamily(Typeface) 公开重载稳定存在。
         val family: androidx.compose.ui.text.font.FontFamily = try {
-            val cls = Class.forName("androidx.compose.ui.text.platform.Font")
-            val fileCtor = cls.constructors.firstOrNull {
-                it.parameterTypes.size == 1 && it.parameterTypes[0] == java.io.File::class.java
-            }
-            val pathCtor = cls.constructors.firstOrNull {
-                it.parameterTypes.size == 1 && it.parameterTypes[0] == String::class.java
-            }
-            val fontObj = when {
-                fileCtor != null -> fileCtor.newInstance(customFontFile)
-                pathCtor != null -> pathCtor.newInstance(customFontFile.absolutePath)
-                else -> null
-            }
-            if (fontObj != null) androidx.compose.ui.text.font.FontFamily(fontObj as androidx.compose.ui.text.font.Font)
-            else androidx.compose.ui.text.font.FontFamily.Default
+            val frameworkTypeface = android.graphics.Typeface.createFromFile(customFontFile)
+            androidx.compose.ui.text.font.FontFamily(frameworkTypeface)
         } catch (_: Throwable) {
             androidx.compose.ui.text.font.FontFamily.Default
         }

@@ -117,3 +117,10 @@
   - ⚠ 事故二连（已全部恢复，经验入账）：①工作区过期副本覆盖 D 盘——build.gradle.kts 丢 versionCode 自动化、manifest 丢 allowBackup/exported 修复（compileSdk 编辑时用错副本），装机 versionName=1.0 才暴露，aapt2 badging 精确确诊后按提交历史恢复；②PowerShell 双引号 \n 字面量事故再犯（ChangelogScreen Icon 块挤成一行 + waitForIdle 替换语句异常吞掉弹窗写入）——多行代码注入一律 python 字节级操作或 edit 工具，禁用双引号 \n 拼接。流程铁律新增：exec 直改 D 盘后必须立刻回同步工作区；装机前必须 aapt2 dump badging 验版本。
   - 设备切换：小米10 Ultra（Android 13 已 root）→ 一加 13T PKX110（Android 16 未 root，serial 6a8a1c57）。Android 16 + targetSdk 35 首验通过（边到边无破版、零 FATAL、1.1.0 运行中）。新机需重新登录；UI 自动化受限（未 root）。
   - 本地：159 用例（152+7 检查更新）0 失败 + assembleDebug 绿；真机零 FATAL。
+
+- 2026-10-17 深色跟随验收通过（用户「1 无异议，2」→ 网络参数+检查更新轮启动）+ 发布工程第二轮 + CI 矩阵拉锯：
+  - 69219f9 网络参数页（P8，feature_network）：强制基础网址/IP 直连（OkHttp Dns 覆盖，SNI 按原域名校验），默认值=当前正确数据，无效输入回落主域。NetworkParamsTest 7 用例。
+  - 6354d9e 检查更新（P9，feature_update）：GitHub Releases 渠道 + 发现新版本弹窗（忽略/稍后/立即更新）+ 关于组入口。UpdateCheckerTest 7 用例（org.json 真实现入测试依赖——JVM 桩无法测 JSON 解析）。
+  - 字体导入根因确诊（P10）：导入仅存储不应用——应用层从未实现。修复三件套已就位未提交验证：S1Theme 反射换 Typeface.createFromFile + SettingStore.customTypeface 缓存 + PostAdapter 正文应用。
+  - ⚠ CI 矩阵拉锯（runs 39003987274/38941998848/38943132517/38945117772）：7×3 矩阵测试的 NATIVE 图形模式污染同 JVM 后续 compose 测试（ComponentTest AppNotIdleException 三连实证；隔离/排除/换包位三组对照实验闭环确认）。定稿：默认 test 任务排除矩阵（build.gradle runMatrix 属性门），CI workflow 用独立步骤 -PrunMatrix 单独跑（独立 JVM 不污染）+ 截图 artifact。阈值降为渲染证明下限（≥8 色），matrix_report.txt 随 artifact 上传供标定。
+  - 本地：162 用例（矩阵排除）0 失败 + assembleDebug 绿。

@@ -515,6 +515,10 @@ class PostAdapter(
         tvMessage.ellipsize = TextUtils.TruncateAt.END
         h.binding.tvExpand.setOnClickListener(null)
         h.binding.tvExpand.visibility = View.GONE
+        // 自定义字体（阶段四 P10）：导入的字体应用到楼层正文（View 侧）
+        com.example.s1client.data.store.SettingStore.customTypeface(h.itemView.context)?.let { tf ->
+            tvMessage.typeface = tf
+        }
         val textWidth = (contentWpx - tvMessage.compoundPaddingLeft - tvMessage.compoundPaddingRight).toInt()
         // 性能优化 2026-10-16：测行数是只为「展开全文」按钮服务的一次完整排版，
         // 原来每次绑定都重算（长文楼层滚动时反复付出整段 StaticLayout 的成本）。

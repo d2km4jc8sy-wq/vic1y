@@ -125,6 +125,31 @@ object SettingStore {
 
     // ————————— 字体导入（对标 FontImportService） —————————
 
+    // ————————— 自定义字体应用（阶段四 P10，2026-10-17）—————————
+
+    private var cachedTypeface: android.graphics.Typeface? = null
+    private var typefaceCacheKey: String? = null
+
+    /**
+     * 自定义字体 Typeface：导入的字体真正被渲染层使用的入口（此前只存储不应用，
+     * 是「字体导入测试失败」的根因）。文件缺失/损坏返回 null（调用方回落系统字体）。
+     * 按文件名缓存；importFont / removeCustomFont 时失效。
+     */
+    fun customTypeface(context: Context): android.graphics.Typeface? {
+        val name = customFontName(context) ?: return null
+        if (!fontFile(context).exists()) return null
+        if (cachedTypeface != null && typefaceCacheKey == name) return cachedTypeface
+        val tf = runCatching { android.graphics.Typeface.createFromFile(fontFile(context)) }.getOrNull()
+        cachedTypeface = tf
+        typefaceCacheKey = name
+        return tf
+    }
+
+    private fun resetTypefaceCache() {
+        cachedTypeface = null
+        typefaceCacheKey = null
+    }
+
     fun fontFile(context: Context): File {
         val dir = File(context.filesDir, "fonts")
         if (!dir.exists()) dir.mkdirs()
@@ -151,6 +176,7 @@ object SettingStore {
         context.contentResolver.openInputStream(uri)?.use { input ->
             fontFile(context).outputStream().use { output -> input.copyTo(output) }
         } ?: error("无法读取所选文件")
+        resetTypefaceCache()
         prefs(context).edit().putString("custom_font_file", name).apply()
         bump()
         name
@@ -160,6 +186,7 @@ object SettingStore {
     fun removeCustomFont(context: Context) {
         fontFile(context).delete()
         prefs(context).edit().remove("custom_font_file").apply()
+        resetTypefaceCache()
         bump()
     }
 

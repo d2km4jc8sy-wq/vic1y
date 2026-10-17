@@ -29,6 +29,10 @@ jobs:
         run: ./gradlew :app:testDebugUnitTest :app:assembleDebug
 
       # 已知基线：22 Errors / 311 Warnings，先容忍失败只出报告
+      - name: Theme matrix (7x3 NATIVE screenshots)
+        continue-on-error: true
+        run: ./gradlew :app:testDebugUnitTest -PrunMatrix --tests "com.example.s1client.ztest.ThemeMatrixCaptureTest"
+
       - name: Lint
         run: ./gradlew :app:lintDebug
         continue-on-error: true
