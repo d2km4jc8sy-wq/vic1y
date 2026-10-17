@@ -658,8 +658,19 @@ fun SettingsScreen(onFinish: () -> Unit) {
                     showLogoutConfirm = false
                     RetrofitClient.clearCookies()
                     ForumDataCache.clearUser()
-                    // 用户拍板（2026-10-14）：登出后进登录页但不清任务栈——
-                    // 从登录页按返回可回到游客版「我的/首页」，不再困死（宪法 11 人类使用逻辑）
+                    // 登出后目标栈（2026-10-18 B 案治本，设计者点单）：
+                    // 原 2026-10-14 拍板原话「游客版，我的、首页」= 未登录游客态的两个版面，
+                    // 且不困死登录页。旧实现直接 startActivity(LoginActivity) 不清栈，
+                    // 返回先落到设置页（登出发生地，已登录语境陈尸）——多出中间页，
+                    // 违反 2026-10-11 登录页教训③。
+                    // 修法：CLEAR_TOP 把栈里陈尸（我的/设置）精准清掉，只留游客态
+                    // MainActivity 在栈底（MainActivity onResume 复检登录态切游客底栏），
+                    // 再压登录页。返回路径：登录页 →(返回)→ 游客首页 ✓ 不困死 ✓
+                    context.startActivity(
+                        android.content.Intent(context, MainActivity::class.java).apply {
+                            flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                    )
                     context.startActivity(
                         android.content.Intent(context, LoginActivity::class.java)
                     )

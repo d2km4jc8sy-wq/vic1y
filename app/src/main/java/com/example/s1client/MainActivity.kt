@@ -360,8 +360,13 @@ fun XhsHomeScreen(viewModel: PostViewModel, resumeSignal: androidx.compose.runti
     }
 
     // 进入 / 回到首页时拉取未读提醒数（通知未看 + 私信未读），驱动底栏「提醒」状态
+    // 登录态 resume 复检（2026-10-18 B 案配套）：登出后从登录页返回 → 游客态立即可见。
+    // 原来 bottomBar 直接读 ForumDataCache.isLoggedIn() 是组合期快照——登出返回后
+    // 停留在已登录态（陈尸 UI）；改为 state 驱动，每次回首页（resumeSignal）刷新。
+    var homeLoggedIn by remember { mutableStateOf(ForumDataCache.isLoggedIn()) }
     LaunchedEffect(resumeSignal.value) {
-        if (!ForumDataCache.isLoggedIn()) {
+        homeLoggedIn = ForumDataCache.isLoggedIn()
+        if (!homeLoggedIn) {
             unreadCount = 0
             return@LaunchedEffect
         }
@@ -554,7 +559,7 @@ fun XhsHomeScreen(viewModel: PostViewModel, resumeSignal: androidx.compose.runti
         },
         bottomBar = {
             XhsBottomNav(
-                loggedIn = ForumDataCache.isLoggedIn(),
+                loggedIn = homeLoggedIn,
                 onHome = { scope.launch { pagerState.animateScrollToPage(0) } },
                 onSearch = {
                     context.startActivity(Intent(context, SearchActivity::class.java))
