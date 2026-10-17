@@ -130,3 +130,5 @@
 - 2026-10-17 GitHub Release v1.1.0 上线（用户指令"此版本 apk 上传到 GitHub 对应的下载入口"）：签名包 S1Client-v1.1.0-release.apk（6.2MB，CN=S1Client 证书）上传 Release asset；更新日志追加本轮重要功能；releases/latest API 端到端验证通过（tag=v1.1.0 assets=1）——检查更新渠道从此有真实数据，未来发版走同一入口。
 
 - 2026-10-17 CI 全绿确认 + P15 触达区落地推送（bbd02dd）：forkEvery(1) 修复后 CI 连续三轮绿（a356f73/bbd02dd/后续）；触达区外扩真机待用户日常体感复核。PROBLEMS P15 触达部分标记完成（9sp 字号部分仍待拍板）。
+
+- 2026-10-17 P13 隐私政策落地（f0fa947）：仓库 PRIVACY.md（七节全文：不收集/本地存储表/网络访问/权限/账号安全/开源/联系）+ 应用内 feature_privacy/PrivacyScreen（结构化渲染同内容）+ 设置→关于组「隐私政策」入口（PrivacyTip 图标）。本地 167 用例 0 失败；versionCode 139 装机一加 13T Success。P11 s1er 设置对齐审计研究员并行进行中。
