@@ -603,7 +603,10 @@ class PostAdapter(
         // ===== 图片：楼主层置顶，其余楼层放正文下方（维持整组展示，不做段落穿插） =====
         val topContainer = h.binding.llTopImages
         val container = h.binding.llImages
-        val allUrls = parsed.imageUrls
+        // 每楼层图片上限（R1 低成本批）：0=不限；截断时在图组末尾补一行省略提示
+        val imgCap = com.example.s1client.data.store.SettingStore.maxImagesPerFloor(ctx)
+        val allUrls = if (imgCap > 0) parsed.imageUrls.take(imgCap) else parsed.imageUrls
+        val omitted = parsed.imageUrls.size - allUrls.size
         val host = if (isFirst) topContainer else container
         topContainer.visibility = if (isFirst && allUrls.isNotEmpty()) View.VISIBLE else View.GONE
         container.visibility = if (!isFirst && allUrls.isNotEmpty()) View.VISIBLE else View.GONE
@@ -742,6 +745,15 @@ class PostAdapter(
                 } else {
                     host.addView(wrap)
                 }
+            }
+            if (omitted > 0) {
+                val hint = TextView(ctx).apply {
+                    text = "已省略 $omitted 张图片（设置 → 数据管理 → 每楼层图片上限）"
+                    textSize = 12f
+                    setTextColor(phTextTv.data)
+                    setPadding(0, (4 * density).toInt(), 0, 0)
+                }
+                host.addView(hint)
             }
         }
 
