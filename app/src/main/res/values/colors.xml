@@ -184,9 +184,6 @@
     <color name="text_title">@color/light_text_title</color>
     <color name="text_body">@color/light_text_body</color>
 
-    <!-- 系统开屏背景：「睁眼素材」的暗酒红底色 -->
-    <color name="splash_bg">#492632</color>
-
     <!-- 幻彩渐变 · 深色板（与 S1Theme.kt 的 IridescentPresets[1] 对齐）：
          首页抽到深色紫时，XML 页面（帖子详情等）必须用这套，否则会闪成浅色 -->
     <color name="iridescent_dark_bg_page">#16101F</color>
