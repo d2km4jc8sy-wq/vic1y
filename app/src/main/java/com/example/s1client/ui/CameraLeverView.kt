@@ -52,7 +52,7 @@ class CameraLeverView @JvmOverloads constructor(
         /** viewBox 高（vb 单位） */
         const val VB_H = 132f
         /** View 建议宽度 dp；高度按比例推出 */
-        const val VIEW_W_DP = 68f
+        const val VIEW_W_DP = 88f
 
         /** 转轴（机身内） */
         const val PIVOT_X = 58f
@@ -63,18 +63,18 @@ class CameraLeverView @JvmOverloads constructor(
         const val BASE_ANGLE = 0f
         /** 到底角：扳手垂直指向下 */
         const val MAX_ANGLE = 90f
-        /** 松手触发阈值 */
-        const val THRESHOLD_ANGLE = 52f
+        /** 松手触发阈值（2026-10-18 22:58 由 52 放宽到 45：实测「有些难操作」） */
+        const val THRESHOLD_ANGLE = 45f
         /** 甩动触发：角速度（度/ms）超过此值且已离开起点即到位 */
-        const val FLICK_DEG_PER_MS = 1.6f
+        const val FLICK_DEG_PER_MS = 1.2f
         /** 甩动判定的最小起角（防止原地轻抖也算甩） */
         const val FLICK_MIN_ANGLE = 18f
         /** 分档咔哒步长（度），跨档给一次 selection 震感 */
         const val TICK_STEP_DEG = 15f
-        /** 起手热区：球头半径 vb */
-        const val HIT_BALL = 28f
-        /** 起手热区：转轴附近半径 vb */
-        const val HIT_AXIS = 46f
+        /** 起手热区：球头半径 vb（22:58 由 28 放宽到 34，配合控件放大，手指更好抓） */
+        const val HIT_BALL = 34f
+        /** 起手热区：转轴附近半径 vb（46 → 54：拇指不必精确命中） */
+        const val HIT_AXIS = 54f
         /** 浮现/隐藏位移 dp */
         const val REVEAL_SHIFT_DP = -56f
 

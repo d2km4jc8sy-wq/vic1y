@@ -28,8 +28,8 @@ class CameraLeverViewTest {
         assertEquals(32f, CameraLeverView.BALL_R, 0f)
         assertEquals(0f, CameraLeverView.BASE_ANGLE, 0f)
         assertEquals(90f, CameraLeverView.MAX_ANGLE, 0f)
-        assertEquals(52f, CameraLeverView.THRESHOLD_ANGLE, 0f)
-        assertEquals(1.6f, CameraLeverView.FLICK_DEG_PER_MS, 0f)
+        assertEquals(45f, CameraLeverView.THRESHOLD_ANGLE, 0f)
+        assertEquals(1.2f, CameraLeverView.FLICK_DEG_PER_MS, 0f)
     }
 
     // ——— 角度 ↔ 球头坐标 互逆（跟手的核心） ———
@@ -95,12 +95,12 @@ class CameraLeverViewTest {
     @Test
     fun `低于阈值不触发`() {
         assertFalse(CameraLeverView.shouldFire(0f))
-        assertFalse(CameraLeverView.shouldFire(51.9f))
+        assertFalse(CameraLeverView.shouldFire(44.9f))
     }
 
     @Test
     fun `达到阈值即触发`() {
-        assertTrue(CameraLeverView.shouldFire(52f))
+        assertTrue(CameraLeverView.shouldFire(45f))
         assertTrue(CameraLeverView.shouldFire(90f))
     }
 
@@ -144,7 +144,7 @@ class CameraLeverViewTest {
     @Test
     fun `跨档步进`() {
         assertEquals(1, CameraLeverView.tickIndex(15f))
-        assertEquals(3, CameraLeverView.tickIndex(52f))
+        assertEquals(3, CameraLeverView.tickIndex(45f))
         assertEquals(6, CameraLeverView.tickIndex(90f))
     }
 
@@ -153,6 +153,8 @@ class CameraLeverViewTest {
     @Test
     fun `甩动阈值与最小起角已登记`() {
         assertEquals(18f, CameraLeverView.FLICK_MIN_ANGLE, 0f)
-        assertTrue(1.6f > CameraLeverView.FLICK_MIN_ANGLE / 16f)   // 1.6 度/ms 与步长量级相容
+        // 控件放大到 88dp 后，起手热区应达到「拇指不必精确命中」的量级
+        assertTrue(CameraLeverView.VIEW_W_DP / 100f * CameraLeverView.HIT_BALL > 26f)
+        assertTrue(CameraLeverView.VIEW_W_DP / 100f * CameraLeverView.HIT_AXIS > 42f)
     }
 }
