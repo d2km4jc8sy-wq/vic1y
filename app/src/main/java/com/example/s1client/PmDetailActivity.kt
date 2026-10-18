@@ -103,7 +103,8 @@ class PmDetailActivity : BaseActivity() {
             when (val r = safeApiCall { RetrofitClient.fetchHtml(url) }) {
                 is ApiResult.Success -> {
                     val list = PmParser.parsePmConversation(r.data)
-                    adapter.submit(list)
+                    // 提案簿 10：乐观更新对账 —— 服务端未收录乐观消息时保留现状不覆盖
+                    adapter.submitRespectingOptimistic(list)
                     if (list.isNotEmpty()) {
                         binding.rvMessages.scrollToPosition(list.size - 1)
                     }
@@ -144,6 +145,15 @@ class PmDetailActivity : BaseActivity() {
                 is ApiResult.Success -> {
                     binding.etReply.setText("")
                     toast("已发送")
+                    // 提案簿 10（设计者点单「私信发送刷新」）：乐观更新 —— 服务端 PM
+                    // 详情页对刚发的消息有可见性时序延迟（同 URL 同解析器，发完立刻拉
+                    // 不含新消息、退回重进才有，设计者 13T 实测），故先本地插入这条
+                    // 零等待显示；随后 loadConversation() 对账，服务端收录后覆盖为
+                    // 带真实时间戳的版本（submitRespectingOptimistic 防中途抹掉）。
+                    adapter.appendOptimistic(
+                        PmMessage(pmid = "", author = "您", message = msg, dateline = "刚刚", isSelf = true)
+                    )
+                    binding.rvMessages.scrollToPosition(adapter.itemCount - 1)
                     loadConversation()
                 }
                 is ApiResult.Failure -> toast(r.error.userMessage)
@@ -182,6 +192,28 @@ class PmMessageAdapter(
         items.clear()
         items.addAll(list)
         notifyDataSetChanged()
+    }
+
+    /**
+     * 乐观更新（提案簿 10 · 2026-10-18 设计者点单）：发送成功后立刻在本地追加刚发的
+     * 消息，让用户零等待。根因：服务端 PM 详情页（subop=view）对刚发送的消息有可见性
+     * 时序延迟 —— 同一 URL 同一解析器，发送后立刻拉取不含新消息，退回重进（几秒后）
+     * 就能看到（设计者 13T 实测）。与 [submitRespectingOptimistic] 配对使用。
+     */
+    fun appendOptimistic(m: PmMessage) {
+        items.add(m)
+        notifyDataSetChanged()
+    }
+
+    /**
+     * 服务端对账刷新：会话消息单调递增（Discuz PM 无删除入口），
+     * 若服务端返回条数少于当前显示条数（乐观那条尚未被服务端收录），
+     * 保留当前列表不覆盖，防止乐观消息"闪现又消失"；服务端收录后自然覆盖。
+     * 首次载入（items 为空）时恒覆盖，行为与原 submit 一致。
+     */
+    fun submitRespectingOptimistic(list: List<PmMessage>) {
+        if (items.isNotEmpty() && list.size < items.size) return
+        submit(list)
     }
 
     inner class VH(val binding: ItemPmMessageBinding) : RecyclerView.ViewHolder(binding.root)
