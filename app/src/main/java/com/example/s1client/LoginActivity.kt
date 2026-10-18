@@ -85,7 +85,6 @@ import com.example.s1client.data.HistoryAccount
 import com.example.s1client.data.cache.ForumDataCache
 import com.example.s1client.data.session.SessionRepository
 import com.example.s1client.ui.theme.LocalS1Colors
-import com.example.s1client.ui.theme.OledPalette
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.util.avatarUrl
 import kotlinx.coroutines.Dispatchers

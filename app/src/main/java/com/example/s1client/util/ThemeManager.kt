@@ -12,12 +12,14 @@ object ThemeManager {
     private const val KEY_MIGRATED = "theme_migrated_v1"
     private const val KEY_FOLLOW = "follow_system_dark"
 
-    // 主题索引（全部）
+    // 主题索引
+    // 0/5/6/7 为当前可见的四套；1-4 已从选择列表移除（2026-10-18 用户定稿），
+    // 常量仅保留用于识别老版本存档并做迁移，不再有对应色板。
     const val THEME_LIGHT = 0       // 焙茶午后
-    const val THEME_OLED = 1        // 曜石玄夜
-    const val THEME_PINK = 2        // 樱雾粉霜
-    const val THEME_FC = 3          // 朱砂红白
-    const val THEME_RP5 = 4         // 苔绿灰阶
+    const val THEME_OLED = 1        // 曜石玄夜（已移除，仅迁移识别）
+    const val THEME_PINK = 2        // 樱雾粉霜（已移除，仅迁移识别）
+    const val THEME_FC = 3          // 朱砂红白（已移除，仅迁移识别）
+    const val THEME_RP5 = 4         // 苔绿灰阶（已移除，仅迁移识别）
     const val THEME_IRIDESCENT = 5  // 幻彩渐变
     const val THEME_LINEAR = 6      // Linear 墨蓝
     /** 纯白（2026-10-18 新增）：参考 iOS 默认浅色。索引追加在末尾，避免重排已存的值 */
@@ -139,11 +141,10 @@ object ThemeManager {
 
     /**
      * 当前主题对应的无图卡片风格：
-     * -1 = OLED 纯黑专用封面（主题已删除，此分支保留兼容）；-2 = Linear 专用封面；
-     * 5 = 幻彩渐变专用流光封面（固定，不再抽其它风格）；其余 = 本次进程随机锁定的 0..3
+     * -2 = Linear 专用封面；5 = 幻彩渐变专用流光封面（固定，不再抽其它风格）；
+     * 其余 = 本次进程随机锁定的 0..3
      */
     fun coverStyleForCurrent(): Int = when (currentTheme) {
-        THEME_OLED -> -1
         THEME_LINEAR -> -2   // Linear 专用：纯色底 + 底部微光
         THEME_IRIDESCENT -> 5   // 幻彩渐变：固定用流光封面
         else -> sessionCoverStyle
@@ -152,14 +153,11 @@ object ThemeManager {
     fun getThemeRes(): Int = when (currentTheme) {
         THEME_LIGHT -> R.style.Theme_S1Client_Light
         THEME_PURE -> R.style.Theme_S1Client_Pure
-        THEME_OLED -> R.style.Theme_S1Client_OLED
-        THEME_PINK -> R.style.Theme_S1Client_Pink
-        THEME_FC -> R.style.Theme_S1Client_FC
-        THEME_RP5 -> R.style.Theme_S1Client_RP5
         // 幻彩有两套色板（浅紫粉 / 深紫），每次启动随机抽一套：
         // XML 页面（帖子详情等）必须跟着当次抽到的那套，否则会「首页深色、详情浅色」
         THEME_IRIDESCENT -> if (iridescentSeed == 1) R.style.Theme_S1Client_IridescentDark
                             else R.style.Theme_S1Client_Iridescent
+        // Linear 与已移除的曜石同为深色，复用同一套 XML 深色样式
         THEME_LINEAR -> R.style.Theme_S1Client_OLED
         else -> R.style.Theme_S1Client_Light
     }

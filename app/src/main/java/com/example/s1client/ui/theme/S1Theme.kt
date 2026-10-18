@@ -132,94 +132,11 @@ val PurePalette = S1Colors(
     onHeader = Color(0xFF1C1C1E)
 )
 
-/** OLED 纯黑 */
-val OledPalette = S1Colors(
-    bgTop = Color(0xFF000000), bgBottom = Color(0xFF0A0A0A),
-    headerGradient = listOf(Color(0xFF1A1A1A), Color(0xFF000000)),
-    textMain = Color(0xFFCCCCCC), textSub = Color(0xFF888888),
-    accent = Color(0xFFD08040), onAccent = Color(0xFF000000),
-    accentCyan = Color(0xFF1FB8FF), heart = Color(0xFFFF2C55),
-    cardBg = Color(0xFF0A0A0A),
-    glassCard = Color(0xF20A0A0A), glassLine = Color(0x3DFFFFFF),
-    glassBar = Color(0xE6000000), glassFloat = Color(0xE60A0A0A),
-    glassFloatLine = Color(0x3DFFFFFF),
-    glassDialog = Color(0xF20A0A0A), glassDialogLine = Color(0x2EFFFFFF),
-    chipBg = Color.White.copy(alpha = 0.08f),
-    strongIcon = Color(0xFFE8C88A),
-    snackbarBg = Color(0xFF1F1F1F), onSnackbar = Color(0xFFE8C88A),
-    flowCoverColors = listOf(Color(0xFFD08040), Color(0xFF1FB8FF), Color(0xFFE8C88A), Color(0xFFD08040)),
-    // 液态玻璃（真 OLED · 明显）：纯黑底上玻璃描边要够亮才看得见
-    glassEdgeTop = Color(0x59FFFFFF), glassEdgeMid = Color(0x2EFFFFFF),
-    glassEdgeBottom = Color(0x1FFFFFFF),
-    glassInsetLight = Color(0x8AFFFFFF),
-    isDark = true
-)
 
-/** 粉色佳人 */
-private val PinkPalette = S1Colors(
-    bgTop = Color(0xFFFDF3F6), bgBottom = Color(0xFFFCE4E9),
-    headerGradient = listOf(Color(0xFFE94A72), Color(0xFFFCE4E9)),
-    textMain = Color(0xFF2B2B2B), textSub = Color(0xFF8C6A73),
-    accent = Color(0xFFE94A72), onAccent = Color(0xFFFFFFFF),
-    accentCyan = Color(0xFF1FB8FF), heart = Color(0xFFFF2C55),
-    cardBg = Color(0xFFFFFFFF),
-    glassCard = Color(0xF2FFFFFF), glassLine = Color(0x33E94A72),
-    glassBar = Color(0xF2FDF3F6), glassFloat = Color(0xF2FFFFFF),
-    glassFloatLine = Color(0x40E94A72),
-    glassDialog = Color(0xF2FFFFFF), glassDialogLine = Color(0x40E94A72),
-    chipBg = Color.Black.copy(alpha = 0.06f),
-    strongIcon = Color(0xFFC2185B),
-    snackbarBg = Color(0xFF4A2530), onSnackbar = Color(0xFFFFFFFF),
-    flowCoverColors = listOf(Color(0xFFE94A72), Color(0xFF1FB8FF), Color(0xFFC2185B), Color(0xFFE94A72)),
-    isDark = false
-)
 
 // ————————— 三套新主题（视觉差异最大化）—————————
 
-/**
- * FC 红白（任天堂 Famicom）：**深色复古游戏风**
- * 深黑底 + 主机深红强调 + 金色像素装饰线
- * 顶栏深红→黑渐变；玻璃卡片深红装饰边
- */
-private val FcPalette = S1Colors(
-    bgTop = Color(0xFF111111), bgBottom = Color(0xFF000000),
-    headerGradient = listOf(Color(0xFFC41E3A), Color(0xFF111111)),
-    textMain = Color(0xFFF0E8D8), textSub = Color(0xFF887A60),
-    accent = Color(0xFFC41E3A), onAccent = Color(0xFFFFFFFF),
-    accentCyan = Color(0xFFD4AF37), heart = Color(0xFFFF2C55),
-    cardBg = Color(0xFF1A1A1A),
-    glassCard = Color(0xE6222222), glassLine = Color(0x55C41E3A),
-    glassBar = Color(0xE60A0A0A), glassFloat = Color(0xE6222222),
-    glassFloatLine = Color(0x55C41E3A),
-    glassDialog = Color(0xE6222222), glassDialogLine = Color(0x40D4AF37),
-    chipBg = Color.White.copy(alpha = 0.08f),
-    strongIcon = Color(0xFFD4AF37),
-    snackbarBg = Color(0xFFC41E3A), onSnackbar = Color(0xFFFFFFFF),
-    flowCoverColors = listOf(Color(0xFFC41E3A), Color(0xFFD4AF37), Color(0xFF111111), Color(0xFFC41E3A)),
-    isDark = true
-)
 
-/**
- * RP5 灰彩（复古游戏掌机）：**暖灰底 + LCD 绿屏风**
- * 掌机外壳暖灰 + 内屏琥珀绿/荧光绿 + 深色字（模拟 GameBoy / RG552）
- */
-private val Rp5Palette = S1Colors(
-    bgTop = Color(0xFFD4D0B8), bgBottom = Color(0xFFB8B498),
-    headerGradient = listOf(Color(0xFF8FA868), Color(0xFFB8B498)),
-    textMain = Color(0xFF2F3A1E), textSub = Color(0xFF5B6A3E),
-    accent = Color(0xFF4A7C23), onAccent = Color(0xFFFFFFFF),
-    accentCyan = Color(0xFF8FA868), heart = Color(0xFFFF2C55),
-    cardBg = Color(0xFFECE8D4),
-    glassCard = Color(0xF2ECE8D4), glassLine = Color(0x404A7C23),
-    glassBar = Color(0xE6B8B498), glassFloat = Color(0xF2ECE8D4),
-    glassFloatLine = Color(0x404A7C23),
-    glassDialog = Color(0xF2ECE8D4), glassDialogLine = Color(0x308FA868),
-    chipBg = Color.Black.copy(alpha = 0.07f),
-    strongIcon = Color(0xFF2F3A1E),
-    snackbarBg = Color(0xFF2F3A1E), onSnackbar = Color(0xFFD4D0B8),
-    flowCoverColors = listOf(Color(0xFF4A7C23), Color(0xFF8FA868), Color(0xFFB8B498), Color(0xFF4A7C23)),
-    isDark = false
-)
 
 /**
  * 幻彩渐变：**固定 2 套**（浅色 / 深色），共用同一组「紫 → 品红 → 粉」色板。
@@ -377,7 +294,7 @@ val LinearPalette = S1Colors(
     isDark = true
 )
 
-val LocalS1Colors = staticCompositionLocalOf { OledPalette }
+val LocalS1Colors = staticCompositionLocalOf { TeaPalette }
 
 /**
  * 主题索引 → 调色板。唯一一份映射，供 S1Theme 与「非 Compose 场景」共用
@@ -386,10 +303,6 @@ val LocalS1Colors = staticCompositionLocalOf { OledPalette }
 fun s1PaletteFor(themeIndex: Int, seed: Int = ThemeManager.iridescentSeed): S1Colors = when (themeIndex) {
     ThemeManager.THEME_LIGHT -> TeaPalette
     ThemeManager.THEME_PURE -> PurePalette
-    ThemeManager.THEME_OLED -> OledPalette
-    ThemeManager.THEME_PINK -> PinkPalette
-    ThemeManager.THEME_FC -> FcPalette
-    ThemeManager.THEME_RP5 -> Rp5Palette
     ThemeManager.THEME_LINEAR -> LinearPalette
     ThemeManager.THEME_IRIDESCENT -> buildIridescentPalette(ThemeManager.iridescentSeed)
     else -> TeaPalette
