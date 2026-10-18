@@ -82,17 +82,17 @@ data class S1Colors(
 
 /** 午后红茶 */
 private val TeaPalette = S1Colors(
-    bgTop = Color(0xFFFBF3E0), bgBottom = Color(0xFFF2E7C8),
-    headerGradient = listOf(Color(0xFFA0522D), Color(0xFFC9A86C)),
+    bgTop = Color(0xFFF0E5CB), bgBottom = Color(0xFFF0E5CB),
+    headerGradient = listOf(Color(0xFFA0522D), Color(0xFFA0522D)),
     textMain = Color(0xFF3A3A3A), textSub = Color(0xFF8B7355),
     accent = Color(0xFFA0522D), onAccent = Color(0xFFFFF8DC),
     accentCyan = Color(0xFF1FB8FF), heart = Color(0xFFFF2C55),
     cardBg = Color(0xFFFFFCF0),
-    glassCard = Color(0xF2FFFCF0), glassLine = Color(0x59FFFFFF),
-    glassBar = Color(0xE6C9B896), glassFloat = Color(0xF2FFFCF0),
-    glassFloatLine = Color(0x33A0522D),
-    glassDialog = Color(0xF2FFFCF0), glassDialogLine = Color(0x33A0522D),
-    chipBg = Color.Black.copy(alpha = 0.06f),
+    glassCard = Color(0xFAFFFCF0), glassLine = Color(0x1AA0522D),
+    glassBar = Color(0xF2F0E5CB), glassFloat = Color(0xFAFFFCF0),
+    glassFloatLine = Color(0x24A0522D),
+    glassDialog = Color(0xFAFFFCF0), glassDialogLine = Color(0x24A0522D),
+    chipBg = Color(0xFFE9DCC0),
     strongIcon = Color(0xFF5C2E0E),
     snackbarBg = Color(0xFF3A2410), onSnackbar = Color(0xFFFFF8DC),
     flowCoverColors = listOf(Color(0xFFFF6FA5), Color(0xFF1FB8FF), Color(0xFF8B5CF6), Color(0xFFFF6FA5)),
@@ -109,17 +109,17 @@ private val TeaPalette = S1Colors(
  * 顶栏是浅色，文字用深色（onHeader），不再沿用「浅色主题一律白字」的旧规则。
  */
 val PurePalette = S1Colors(
-    bgTop = Color(0xFFFAFAFA), bgBottom = Color(0xFFF2F2F7),
-    headerGradient = listOf(Color(0xFFFFFFFF), Color(0xFFF2F2F7)),
+    bgTop = Color(0xFFF2F2F7), bgBottom = Color(0xFFF2F2F7),
+    headerGradient = listOf(Color(0xFFFFFFFF), Color(0xFFFFFFFF)),
     textMain = Color(0xFF1C1C1E), textSub = Color(0xFF8E8E93),
     accent = Color(0xFF007AFF), onAccent = Color(0xFFFFFFFF),
     accentCyan = Color(0xFF32ADE6), heart = Color(0xFFFF2C55),
     cardBg = Color(0xFFFFFFFF),
-    glassCard = Color(0xFAFFFFFF), glassLine = Color(0x1F000000),
-    glassBar = Color(0xF2FAFAFA), glassFloat = Color(0xFAFFFFFF),
-    glassFloatLine = Color(0x24000000),
-    glassDialog = Color(0xFAFFFFFF), glassDialogLine = Color(0x24000000),
-    chipBg = Color.Black.copy(alpha = 0.05f),
+    glassCard = Color(0xFAFFFFFF), glassLine = Color(0x08000000),
+    glassBar = Color(0xF2FFFFFF), glassFloat = Color(0xFAFFFFFF),
+    glassFloatLine = Color(0x12000000),
+    glassDialog = Color(0xFFFFFFFF), glassDialogLine = Color(0x12000000),
+    chipBg = Color(0xFFE5E5EA),
     strongIcon = Color(0xFF1C1C1E),
     snackbarBg = Color(0xFF1C1C1E), onSnackbar = Color(0xFFFFFFFF),
     flowCoverColors = listOf(
@@ -269,7 +269,7 @@ private fun buildIridescentPalette(seed: Int): S1Colors {
  */
 val LinearPalette = S1Colors(
     bgTop = Color(0xFF08090A), bgBottom = Color(0xFF08090A),
-    headerGradient = listOf(Color(0xFF101114), Color(0xFF08090A)),
+    headerGradient = listOf(Color(0xFF08090A), Color(0xFF08090A)),
     textMain = Color(0xFFEDEDEF), textSub = Color(0xFF8A8F98),
     accent = Color(0xFF5E6AD2), onAccent = Color(0xFFFFFFFF),
     accentCyan = Color(0xFF828FFF), heart = Color(0xFFFF2C55),
