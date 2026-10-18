@@ -319,37 +319,37 @@ val LinearPalette = S1Colors(
 )
 
 /**
- * 机器猫（2026-10-18 新增）：哆啦A梦的红蓝双色。
- * 结构与赤红完全一致——**蓝做缝、灰做面、红做强调**：
- * 页面底 = 蓝 #0099E5（卡片之间露出来的缝），卡片 = 不透明深灰 #222226，
- * 强调 = 红 #E60012（选中态、徽章、评分、当前按钮）。
- * 这是两色原则的**品牌双色例外**：红蓝本身是角色识别，不是装饰，
- * 因此允许两个色相并存，但分工不变——蓝只做结构，红只做强调，卡片内部仍是中性灰。
+ * 机器猫（2026-10-18 定稿 A 版）：**红页蓝卡，封面上篮下红**。
+ * 纯两色，没有黑也没有灰——页面底红 #E60012，卡片蓝 #0099E5，
+ * 卡片内部再分上下：封面蓝、信息区红，于是红蓝在屏幕上有节奏地交替。
+ * 顶栏/底栏也用蓝（等同卡片），这样红色 tab 胶囊在蓝底上才看得见。
+ * 图标圆底用红（卡片是蓝，红圆才跳得出来），字形用白。
  */
 val DoraemonPalette = S1Colors(
-    bgTop = Color(0xFF0099E5), bgBottom = Color(0xFF0099E5),
-    headerGradient = listOf(Color(0xFF202125), Color(0xFF202125)),
-    textMain = Color(0xFFE2E2E4), textSub = Color(0xFF9C9CA2),
+    bgTop = Color(0xFFE60012), bgBottom = Color(0xFFE60012),
+    headerGradient = listOf(Color(0xFF0099E5), Color(0xFF0099E5)),
+    textMain = Color(0xFFFFFFFF), textSub = Color(0xCCFFFFFF),
     accent = Color(0xFFE60012), onAccent = Color(0xFFFFFFFF),
-    accentCyan = Color(0xFFFF5A66), heart = Color(0xFFFF4D5E),
-    cardBg = Color(0xFF222226),
-    glassCard = Color(0xF2222226), glassLine = Color(0xFF35353A),
-    glassBar = Color(0xF2202125), glassFloat = Color(0xFF2C2C31),
-    glassFloatLine = Color(0xFF45464C),
-    glassDialog = Color(0xFF2C2C31), glassDialogLine = Color(0xFF45464C),
-    // 图标圆底用蓝的极暗版，与赤红用红的极暗版同一规则
-    chipBg = Color(0xFF14324A),
-    strongIcon = Color(0xFFECECEE),
-    snackbarBg = Color(0xFF14324A), onSnackbar = Color(0xFFECECEE),
+    accentCyan = Color(0xFFFFFFFF), heart = Color(0xFFFF6B7A),
+    cardBg = Color(0xFF0099E5),
+    glassCard = Color(0xF20099E5), glassLine = Color(0x33FFFFFF),
+    glassBar = Color(0xF20099E5), glassFloat = Color(0xF20099E5),
+    glassFloatLine = Color(0x4DFFFFFF),
+    glassDialog = Color(0xF20099E5), glassDialogLine = Color(0x4DFFFFFF),
+    // 图标圆底用红：卡片是蓝，红圆才分得出来
+    chipBg = Color(0xFFE60012),
+    strongIcon = Color(0xFFFFFFFF),
+    snackbarBg = Color(0xFFE60012), onSnackbar = Color(0xFFFFFFFF),
     flowCoverColors = listOf(
-        Color(0xFFE60012), Color(0xFF0099E5), Color(0xFFFF5A66), Color(0xFF0A6FA8)
+        Color(0xFFE60012), Color(0xFF0099E5), Color(0xFFFF6B7A), Color(0xFF0A6FA8)
     ),
     glassEdgeTop = Color(0x66FFFFFF), glassEdgeMid = Color(0x33FFFFFF),
     glassEdgeBottom = Color(0x26FFFFFF),
     glassInsetLight = Color(0x99FFFFFF),
     isDark = true,
-    coverTint = Color(0xFF16171A),
-    metaTint = null
+    // 封面 = 蓝（与卡片同色），信息区 = 红 → 上篮下红
+    coverTint = Color(0xFF0099E5),
+    metaTint = Color(0xFFE60012)
 )
 
 val LocalS1Colors = staticCompositionLocalOf { TeaPalette }
