@@ -82,7 +82,16 @@ data class S1Colors(
      * 2026-10-18 用户定稿：封面不与图标底各自配色，直接共用同一个 token，
      * 这样深色/浅色/换主题时，封面块和图标底的灰度永远一致，语言才统一。
      */
-    val coverTint: Color = chipBg
+    val coverTint: Color = chipBg,
+    /**
+     * 封面底部色带（2026-10-18 朱砂引入）：null = 不画。
+     * 用途：让强调色占据封面下半部——扩大红色面积，但标题仍落在上半的中性底上，
+     * 不与正文争注意力。高度由 [coverBandRatio] 控制。
+     */
+    val coverBand: Color? = null,
+    /** 色带高度（dp）：固定值而非比例——封面高度随标题行数变化，按比例会让长标题的卡
+     *  红色面积失控（实测 34% 在 5 行标题上变成一整块）。固定 28dp 才是「托底条」。 */
+    val coverBandHeightDp: Int = 28
 )
 
 // ————————— 原有三套（不动，只扩展 headerGradient）—————————
@@ -331,7 +340,8 @@ val CrimsonPalette = S1Colors(
     glassBar = Color(0xF21C1C1E), glassFloat = Color(0xFF303033),
     glassFloatLine = Color(0xFF454548),
     glassDialog = Color(0xFF2A2A2D), glassDialogLine = Color(0xFF454548),
-    chipBg = Color(0xFF303033),
+    // 图标圆底统一用红调（2026-10-18 用户定案）：像 #3E1F27 这种「暗红」，不是中性灰
+    chipBg = Color(0xFF3E1F27),
     strongIcon = Color(0xFFDEDEDE),
     snackbarBg = Color(0xFF303033), onSnackbar = Color(0xFFDEDEDE),
     flowCoverColors = listOf(
@@ -341,8 +351,10 @@ val CrimsonPalette = S1Colors(
     glassEdgeBottom = Color(0x26FFFFFF),
     glassInsetLight = Color(0x99FFFFFF),
     isDark = true,
-    // 封面比卡面更沉：让信息区（要读的字）站在前面，封面退成一块底
-    coverTint = Color(0xFF202022)
+    // 封面「上灰下红」：上半用截图里的卡面灰，下半压一条红带（强调色只占面积、不占字）
+    coverTint = Color(0xFF262628),
+    coverBand = Color(0xFFBF0426),
+    coverBandHeightDp = 28
 )
 
 /**

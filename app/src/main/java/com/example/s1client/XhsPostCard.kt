@@ -486,6 +486,16 @@ fun XhsPostCard(
                         .defaultMinSize(minHeight = 120.dp)
                         .background(s1.coverTint)
                         .drawBehind {
+                            // 底部色带（朱砂）：强调色只占封面下半的一截，
+                            // 标题仍落在上半的中性底上，红是「托底」不是「抢戏」。
+                            s1.coverBand?.let { band ->
+                                val bandH = s1.coverBandHeightDp.dp.toPx()
+                                drawRect(
+                                    color = band,
+                                    topLeft = Offset(0f, size.height - bandH),
+                                    size = Size(size.width, bandH)
+                                )
+                            }
                             // 暗色下相邻两级明度的感知差远小于浅色，两块会「连成一片」，
                             // 眼睛一直找不到边界就会累。这里用一条 1px 底色线把它切成上下两截；
                             // 浅色不需要（#E5E5EA 与 #FFFFFF 本身已经分开）。
@@ -536,7 +546,8 @@ fun XhsPostCard(
                                 start = if (coverStyle == 5) 8.dp else 18.dp,
                                 end = if (coverStyle == 5) 8.dp else 18.dp,
                                 top = 26.dp,
-                                bottom = 26.dp
+                                // 有底部色带时，标题让出那一条，永远不压在红上
+                                bottom = 26.dp + if (s1.coverBand != null) s1.coverBandHeightDp.dp else 0.dp
                             )
                     )
                 }

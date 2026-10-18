@@ -372,7 +372,7 @@ fun MineScreen(onFinish: () -> Unit) {
                                 Icon(
                                     imageVector = Icons.Outlined.History,
                                     contentDescription = "浏览历史",
-                                    tint = c.accent,
+                                    tint = c.accentCyan,
                                     modifier = Modifier.size(19.dp)
                                 )
                             }
@@ -764,12 +764,12 @@ private fun MenuGroup(items: List<MenuItem>) {
                         if (item.icon != null) {
                             Icon(
                                 imageVector = item.icon, contentDescription = null,
-                                tint = c.strongIcon, modifier = Modifier.size(15.dp)
+                                tint = c.accentCyan, modifier = Modifier.size(15.dp)
                             )
                         } else if (item.iconRes != null) {
                             Icon(
                                 painter = painterResource(item.iconRes), contentDescription = null,
-                                tint = c.strongIcon, modifier = Modifier.size(15.dp)
+                                tint = c.accentCyan, modifier = Modifier.size(15.dp)
                             )
                         }
                     }
