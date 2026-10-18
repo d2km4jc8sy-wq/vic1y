@@ -84,14 +84,12 @@ data class S1Colors(
      */
     val coverTint: Color = chipBg,
     /**
-     * 封面底部色带（2026-10-18 朱砂引入）：null = 不画。
-     * 用途：让强调色占据封面下半部——扩大红色面积，但标题仍落在上半的中性底上，
-     * 不与正文争注意力。高度由 [coverBandRatio] 控制。
+     * 卡片下半（作者 / 分类 / 时间那一块）的底色，null = 跟卡面一样。
+     * 2026-10-18 朱砂引入：整块信息区上色 = 「上黑下红」，
+     * 比在封面里切一条色带整体性更好（色带会把封面切成三段）。
+     * 与封面之间用 1px 底色线隔开，分区清楚但不加边框。
      */
-    val coverBand: Color? = null,
-    /** 色带高度（dp）：固定值而非比例——封面高度随标题行数变化，按比例会让长标题的卡
-     *  红色面积失控（实测 34% 在 5 行标题上变成一整块）。固定 28dp 才是「托底条」。 */
-    val coverBandHeightDp: Int = 28
+    val metaTint: Color? = null
 )
 
 // ————————— 原有三套（不动，只扩展 headerGradient）—————————
@@ -351,10 +349,9 @@ val CrimsonPalette = S1Colors(
     glassEdgeBottom = Color(0x26FFFFFF),
     glassInsetLight = Color(0x99FFFFFF),
     isDark = true,
-    // 封面「上灰下红」：上半用截图里的卡面灰，下半压一条红带（强调色只占面积、不占字）
-    coverTint = Color(0xFF262628),
-    coverBand = Color(0xFFBF0426),
-    coverBandHeightDp = 28
+    // 「上黑下红」：封面近黑，信息区整块红；两块之间一条 1px 底色线
+    coverTint = Color(0xFF202022),
+    metaTint = Color(0xFFBF0426)
 )
 
 /**

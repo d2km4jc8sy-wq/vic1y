@@ -94,20 +94,21 @@ fun AttendanceContent(
                 modifier = Modifier
                     .size(30.dp)
                     .clip(CircleShape)
-                    .background(if (signedToday) c.accent.copy(alpha = 0.18f) else c.chipBg),
+                    // 圆底统一取 chipBg：原来「已签到 = accent 18%」和「未签到 = chipBg」混出两种红
+                    .background(c.chipBg),
                 contentAlignment = Alignment.Center
             ) {
                 if (signedToday) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
-                        tint = c.accent,
+                        tint = c.accentCyan,
                         modifier = Modifier.size(17.dp)
                     )
                 } else {
                     Text(
                         text = "签",
-                        color = c.accent,
+                        color = c.accentCyan,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )

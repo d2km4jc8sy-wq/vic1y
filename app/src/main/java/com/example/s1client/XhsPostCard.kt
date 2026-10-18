@@ -486,20 +486,10 @@ fun XhsPostCard(
                         .defaultMinSize(minHeight = 120.dp)
                         .background(s1.coverTint)
                         .drawBehind {
-                            // 底部色带（朱砂）：强调色只占封面下半的一截，
-                            // 标题仍落在上半的中性底上，红是「托底」不是「抢戏」。
-                            s1.coverBand?.let { band ->
-                                val bandH = s1.coverBandHeightDp.dp.toPx()
-                                drawRect(
-                                    color = band,
-                                    topLeft = Offset(0f, size.height - bandH),
-                                    size = Size(size.width, bandH)
-                                )
-                            }
                             // 暗色下相邻两级明度的感知差远小于浅色，两块会「连成一片」，
                             // 眼睛一直找不到边界就会累。这里用一条 1px 底色线把它切成上下两截；
                             // 浅色不需要（#E5E5EA 与 #FFFFFF 本身已经分开）。
-                            if (s1.isDark) {
+                            if (s1.isDark && s1.metaTint == null) {
                                 drawLine(
                                     color = s1.bgTop,
                                     start = Offset(0f, size.height - 0.5f),
@@ -546,13 +536,33 @@ fun XhsPostCard(
                                 start = if (coverStyle == 5) 8.dp else 18.dp,
                                 end = if (coverStyle == 5) 8.dp else 18.dp,
                                 top = 26.dp,
-                                // 有底部色带时，标题让出那一条，永远不压在红上
-                                bottom = 26.dp + if (s1.coverBand != null) s1.coverBandHeightDp.dp else 0.dp
+                                bottom = 26.dp
                             )
                     )
                 }
             }
 
+            // 元信息区（作者 / 回帖数 / 分类 / 时间）整块包一层：
+            // 朱砂主题下 metaTint = 红，「上黑下红」由此成立——
+            // 顶上一条 1px 底色线，就是原来红带下方那条边，分区清楚又不加边框。
+            val hasMeta = s1.metaTint != null
+            val metaFg = if (hasMeta) Color.White.copy(alpha = 0.94f) else TextSub
+            val metaFgDim = if (hasMeta) Color.White.copy(alpha = 0.72f) else TextSub.copy(alpha = 0.7f)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(s1.metaTint ?: Color.Transparent)
+                    .drawBehind {
+                        if (hasMeta) {
+                            drawLine(
+                                color = s1.bgTop,
+                                start = Offset(0f, 0.5f),
+                                end = Offset(size.width, 0.5f),
+                                strokeWidth = 1.dp.toPx()
+                            )
+                        }
+                    }
+            ) {
             // 元信息第一行：作者（左）/ 回帖数（右）
             Row(
                 modifier = Modifier
@@ -589,7 +599,7 @@ fun XhsPostCard(
                 Spacer(modifier = Modifier.width(7.dp))
                 Text(
                     text = author,
-                    color = TextSub,
+                    color = metaFg,
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -605,7 +615,7 @@ fun XhsPostCard(
                 Spacer(modifier = Modifier.width(3.dp))
                 Text(
                     text = replies.toString(),
-                    color = if (isHot) s1.heart else TextSub,
+                    color = if (isHot) s1.heart else metaFg,
                     fontSize = 11.sp,
                     fontWeight = if (isHot) FontWeight.SemiBold else FontWeight.Normal
                 )
@@ -624,7 +634,7 @@ fun XhsPostCard(
                     // 现在改成与作者/时间同色的纯文字，整行元信息统一。
                     Text(
                         text = tag,
-                        color = TextSub,
+                        color = metaFg,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Normal,
                         maxLines = 1,
@@ -635,11 +645,12 @@ fun XhsPostCard(
                 if (timeText.isNotBlank()) {
                     Text(
                         text = timeText,
-                        color = TextSub.copy(alpha = 0.7f),
+                        color = metaFgDim,
                         fontSize = 10.sp,
                         maxLines = 1
                     )
                 }
+            }
             }
         }
       }  // ← 关闭液态玻璃描边 Box
