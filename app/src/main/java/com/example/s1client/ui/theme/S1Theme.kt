@@ -164,7 +164,11 @@ val PurePalette = S1Colors(
     glassEdgeBottom = Color(0x0A000000),
     glassInsetLight = Color(0x66FFFFFF),
     isDark = false,
-    onHeader = Color(0xFF1C1C1E)
+    onHeader = Color(0xFF1C1C1E),
+    // 2026-10-28 浅色封面打磨：原先封面 = chipBg #E5E5EA，与页面底 #E8EAF0 只差 3~5 级，
+    // 标题区那一大块「浮不起来」。压深一档后：封面 #DFE2EA / 卡片 #FFFFFF / 页面 #E8EAF0 三级分明。
+    // 图标圆底保持 chipBg 不动 —— 浅色图标圈不需要跟着变重。
+    coverTint = Color(0xFFDFE2EA)
 )
 
 
