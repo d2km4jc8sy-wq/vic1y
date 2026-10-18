@@ -479,7 +479,7 @@ fun ForumFeedPage(
                     // （ViewModel 状态机漏一支 / 进程被打断），遮罩会永久停在 60% 压暗盖住整个首页，
                     // 且无取消入口。加 10s 上限强制退场：超时只退遮罩（视觉兜底），
                     // refreshing 状态本身不变，仍由状态机自行收敛。
-                    // 注：10s 为审查员取值，属防御性下限；设计者可推翻（见回执拍板节）。
+                    // 注：10s 是防御性下限，只负责把遮罩退掉，不改 refreshing 状态本身。
                     val REFRESH_MASK_TIMEOUT_MS = 10_000L
                     LaunchedEffect(refreshing) {
                         if (refreshing) {
