@@ -80,18 +80,18 @@ private fun ReadHistoryScreen(onFinish: () -> Unit) {
                 IconButton(onClick = onFinish) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null,
-                        tint = if (c.isDark) c.textMain else Color.White,
+                        tint = c.onHeader,
                         modifier = Modifier.size(22.dp)
                     )
                 }
                 Text(
                     "历史", fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                    color = if (c.isDark) c.textMain else Color.White,
+                    color = c.onHeader,
                     modifier = Modifier.weight(1f)
                 )
                 if (entries.isNotEmpty()) {
                     TextButton(onClick = { confirmClear = true }) {
-                        Text("清空", color = if (c.isDark) c.textMain else Color.White, fontSize = 14.sp)
+                        Text("清空", color = c.onHeader, fontSize = 14.sp)
                     }
                 }
             }

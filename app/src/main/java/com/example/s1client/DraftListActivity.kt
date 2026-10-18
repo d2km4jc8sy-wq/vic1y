@@ -80,13 +80,13 @@ private fun DraftListScreen(onFinish: () -> Unit) {
                 IconButton(onClick = onFinish) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null,
-                        tint = if (c.isDark) c.textMain else Color.White,
+                        tint = c.onHeader,
                         modifier = Modifier.size(22.dp)
                     )
                 }
                 Text(
                     "草稿", fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                    color = if (c.isDark) c.textMain else Color.White,
+                    color = c.onHeader,
                     modifier = Modifier.weight(1f)
                 )
             }

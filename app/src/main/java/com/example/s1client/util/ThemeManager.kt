@@ -20,19 +20,23 @@ object ThemeManager {
     const val THEME_RP5 = 4         // 苔绿灰阶
     const val THEME_IRIDESCENT = 5  // 幻彩渐变
     const val THEME_LINEAR = 6      // Linear 墨蓝
+    /** 纯白（2026-10-18 新增）：参考 iOS 默认浅色。索引追加在末尾，避免重排已存的值 */
+    const val THEME_PURE = 7
 
-    private const val THEME_MAX = THEME_LINEAR
+    private const val THEME_MAX = THEME_PURE
 
     /** 无图卡片风格数量（4 套：深色莫兰迪 / 微网格 / 大引号 / 暗色玻璃） */
     const val COVER_STYLE_COUNT = 4
 
     /**
-     * 设置页里暴露给用户的主题（最终 3 套主力）。
-     * 曜石玄夜（THEME_OLED）已删除：不再出现在选择列表，老用户自动迁移到 Linear 墨蓝。
-     * 其余主题（樱雾粉霜 2 / 朱砂红白 3 / 苔绿灰阶 4）代码与色板保留，只作隐藏。
+     * 设置页里暴露给用户的主题（2026-10-18 定稿四套）：
+     *   纯白（iOS 默认）→ Linear 墨蓝（iOS 深色）→ 焙茶午后（S1 底色）→ 幻彩渐变。
+     * 曜石玄夜 / 樱雾粉霜 / 朱砂红白 / 苔绿灰阶 已从选择列表移除，
+     * 老用户若停留在这些主题上，由 migrateHiddenTheme 就近迁移。
      */
     val VISIBLE_THEMES: List<Int> = listOf(
-        THEME_LINEAR,      // Linear 墨蓝：一切打磨的基础
+        THEME_PURE,        // 纯白：参考 iOS 默认浅色
+        THEME_LINEAR,      // Linear 墨蓝：参考 iOS 深色
         THEME_LIGHT,       // 焙茶午后：S1 网页主色，是特色
         THEME_IRIDESCENT   // 幻彩渐变：固定流光封面
     )
@@ -147,6 +151,7 @@ object ThemeManager {
 
     fun getThemeRes(): Int = when (currentTheme) {
         THEME_LIGHT -> R.style.Theme_S1Client_Light
+        THEME_PURE -> R.style.Theme_S1Client_Pure
         THEME_OLED -> R.style.Theme_S1Client_OLED
         THEME_PINK -> R.style.Theme_S1Client_Pink
         THEME_FC -> R.style.Theme_S1Client_FC
@@ -225,12 +230,13 @@ object ThemeManager {
     /** 全部主题名（按索引对齐，隐藏主题也在内，方便内部查名） */
     fun getAllThemeNames(): List<String> = listOf(
         "焙茶午后",      // 0
-        "曜石玄夜",      // 1
+        "曜石玄夜",      // 1（隐藏）
         "樱雾粉霜",      // 2（隐藏）
         "朱砂红白",      // 3（隐藏）
         "苔绿灰阶",      // 4（隐藏）
         "幻彩渐变",      // 5
-        "Linear 墨蓝"    // 6
+        "Linear 墨蓝",   // 6
+        "纯白"           // 7
     )
 
     /**

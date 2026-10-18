@@ -338,6 +338,7 @@ private fun SheetDivider() {
 /** 当前主题短名（从 MineActivity 的外观卡原样迁入） */
 internal fun themeNameShort(): String = when (ThemeManager.currentTheme) {
     ThemeManager.THEME_LIGHT -> "焙茶午后"
+    ThemeManager.THEME_PURE -> "纯白"
     ThemeManager.THEME_OLED -> "曜石玄夜"
     ThemeManager.THEME_PINK -> "樱雾粉霜"
     ThemeManager.THEME_FC -> "朱砂红白"

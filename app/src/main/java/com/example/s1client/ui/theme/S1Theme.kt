@@ -56,6 +56,13 @@ data class S1Colors(
     /** 是否深色主题（供 Material 配色桥接用） */
     val isDark: Boolean,
     /**
+     * 顶栏文字与图标颜色。
+     * 默认沿用旧规则（深色主题用主文字色、浅色主题用白字）以保持兼容；
+     * 允许主题覆盖——纯白这类浅底顶栏必须用深色文字，否则白字在浅底上不可见。
+     * 2026-10-18：幻彩主题此前沿用白字，而顶栏是浅紫→浅粉，对比度仅 1.15:1，本次一并修正。
+     */
+    val onHeader: Color = if (isDark) textMain else Color.White,
+    /**
      * 成功 / 通过语义绿（R3 · 审计报告 v2 2026-10-18 第 9 轮）。
      * 原先写死在 LoginActivity:146（34C759），违反宪法 18 条「配色从主题色板派生」。
      * 现收口为 token，默认取原值以保证视觉零变化；各主题如需差异可单独覆盖。
@@ -94,6 +101,35 @@ private val TeaPalette = S1Colors(
     glassEdgeBottom = Color(0x14000000),
     glassInsetLight = Color(0x66FFFFFF),
     isDark = false
+)
+
+/**
+ * 纯白（2026-10-18 用户定稿）：参考 iOS 默认浅色。
+ * 底 #FAFAFA / 卡片 #FFFFFF / 主色 iOS 蓝 #007AFF。
+ * 顶栏是浅色，文字用深色（onHeader），不再沿用「浅色主题一律白字」的旧规则。
+ */
+val PurePalette = S1Colors(
+    bgTop = Color(0xFFFAFAFA), bgBottom = Color(0xFFF2F2F7),
+    headerGradient = listOf(Color(0xFFFFFFFF), Color(0xFFF2F2F7)),
+    textMain = Color(0xFF1C1C1E), textSub = Color(0xFF8E8E93),
+    accent = Color(0xFF007AFF), onAccent = Color(0xFFFFFFFF),
+    accentCyan = Color(0xFF32ADE6), heart = Color(0xFFFF2C55),
+    cardBg = Color(0xFFFFFFFF),
+    glassCard = Color(0xFAFFFFFF), glassLine = Color(0x1F000000),
+    glassBar = Color(0xF2FAFAFA), glassFloat = Color(0xFAFFFFFF),
+    glassFloatLine = Color(0x24000000),
+    glassDialog = Color(0xFAFFFFFF), glassDialogLine = Color(0x24000000),
+    chipBg = Color.Black.copy(alpha = 0.05f),
+    strongIcon = Color(0xFF1C1C1E),
+    snackbarBg = Color(0xFF1C1C1E), onSnackbar = Color(0xFFFFFFFF),
+    flowCoverColors = listOf(
+        Color(0xFF007AFF), Color(0xFF34C759), Color(0xFFFF9500), Color(0xFFFF2D55)
+    ),
+    glassEdgeTop = Color(0x1F000000), glassEdgeMid = Color(0x12000000),
+    glassEdgeBottom = Color(0x0A000000),
+    glassInsetLight = Color(0x66FFFFFF),
+    isDark = false,
+    onHeader = Color(0xFF1C1C1E)
 )
 
 /** OLED 纯黑 */
@@ -301,7 +337,9 @@ private fun buildIridescentPalette(seed: Int): S1Colors {
         glassEdgeTop = p.glassEdgeTop, glassEdgeMid = p.glassEdgeMid,
         glassEdgeBottom = p.glassEdgeBottom,
         glassInsetLight = p.glassInsetLight,
-        isDark = p.isDark
+        isDark = p.isDark,
+        // 幻彩顶栏是浅紫→浅粉，白字对比度仅 1.15:1（几乎不可见），改用主题主文字色
+        onHeader = p.textMain
     )
 }
 
@@ -347,6 +385,7 @@ val LocalS1Colors = staticCompositionLocalOf { OledPalette }
  */
 fun s1PaletteFor(themeIndex: Int, seed: Int = ThemeManager.iridescentSeed): S1Colors = when (themeIndex) {
     ThemeManager.THEME_LIGHT -> TeaPalette
+    ThemeManager.THEME_PURE -> PurePalette
     ThemeManager.THEME_OLED -> OledPalette
     ThemeManager.THEME_PINK -> PinkPalette
     ThemeManager.THEME_FC -> FcPalette

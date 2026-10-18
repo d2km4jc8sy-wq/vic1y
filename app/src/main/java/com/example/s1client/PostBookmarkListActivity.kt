@@ -166,7 +166,7 @@ private fun TopBar(title: String, onBack: () -> Unit) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = null,
-                tint = if (c.isDark) c.textMain else Color.White,
+                tint = c.onHeader,
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -174,7 +174,7 @@ private fun TopBar(title: String, onBack: () -> Unit) {
             text = title,
             fontSize = 17.sp,
             fontWeight = FontWeight.Bold,
-            color = if (c.isDark) c.textMain else Color.White,
+            color = c.onHeader,
             modifier = Modifier.weight(1f)
         )
     }

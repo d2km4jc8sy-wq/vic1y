@@ -180,6 +180,51 @@
         <item name="s1MenuSheetBg">@color/light_menu_sheet_bg</item>
     </style>
 
+    <!--
+      纯白（2026-10-18 新增）：参考 iOS 默认浅色。
+      继承 Base.Light 保留转场与系统栏设置，色值全部覆盖为中性灰阶 + iOS 蓝。
+      顶栏是浅色 → s1TextTopbar 用深色（旧规则「浅色主题一律白字」在浅底上不可见）。
+    -->
+    <style name="Theme.S1Client.Pure" parent="Theme.S1Client.Base.Light">
+        <item name="colorPrimary">#007AFF</item>
+        <item name="colorPrimaryVariant">#0062CC</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSurface">#FFFFFF</item>
+        <item name="colorOnSurface">#1C1C1E</item>
+        <item name="android:windowBackground">#FAFAFA</item>
+        <item name="s1BgPage">#FAFAFA</item>
+        <item name="s1BgCard">#FFFFFF</item>
+        <item name="s1BgCardLight">#F2F2F7</item>
+        <item name="s1BgTopbar">#FFFFFF</item>
+        <item name="s1BgTabbar">#FAFAFA</item>
+        <item name="s1BorderCard">#E5E5EA</item>
+        <item name="s1BorderLight">#F2F2F7</item>
+        <item name="s1TextTitle">#1C1C1E</item>
+        <item name="s1TextBody">#1C1C1E</item>
+        <item name="s1TextSecondary">#8E8E93</item>
+        <item name="s1TextTertiary">#AEAEB2</item>
+        <item name="s1TextTopbar">#1C1C1E</item>
+        <item name="s1TextOnAccent">#FFFFFF</item>
+        <item name="s1Accent">#007AFF</item>
+        <item name="s1Divider">#E5E5EA</item>
+        <item name="s1AvatarPlaceholder">#C7C7CC</item>
+        <item name="s1QuoteBg">#F2F2F7</item>
+        <item name="s1QuoteBar">#8E8E93</item>
+        <item name="s1QuoteText">#636366</item>
+        <item name="s1QuoteBorder">#E5E5EA</item>
+        <item name="s1TagBg">#007AFF</item>
+        <item name="s1TagText">#FFFFFF</item>
+        <item name="s1AccentPurple">#5E5CE6</item>
+        <item name="s1AccentCyan">#32ADE6</item>
+        <item name="s1ActionIcon">#8E8E93</item>
+        <item name="s1ActionIconActive">#FF2C55</item>
+        <item name="s1GlassBarBg">#F2FAFAFA</item>
+        <item name="s1GlassBarLine">#1F000000</item>
+        <item name="s1GlassSheetBg">#FAFFFFFF</item>
+        <item name="s1GlassSheetLine">#1F000000</item>
+        <item name="s1MenuSheetBg">#FAFFFFFF</item>
+    </style>
+
     <style name="Theme.S1Client.OLED" parent="Theme.S1Client.Base.Dark">
         <item name="colorPrimary">#D08040</item>
         <item name="colorPrimaryVariant">#B07030</item>

@@ -324,13 +324,13 @@ fun SettingsScreen(onFinish: () -> Unit) {
             IconButton(onClick = onFinish) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null,
-                    tint = if (c.isDark) c.textMain else Color.White,
+                    tint = c.onHeader,
                     modifier = Modifier.size(22.dp)
                 )
             }
             Text(
                 "设置", fontSize = 16.sp, fontWeight = FontWeight.Bold,
-                color = if (c.isDark) c.textMain else Color.White,
+                color = c.onHeader,
                 modifier = Modifier.weight(1f)
             )
             Spacer(Modifier.width(48.dp))
@@ -1144,6 +1144,7 @@ private fun cacheCapValue(label: String): Int = when (label) {
 
 private fun themeName(): String = when (ThemeManager.currentTheme) {
     ThemeManager.THEME_LIGHT -> "焙茶午后"
+    ThemeManager.THEME_PURE -> "纯白"
     ThemeManager.THEME_PINK -> "樱雾粉霜"
     ThemeManager.THEME_FC -> "朱砂红白"
     ThemeManager.THEME_RP5 -> "苔绿灰阶"
