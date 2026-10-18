@@ -453,4 +453,47 @@
         <item name="s1MenuSheetBg">#CC202125</item>
     </style>
 
+    <!-- 2026-10-18 新增：机器猫 = 蓝做缝、灰做面、红做强调。
+         页面底蓝 #0099E5，卡片不透明深灰，强调红 #E60012（哆啦A梦双色）。 -->
+    <style name="Theme.S1Client.Doraemon" parent="Theme.S1Client.Base.Dark">
+        <item name="colorPrimary">#E60012</item>
+        <item name="colorPrimaryVariant">#C00010</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSurface">#222226</item>
+        <item name="colorOnSurface">#E2E2E4</item>
+        <item name="android:windowBackground">#0099E5</item>
+        <item name="android:navigationBarColor">#0099E5</item>
+        <item name="s1BgPage">#0099E5</item>
+        <item name="s1BgCard">#222226</item>
+        <item name="s1BgCardLight">#16171A</item>
+        <item name="s1BgTopbar">#202125</item>
+        <item name="s1BgTabbar">#202125</item>
+        <item name="s1BorderCard">#35353A</item>
+        <item name="s1BorderLight">#2A2B30</item>
+        <item name="s1TextTitle">#ECECEE</item>
+        <item name="s1TextBody">#E2E2E4</item>
+        <item name="s1TextSecondary">#9C9CA2</item>
+        <item name="s1TextTertiary">#717177</item>
+        <item name="s1TextTopbar">#ECECEE</item>
+        <item name="s1TextOnAccent">#FFFFFF</item>
+        <item name="s1Accent">#E60012</item>
+        <item name="s1Divider">#35353A</item>
+        <item name="s1AvatarPlaceholder">#E60012</item>
+        <item name="s1QuoteBg">#2A2B30</item>
+        <item name="s1QuoteBar">#E60012</item>
+        <item name="s1QuoteText">#B9B9BF</item>
+        <item name="s1QuoteBorder">#35353A</item>
+        <item name="s1TagBg">#14324A</item>
+        <item name="s1TagText">#FF5A66</item>
+        <item name="s1AccentPurple">#8E6BE8</item>
+        <item name="s1AccentCyan">#FF5A66</item>
+        <item name="s1ActionIcon">#9C9CA2</item>
+        <item name="s1ActionIconActive">#FF4D5E</item>
+        <item name="s1GlassBarBg">#E6202125</item>
+        <item name="s1GlassBarLine">#3DFFFFFF</item>
+        <item name="s1GlassSheetBg">#F2222226</item>
+        <item name="s1GlassSheetLine">#33FFFFFF</item>
+        <item name="s1MenuSheetBg">#CC202125</item>
+    </style>
+
 </resources>

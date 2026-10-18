@@ -318,6 +318,40 @@ val LinearPalette = S1Colors(
     coverTint = Color(0xFF242832)
 )
 
+/**
+ * 机器猫（2026-10-18 新增）：哆啦A梦的红蓝双色。
+ * 结构与赤红完全一致——**蓝做缝、灰做面、红做强调**：
+ * 页面底 = 蓝 #0099E5（卡片之间露出来的缝），卡片 = 不透明深灰 #222226，
+ * 强调 = 红 #E60012（选中态、徽章、评分、当前按钮）。
+ * 这是两色原则的**品牌双色例外**：红蓝本身是角色识别，不是装饰，
+ * 因此允许两个色相并存，但分工不变——蓝只做结构，红只做强调，卡片内部仍是中性灰。
+ */
+val DoraemonPalette = S1Colors(
+    bgTop = Color(0xFF0099E5), bgBottom = Color(0xFF0099E5),
+    headerGradient = listOf(Color(0xFF202125), Color(0xFF202125)),
+    textMain = Color(0xFFE2E2E4), textSub = Color(0xFF9C9CA2),
+    accent = Color(0xFFE60012), onAccent = Color(0xFFFFFFFF),
+    accentCyan = Color(0xFFFF5A66), heart = Color(0xFFFF4D5E),
+    cardBg = Color(0xFF222226),
+    glassCard = Color(0xF2222226), glassLine = Color(0xFF35353A),
+    glassBar = Color(0xF2202125), glassFloat = Color(0xFF2C2C31),
+    glassFloatLine = Color(0xFF45464C),
+    glassDialog = Color(0xFF2C2C31), glassDialogLine = Color(0xFF45464C),
+    // 图标圆底用蓝的极暗版，与赤红用红的极暗版同一规则
+    chipBg = Color(0xFF14324A),
+    strongIcon = Color(0xFFECECEE),
+    snackbarBg = Color(0xFF14324A), onSnackbar = Color(0xFFECECEE),
+    flowCoverColors = listOf(
+        Color(0xFFE60012), Color(0xFF0099E5), Color(0xFFFF5A66), Color(0xFF0A6FA8)
+    ),
+    glassEdgeTop = Color(0x66FFFFFF), glassEdgeMid = Color(0x33FFFFFF),
+    glassEdgeBottom = Color(0x26FFFFFF),
+    glassInsetLight = Color(0x99FFFFFF),
+    isDark = true,
+    coverTint = Color(0xFF16171A),
+    metaTint = null
+)
+
 val LocalS1Colors = staticCompositionLocalOf { TeaPalette }
 
 /**
@@ -363,6 +397,7 @@ fun s1PaletteFor(themeIndex: Int, seed: Int = ThemeManager.iridescentSeed): S1Co
     ThemeManager.THEME_PURE -> PurePalette
     ThemeManager.THEME_LINEAR -> LinearPalette
     ThemeManager.THEME_CRIMSON -> CrimsonPalette
+    ThemeManager.THEME_DORAEMON -> DoraemonPalette
     ThemeManager.THEME_IRIDESCENT -> buildIridescentPalette(ThemeManager.iridescentSeed)
     else -> TeaPalette
 }

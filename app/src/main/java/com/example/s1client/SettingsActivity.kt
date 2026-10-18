@@ -1151,6 +1151,7 @@ private fun themeName(): String = when (ThemeManager.currentTheme) {
     ThemeManager.THEME_IRIDESCENT -> "幻彩渐变"
     ThemeManager.THEME_LINEAR -> "Linear 墨蓝"
     ThemeManager.THEME_CRIMSON -> "赤红"
+    ThemeManager.THEME_DORAEMON -> "机器猫"
     else -> "主题"
 }
 

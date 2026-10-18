@@ -26,8 +26,10 @@ object ThemeManager {
     const val THEME_PURE = 7
     /** 赤红（2026-10-18 定稿，默认主题）：红做页面缝、灰做卡片。索引继续追加 */
     const val THEME_CRIMSON = 8
+    /** 机器猫（2026-10-18 新增）：蓝做缝、灰做面、红做强调。哆啦A梦红蓝双色 */
+    const val THEME_DORAEMON = 9
 
-    private const val THEME_MAX = THEME_CRIMSON
+    private const val THEME_MAX = THEME_DORAEMON
 
     /** 无图卡片风格数量（4 套：深色莫兰迪 / 微网格 / 大引号 / 暗色玻璃） */
     const val COVER_STYLE_COUNT = 4
@@ -43,7 +45,8 @@ object ThemeManager {
         THEME_PURE,        // 纯白：参考 iOS 默认浅色
         THEME_LINEAR,      // Linear 墨蓝：参考 iOS 深色
         THEME_LIGHT,       // 焙茶午后：S1 网页主色，是特色
-        THEME_IRIDESCENT   // 幻彩渐变：固定流光封面
+        THEME_IRIDESCENT,  // 幻彩渐变：固定流光封面
+        THEME_DORAEMON     // 机器猫：蓝缝 + 灰面 + 红强调
     )
 
     private var appContext: Context? = null
@@ -148,7 +151,7 @@ object ThemeManager {
      * 其余 = 本次进程随机锁定的 0..3
      */
     fun coverStyleForCurrent(): Int = when (currentTheme) {
-        THEME_LINEAR, THEME_CRIMSON -> -2   // 深色基底专用：纯色封面 + 收敛圆角
+        THEME_LINEAR, THEME_CRIMSON, THEME_DORAEMON -> -2   // 深色基底专用：纯色封面 + 收敛圆角
         THEME_IRIDESCENT -> 5   // 幻彩渐变：固定用流光封面
         else -> sessionCoverStyle
     }
@@ -163,6 +166,7 @@ object ThemeManager {
         // 深色主题各有专属 XML 样式（原先 Linear 复用 OLED，页面标题会变成琥珀金）
         THEME_LINEAR -> R.style.Theme_S1Client_Linear
         THEME_CRIMSON -> R.style.Theme_S1Client_Crimson
+        THEME_DORAEMON -> R.style.Theme_S1Client_Doraemon
         else -> R.style.Theme_S1Client_Light
     }
 
@@ -239,7 +243,8 @@ object ThemeManager {
         "幻彩渐变",      // 5
         "Linear 墨蓝",   // 6
         "纯白",          // 7
-        "赤红"           // 8
+        "赤红",          // 8
+        "机器猫"         // 9
     )
 
     /**
