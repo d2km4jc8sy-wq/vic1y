@@ -16,10 +16,10 @@
     <color name="light_accent">#A0522D</color>
     <color name="light_divider">#E3D9C5</color>
     <color name="light_avatar_placeholder">#A0522D</color>
-    <color name="light_quote_bg">#F2EBD8</color>
+    <color name="light_quote_bg">#F7F0E1</color>
     <color name="light_quote_bar">#A0522D</color>
     <color name="light_quote_text">#8A7A60</color>
-    <color name="light_quote_border">#D8C8A0</color>
+    <color name="light_quote_border">#E0D5BE</color>
 
     <!-- ============ OLED 纯黑 ============ -->
     <color name="oled_bg_page">#1A1E24</color>
@@ -89,8 +89,8 @@
     <color name="iridescent_menu_sheet_bg">#CCFFFFFF</color>
 
     <!-- Tag -->
-    <color name="light_tag_bg">#E8D9B5</color>
-    <color name="light_tag_text">#7A5A2E</color>
+    <color name="light_tag_bg">#E9DFC9</color>
+    <color name="light_tag_text">#6B5A3C</color>
     <color name="oled_tag_bg">#3A2A1A</color>
     <color name="oled_tag_text">#E8C88A</color>
     <color name="pink_tag_bg">#FCE4E9</color>
