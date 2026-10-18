@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.s1client.ui.TicketPullView
 import com.example.s1client.ui.ticketPaletteFor
@@ -612,7 +613,10 @@ fun ForumFeedPage(
                             // end 13dp = HTML right:16px 的斐波那契取整
                             Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(top = TopBarHeight, end = 13.dp)
+                                // 下移到屏幕约 26% 处 + 右缘内缩 30dp：
+                                // 真机实测安卓侧边返回手势就在右边缘，原来贴顶的浮件
+                                // 极易与系统手势打架而误触拉出侧边栏（用户反馈）
+                                .padding(top = (LocalConfiguration.current.screenHeightDp * 0.26f).dp, end = 30.dp)
                                 .size(width = CameraLeverView.VIEW_W_DP.dp, height = CameraLeverView.VIEW_H_DP.dp)
                                 .zIndex(2f)
                         else

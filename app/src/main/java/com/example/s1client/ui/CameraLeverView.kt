@@ -31,6 +31,10 @@ import com.example.s1client.R
  * - 转轴：**(58,50)，在机身内部** —— 杆与机身连成一体
  * - 球头：**在转轴右侧**，半径 32，0° 时在 (90,50)，90° 时在 (58,82)，走纯向下的弧
  *
+ * ### 2026-10-18 23:15 再调（真机实测反馈）
+ * - 拨杆加长：球头回转半径 32 → **44**，拨杆与球头同步放大（0° 时球头在 (102,50)）。
+ * - 画布加宽到 viewBox 124：球头不再顶到控件右缘。
+ *
  * ### 触摸模型：球头跟手
  * 角度不再由「下拉多少 dp」换算，而是**由球头当前坐标反算**（atan2），手指到哪球头到哪。
  * 起手热区跟着球头走（[HIT_BALL]）或转轴附近（[HIT_AXIS]），不用按看不见的地方。
@@ -48,17 +52,17 @@ class CameraLeverView @JvmOverloads constructor(
     companion object {
         // ————————— 画布基准（CameraLeverViewTest 锚点） —————————
         /** viewBox 宽（vb 单位），几何常量都以它为参照 */
-        const val VB_W = 100f
+        const val VB_W = 124f
         /** viewBox 高（vb 单位） */
         const val VB_H = 132f
         /** View 建议宽度 dp；高度按比例推出 */
-        const val VIEW_W_DP = 88f
+        const val VIEW_W_DP = 104f
 
         /** 转轴（机身内） */
         const val PIVOT_X = 58f
         const val PIVOT_Y = 50f
-        /** 球头回转半径 */
-        const val BALL_R = 32f
+        /** 球头回转半径（2026-10-18 23:15 由 32 加长到 44：用户实测「拨杆加长」） */
+        const val BALL_R = 44f
         /** 起始角：扳手水平指向右 */
         const val BASE_ANGLE = 0f
         /** 到底角：扳手垂直指向下 */
@@ -242,12 +246,12 @@ class CameraLeverView @JvmOverloads constructor(
 
         // ---- 轨迹弧：底弧 + 就绪进度（accent） ----
         arcRect.set(PIVOT_X - BALL_R, PIVOT_Y - BALL_R, PIVOT_X + BALL_R, PIVOT_Y + BALL_R)
-        stroke.strokeWidth = 1.5f
+        stroke.strokeWidth = 1.8f
         stroke.color = trackBase
         stroke.strokeCap = Paint.Cap.ROUND
         canvas.drawArc(arcRect, 0f, MAX_ANGLE, false, stroke)
         if (angle > 0.5f) {
-            stroke.strokeWidth = 2.5f
+            stroke.strokeWidth = 3f
             stroke.color = accentColor
             canvas.drawArc(arcRect, 0f, angle, false, stroke)
         }
@@ -256,24 +260,24 @@ class CameraLeverView @JvmOverloads constructor(
         canvas.save()
         canvas.rotate(angle, PIVOT_X, PIVOT_Y)
 
-        rect.set(54f, 46.5f, 88f, 53.5f)
-        fill.shader = LinearGradient(0f, 46.5f, 0f, 53.5f,
+        rect.set(54f, 45.5f, 100f, 54.5f)
+        fill.shader = LinearGradient(0f, 45.5f, 0f, 54.5f,
             intArrayOf(leverTop, leverMid, leverLow, leverBottom),
             floatArrayOf(0f, 0.42f, 0.58f, 1f), Shader.TileMode.CLAMP)
-        canvas.drawRoundRect(rect, 3.5f, 3.5f, fill)
+        canvas.drawRoundRect(rect, 4.5f, 4.5f, fill)
         fill.shader = null
         stroke.strokeWidth = 0.9f; stroke.color = knurl; stroke.strokeCap = Paint.Cap.BUTT
-        for (x in floatArrayOf(71f, 75f, 79f)) canvas.drawLine(x, 47.4f, x, 52.6f, stroke)
+        for (x in floatArrayOf(76f, 81f, 86f)) canvas.drawLine(x, 46.6f, x, 53.4f, stroke)
 
         // 球头：过阈值时向 accent 靠一档，给「到位」视觉
         val bMid = if (ready) mix(ballMid, accentColor, 0.55f) else ballMid
         val bLo = if (ready) mix(ballLo, accentColor, 0.35f) else ballLo
-        fill.shader = RadialGradient(87.5f, 47.5f, 9f,
+        fill.shader = RadialGradient(98.8f, 46.8f, 11f,
             intArrayOf(ballHi, bMid, bLo), floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
-        canvas.drawCircle(90f, 50f, 6.5f, fill)
+        canvas.drawCircle(102f, 50f, 8f, fill)
         fill.shader = null
-        stroke.strokeWidth = 0.8f; stroke.color = ballEdge
-        canvas.drawCircle(90f, 50f, 6.5f, stroke)
+        stroke.strokeWidth = 1f; stroke.color = ballEdge
+        canvas.drawCircle(102f, 50f, 8f, stroke)
 
         fill.color = axisOuter
         canvas.drawCircle(PIVOT_X, PIVOT_Y, 6f, fill)

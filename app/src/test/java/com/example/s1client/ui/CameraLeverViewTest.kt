@@ -21,11 +21,11 @@ class CameraLeverViewTest {
 
     @Test
     fun `几何基准常量未被漂移`() {
-        assertEquals(100f, CameraLeverView.VB_W, 0f)
+        assertEquals(124f, CameraLeverView.VB_W, 0f)
         assertEquals(132f, CameraLeverView.VB_H, 0f)
         assertEquals(58f, CameraLeverView.PIVOT_X, 0f)
         assertEquals(50f, CameraLeverView.PIVOT_Y, 0f)
-        assertEquals(32f, CameraLeverView.BALL_R, 0f)
+        assertEquals(44f, CameraLeverView.BALL_R, 0f)
         assertEquals(0f, CameraLeverView.BASE_ANGLE, 0f)
         assertEquals(90f, CameraLeverView.MAX_ANGLE, 0f)
         assertEquals(45f, CameraLeverView.THRESHOLD_ANGLE, 0f)
@@ -37,7 +37,7 @@ class CameraLeverViewTest {
     @Test
     fun `起始角时球头在转轴正右方`() {
         val b = CameraLeverView.ballPosForAngle(0f)
-        assertEquals(90f, b.first, 1e-3f)   // 58 + 32
+        assertEquals(102f, b.first, 1e-3f)  // 58 + 44（拨杆 23:15 加长后）
         assertEquals(50f, b.second, 1e-3f)
     }
 
@@ -45,7 +45,7 @@ class CameraLeverViewTest {
     fun `到底角时球头在转轴正下方——这就是修掉违和感的几何`() {
         val b = CameraLeverView.ballPosForAngle(90f)
         assertEquals(58f, b.first, 1e-3f)
-        assertEquals(82f, b.second, 1e-3f)
+        assertEquals(94f, b.second, 1e-3f)
         // 关键回归：球头 Y 必须大于转轴 Y（旧版球头在轴左侧时会小于）
         assertTrue(b.second > CameraLeverView.PIVOT_Y)
     }
@@ -154,7 +154,8 @@ class CameraLeverViewTest {
     fun `甩动阈值与最小起角已登记`() {
         assertEquals(18f, CameraLeverView.FLICK_MIN_ANGLE, 0f)
         // 控件放大到 88dp 后，起手热区应达到「拇指不必精确命中」的量级
-        assertTrue(CameraLeverView.VIEW_W_DP / 100f * CameraLeverView.HIT_BALL > 26f)
-        assertTrue(CameraLeverView.VIEW_W_DP / 100f * CameraLeverView.HIT_AXIS > 42f)
+        val scale = CameraLeverView.VIEW_W_DP / CameraLeverView.VB_W
+        assertTrue(scale * CameraLeverView.HIT_BALL > 26f)
+        assertTrue(scale * CameraLeverView.HIT_AXIS > 42f)
     }
 }
