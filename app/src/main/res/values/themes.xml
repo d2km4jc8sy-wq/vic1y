@@ -191,12 +191,12 @@
         <item name="colorOnPrimary">#FFFFFF</item>
         <item name="colorSurface">#FFFFFF</item>
         <item name="colorOnSurface">#1C1C1E</item>
-        <item name="android:windowBackground">#FAFAFA</item>
-        <item name="s1BgPage">#FAFAFA</item>
+        <item name="android:windowBackground">#E8EAF0</item>
+        <item name="s1BgPage">#E8EAF0</item>
         <item name="s1BgCard">#FFFFFF</item>
-        <item name="s1BgCardLight">#F2F2F7</item>
+        <item name="s1BgCardLight">#DCE4F2</item>
         <item name="s1BgTopbar">#FFFFFF</item>
-        <item name="s1BgTabbar">#FAFAFA</item>
+        <item name="s1BgTabbar">#E8EAF0</item>
         <item name="s1BorderCard">#E5E5EA</item>
         <item name="s1BorderLight">#F2F2F7</item>
         <item name="s1TextTitle">#1C1C1E</item>

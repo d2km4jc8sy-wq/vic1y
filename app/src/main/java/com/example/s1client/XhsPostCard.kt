@@ -143,9 +143,6 @@ import com.example.s1client.ui.design.TextSub
 
 // ================= 瀑布流帖子卡 =================
 
-/** Linear 主题（coverStyle = -2）封面与卡面共用底色：几乎与页面底同色 */
-internal val LinearCardBase = Color(0xFF0D0E10)
-
 // ————————— 幻彩流光封面（coverStyle = 5）—————————
 // 三色兜底色板（取不到 s1.coverColors 时才用）；标题固定深紫黑（封面永远是亮底）
 internal val FlowColorTop = Color(0xFFB569F6)
@@ -236,10 +233,19 @@ fun XhsPostCard(
     // 这正是"瀑布流幻彩卡片边框太细 / 主题不突出"的真因）。
     val isIridescentTheme = ThemeManager.currentTheme == ThemeManager.THEME_IRIDESCENT
     val ringBand = remember(s1) { com.example.s1client.ui.theme.s1RingColors(s1) }
+    // 两级投影（2026-10-18）：浅色主题的白卡与浅灰页面底没有明度差，层级全靠投影撑住。
+    //   ① 2dp 贴边 —— 卡片确实「压」在背景上的接触感
+    //   ② 10dp 扩散 —— 整块「浮」起来的体积感
+    // 只叠一层会显得脏；深色主题不画（黑影落在近黑底上等于没画），
+    // 深色靠「卡面比底亮一档 + 1px 描边」分层。
+    val shadowMods = if (s1.isDark) Modifier else Modifier
+        .shadow(elevation = 2.dp, shape = cardShape, clip = false)
+        .shadow(elevation = 10.dp, shape = cardShape, clip = false)
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .pressScale(pressSource)
+            .then(shadowMods)
             .combinedClickable(
                 interactionSource = pressSource,
                 indication = androidx.compose.material.ripple.rememberRipple(),
@@ -267,16 +273,15 @@ fun XhsPostCard(
                 // 幻彩卡面与「我的」页同源（不再写死冷灰 #F5F4F8 / 近黑 #0B0B10）：
                 // 浅色 #FFFFFF / 深色 #221830，消除「同主题三张白、冷暖相冲」
                 coverStyle == 5 -> s1.cardBg
-                coverStyle == -2 -> LinearCardBase
+                coverStyle == -2 -> s1.cardBg
                 else -> GlassCard
             }
         ),
         // 边框改为自绘的液态玻璃（见下方 Box 的 drawWithContent），此处不再用 BorderStroke
         border = null,
-        // 投影：半透明卡底 + 高程制造立体感（Linear 去掉阴影，靠边框分层）
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (coverStyle == -2) 0.dp else 4.dp
-        )
+        // 投影不再交给 Material 高程：浅色主题要的是「贴边 + 环境」两级，
+        // 单层 elevation 只能给出一圈均匀的糊影（见上方 shadowMods）。
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
       // 液态玻璃描边画在最外层 Box 上（不被裁剪，四边都能完整显示）；
       // 内容 Column 单独 clip 进卡片圆角 —— 顶部色条因此不再从圆角缝隙漏出（修复白边 bug）。
@@ -479,12 +484,7 @@ fun XhsPostCard(
                     else -> Modifier
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = 120.dp)
-                        .background(
-                            // 纯色底：Linear 用近黑卡底；浅色主题取「卡片底掺 7% 主题色」，
-                            // 一眼能看出这是封面区，但不再有任何渐变或纹理。
-                            if (coverStyle == -2) LinearCardBase
-                            else androidx.compose.ui.graphics.lerp(s1.cardBg, s1.accent, 0.07f)
-                        )
+                        .background(s1.coverTint)
                 }
 
                 // 幻彩封面（style 5）= strange-cobra 彩边 + 内层双色：
@@ -501,8 +501,10 @@ fun XhsPostCard(
 
                 Box(
                     modifier = coverModifier
-                        // 四周统一 12dp：与下方元信息行（start/end=12dp）严格对齐。
-                        .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)
+                        // 幻彩保留 12dp 内缩（流光块是卡内的一枚色卡）；
+                        // 其余主题封面铺满卡片上半部，直到卡边 —— 这是「上下两色」成立的前提，
+                        // 留着白边就变成「白卡里贴了一块浅色纸」，两色对抗立刻失效。
+                        .then(if (coverStyle == 5) Modifier.padding(12.dp) else Modifier)
                 ) {
                     Text(
                         text = title,
@@ -518,10 +520,10 @@ fun XhsPostCard(
                             .fillMaxWidth()
                             .align(Alignment.Center)
                             .padding(
-                                start = if (coverStyle == 5) 8.dp else 0.dp,
-                                end = if (coverStyle == 5) 8.dp else 0.dp,
-                                top = 0.dp,
-                                bottom = 0.dp
+                                start = if (coverStyle == 5) 8.dp else 18.dp,
+                                end = if (coverStyle == 5) 8.dp else 18.dp,
+                                top = 26.dp,
+                                bottom = 26.dp
                             )
                     )
                 }
