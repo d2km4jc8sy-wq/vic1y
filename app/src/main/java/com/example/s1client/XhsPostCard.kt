@@ -141,126 +141,19 @@ import com.example.s1client.ui.design.StrongIcon
 import com.example.s1client.ui.design.TextMain
 import com.example.s1client.ui.design.TextSub
 
-// ================= 瀑布流帖子卡（无图文字封面体系） =================
-/**
- * 无图帖子的文字封面：
- * style -1  OLED 纯黑（曜石玄夜专用，黑底+琥珀金点缀）
- * style 0..4 五种风格，每种自动按主题明暗渲染深/浅两版：
- *           0 角落光晕 / 1 微网格+顶彩条 / 2 大引号 / 3 玻璃描边+顶高光 / 4 组合
- * style 5   幻彩渐变专用：低饱和浅色三段柔和渐变（Apple 风），色板来自当前主题
- */
-internal val CoverGlowDark = listOf(
-    Color(0xFFB48CFF), Color(0xFFFFA08C), Color(0xFF8CC8FF), Color(0xFF8CFFB4)
-)
-internal val CoverBarDark = listOf(
-    Color(0xFF7C6AD6), Color(0xFFD67A6A), Color(0xFF6A9BD6), Color(0xFF6AD6A0)
-)
-internal val CoverBaseDark = listOf(
-    Color(0xFF1E1E24), Color(0xFF1C1B20), Color(0xFF1C1C1E), Color(0xFF1B1B22), Color(0xFF1E1E24)
-)
+// ================= 瀑布流帖子卡 =================
 
-/**
- * Linear 主题（coverStyle = -2）专用：
- * 卡片底几乎与页面底同色，靠 1px 描边分层；顶部一条 2dp 语义色条做点缀。
- * 色条按 tid 取 5 色之一（低饱和、与主色同族），保留"每张卡略有不同"的节奏。
- */
+/** Linear 主题（coverStyle = -2）封面与卡面共用底色：几乎与页面底同色 */
 internal val LinearCardBase = Color(0xFF0D0E10)
-internal val LinearCardLine = Color(0xFF191B1F)
-internal val LinearStripColors = listOf(
-    Color(0xFF5E6AD2), Color(0xFF3E8E6E), Color(0xFFC79A3A),
-    Color(0xFF9A5BB8), Color(0xFF5E8FBF)
-)
 
 // ————————— 幻彩流光封面（coverStyle = 5）—————————
-//
-// 构图定稿 = 方向 B「液态流光」（2026-10-13 用户选定，取代此前的
-// 方向 2「两团光斑」与更早的 12 颗铺满方案）。
-//
-// 为什么换：12 颗的问题不是数量，而是**光斑会爬到文字底下压脏标题**；
-// 两团光斑虽然文字干净，但整体偏静、看不出"流"字。
-// B 方案把流动放在**底色本身** —— 三段渐变的色标沿 x 轴整体横移，
-// 顶部叠一条缓慢横移的亮带；文字区由**底部白纱**托底，纱下的流动被削弱，
-// 于是"光一直在动"与"文字始终干净"这两件事不再冲突。
-//
-// **"文字干净"仍是硬底线**，靠三条：
-//   ① 底部白纱从 0.42h 起往上渗，标题无论几行都落在纱上；
-//   ② 顶部亮带压在 0.30h 附近，够不到标题区；
-//   ③ 四边提亮辉光把卡片"框住"，边界清晰。
-//
-// 色板（用户 2026-10-12 定，勿改）：幻彩色板 2 套（浅/深），每次进主题随机抽一套。
-// 封面的三段渐变跟随色板（`s1.coverColors`）：
-//   浅色板 = 粉调　深色板 = 紫调
-// 下面三个常量只是**取不到色板时的兜底**，正常不会用到。
-
-/** 兜底：封面上半主色（紫） */
+// 三色兜底色板（取不到 s1.coverColors 时才用）；标题固定深紫黑（封面永远是亮底）
 internal val FlowColorTop = Color(0xFFB569F6)
-/** 兜底：封面下半主色（粉） */
 internal val FlowColorBottom = Color(0xFFFF7AB5)
-/** 兜底：渐变中段过渡色 */
 internal val FlowColorMid = Color(0xFFC03DEA)
-
-/** 封面标题用色：封面永远是亮底，所以固定深紫黑（不随主题明暗变） */
 internal val FlowCoverText = Color(0xFF2E1B38)
-
-/**
- * 循环总时长（秒）。渐变色标沿 x 轴横移一个来回所用的时间。
- * 首版 60s 实测太慢、肉眼察觉不到动，改为 24s（慢但可辨，再快就晃眼）。
- */
+/** 光斑呼吸循环总时长（秒）：24s 一眼可辨，再快就晃眼 */
 internal const val FLOW_CYCLE_SECONDS = 24f
-
-@Composable
-private fun TextCover(
-    style: Int,
-    seed: Int,
-    title: String
-) {
-    val s1 = LocalS1Colors.current
-    val isDark = s1.isDark
-    // 从主题幻彩板取一个同色系柔光色（按 seed 轻微变化，但整体统一）
-    val glow = s1.flowCoverColors.getOrElse(seed % s1.flowCoverColors.size) { s1.accent }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .defaultMinSize(minHeight = 156.dp)
-            .background(s1.cardBg)
-            .drawBehind {
-                val w = size.width; val h = size.height
-                // 左上主题同色柔光，极低透明度，营造"色块"质感而不抢戏
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            glow.copy(alpha = if (isDark) 0.22f else 0.30f),
-                            glow.copy(alpha = 0f)
-                        ),
-                        center = Offset(w * 0.18f, h * 0.12f),
-                        radius = w * 0.95f
-                    )
-                )
-                // 底部一道淡描边，增加层次
-                drawLine(
-                    glow.copy(alpha = if (isDark) 0.18f else 0.22f),
-                    Offset(0f, h - 0.5f), Offset(w, h - 0.5f), 1f
-                )
-            }
-            .padding(horizontal = 14.dp, vertical = 12.dp)
-    ) {
-        Text(
-            text = title,
-            color = s1.textMain,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 5,
-            overflow = TextOverflow.Ellipsis,
-            lineHeight = 21.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.Center)
-                .padding(horizontal = 14.dp)
-        )
-    }
-}
 
 /**
  * 瀑布流骨架屏：双列占位卡 + 一道缓慢扫过的高光。
@@ -495,10 +388,9 @@ fun XhsPostCard(
                 }
             }
 
-            // 标题区：有图卡在封面下方（纯卡片底）；无图卡按主题类型区分封面：
-            //  - 幻彩渐变（coverStyle=5）：高饱和流动幻彩渐变（深色封面，白字）
-            //  - OLED（coverStyle=-1）：纯黑底 + 强调色描边
-            //  - 普通主题（coverStyle=0..3）：4 套封面（深色莫兰迪 / 微网格 / 大引号 / 暗色玻璃），每次冷启动随机锁定一套
+            // 标题区：有图卡在封面下方（纯卡片底）；无图卡走纯色封面：
+            //  - 幻彩渐变（coverStyle=5）：流动光斑封面（该主题的标识，保留）
+            //  - 其余（含 Linear -2）：一块纯色底 + 居中标题，无任何纹饰
             if (showImage) {
                 Text(
                     text = title,
@@ -514,15 +406,9 @@ fun XhsPostCard(
                         .padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 4.dp)
                 )
             } else {
-                val seedAbs = kotlin.math.abs((post.tid ?: author).hashCode())
-                // 普通主题：4 套封面（深色莫兰迪 / 微网格 / 大引号 / 暗色玻璃），每次冷启动随机锁定一套；
-                // 每张卡片按 tid 取该风格下的 4 色之一，制造「同风格异色」的变化
-                // 封面两套制（用户拍板）：莫兰迪/暗色玻璃删除，只留微网格与大引号
-                val styleIdx = if (seedAbs % 2 == 0) 1 else 2
-                val glowColor = CoverGlowDark.getOrElse(seedAbs % CoverGlowDark.size) { s1.accent }
-                // -1(OLED) / -2(Linear) 都是深底封面，正文用白字；
-                // 浅色主题（焙茶/樱雾/朱砂/苔绿）不再吃暗色封面 —— 黑板砸暖底是全页最大的风格断裂
-                val isDarkCover = coverStyle != -1 && coverStyle != -2 && s1.isDark
+                // 封面减法（2026-10-18 用户定案）：无图封面只保留「一块纯色底 + 标题」。
+                // 已清零：径向光斑、顶部/底部色条、微网格、大引号、玻璃高光、底部磨砂纱、全部渐变。
+                // 幻彩（coverStyle = 5）是唯一例外 —— 流光本身就是那套主题的标识，绘制保持原样。
 
                 val coverModifier = when (coverStyle) {
                     5 -> {
@@ -590,105 +476,22 @@ fun XhsPostCard(
                                 )
                             }
                     }
-                    -1 -> {
-                        Modifier
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = 120.dp)
-                            .background(s1.cardBg)
-                            .drawBehind {
-                                val w = size.width; val h = size.height
-                                drawLine(
-                                    s1.accent.copy(alpha = 0.35f),
-                                    Offset(0f, h - 0.5f), Offset(w, h - 0.5f), 1.5f
-                                )
-                            }
-                    }
-                    -2 -> {
-                        // Linear：纯色底 + 右下角同色系径向微光
-                        //
-                        // 根治记录 —— 顶部装饰**全风格清零**：
-                        // 这里的 2dp 顶部色条（LinearStripColors）是最后一处漏网的。
-                        // 用户第三次反馈"顶部依旧存在这种 bug"，逐像素比对截图确认：
-                        // 截图 y=66..73 的线是 (154,90,184)，与 LinearStripColors[3]=(154,91,184) 完全一致。
-                        // 所以现在四套内置封面（莫兰迪/微网格/大引号/暗色玻璃）+ Linear 的顶部
-                        // 一律不再画任何色条/白线/光晕 —— 顶部保持与封面本体同色，整张封面是统一的。
-                        // 微光也一并挪到右下角（原来在 0.86w/0.10h，会贴着顶边泛色）。
-                        val strip = LinearStripColors.getOrElse(seedAbs % LinearStripColors.size) { s1.accent }
-                        Modifier
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = 120.dp)
-                            .background(LinearCardBase)
-                            .drawBehind {
-                                val w = size.width; val h = size.height
-                                // 柔和径向微光（比普通主题更淡，避免破坏克制感）
-                                drawRect(
-                                    brush = Brush.radialGradient(
-                                        colors = listOf(
-                                            strip.copy(alpha = 0.13f),
-                                            strip.copy(alpha = 0f)
-                                        ),
-                                        center = Offset(w * 0.86f, h * 0.90f),
-                                        radius = w * 0.92f
-                                    )
-                                )
-                            }
-                    }
-                    else -> if (!s1.isDark) {
-                        // 浅色主题统一克制封面：cardBg 底 + 右下角主题色微光，
-                        // 四套暗色封面设计保留给深色主题（全页协调性修复）
-                        Modifier
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = 120.dp)
-                            .background(androidx.compose.ui.graphics.lerp(s1.cardBg, s1.accent, 0.06f))
-                            .drawBehind {
-                                val w = size.width; val h = size.height
-                                drawRect(
-                                    brush = Brush.radialGradient(
-                                        colors = listOf(
-                                            s1.accent.copy(alpha = 0.35f),
-                                            s1.accent.copy(alpha = 0f)
-                                        ),
-                                        center = Offset(w * 0.86f, h * 0.90f),
-                                        radius = w * 0.95f
-                                    )
-                                )
-                            }
-                    } else when (styleIdx) {
-                        1 -> Modifier  // 微网格：单色底 + 极细网格
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = 120.dp)
-                            .background(CoverBaseDark[1])
-                            .drawBehind {
-                                val w = size.width; val h = size.height
-                                val grid = Color.White.copy(alpha = 0.05f)
-                                var gx = 0f
-                                while (gx <= w) { drawLine(grid, Offset(gx, 0f), Offset(gx, h), 1f); gx += 12.dp.toPx() }
-                                var gy = 0f
-                                while (gy <= h) { drawLine(grid, Offset(0f, gy), Offset(w, gy), 1f); gy += 12.dp.toPx() }
-                                // 原顶部那条 3dp 语义色条已移除：
-                                // 整张封面是深色，顶部突然压一条高饱和色带，和"统一"的封面观感冲突
-                                // （用户反馈：封面顶部出现色差不一样的白条）。只留网格。
-                                // `barColor` 也一并不再计算 —— CoverBarDark 目前没有其他使用点了。
-                            }
-                        2 -> Modifier  // 大引号极简：纯深灰底 + 大引号 + 右下角版块名
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = 120.dp)
-                            .background(CoverBaseDark[2])
-                        // 深色封面上顶着一条白线，就是用户说的"封面顶部色差不一样的白条"。
-                        // 四套内置封面里它是唯一真正"白"的一条 —— 微网格是彩色条、
-                        // 莫兰迪是彩色光晕，一并处理掉后四套封面顶部全部统一。
-                        else -> Modifier
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = 120.dp)
-                            .background(CoverBaseDark[0])
-                    }
+                    else -> Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 120.dp)
+                        .background(
+                            // 纯色底：Linear 用近黑卡底；浅色主题取「卡片底掺 7% 主题色」，
+                            // 一眼能看出这是封面区，但不再有任何渐变或纹理。
+                            if (coverStyle == -2) LinearCardBase
+                            else androidx.compose.ui.graphics.lerp(s1.cardBg, s1.accent, 0.07f)
+                        )
                 }
 
                 // 幻彩封面（style 5）= strange-cobra 彩边 + 内层双色：
                 // 深色变体白字 / 浅色变体深字（FlowCoverText）
                 val baseTitleColor = if (coverStyle == 5) {
                     if (s1.isDark) Color.White else FlowCoverText
-                } else if (isDarkCover) Color.White else s1.textMain
+                } else s1.textMain
                 // 已读：保持原色相，只降不透明度（不动封面、不动卡片底色）。
                 // 可读性底线：幻彩封面下限 60%（≥3:1，实测 42% 时仅 2.4:1 糊掉）；
                 // 其他主题维持既有 42% 不动。
@@ -698,21 +501,9 @@ fun XhsPostCard(
 
                 Box(
                     modifier = coverModifier
-                        // 左右下三边统一 12dp，与下方元信息行（start/end=12dp）严格对齐 ——
-                        // 原来封面用 14dp、元信息用 12dp，差 2dp 没对齐，
-                        // 就是那种"说不出的不协调感"的来源。top 保持 14dp（留给大引号水印）。
-                        .padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 12.dp)
+                        // 四周统一 12dp：与下方元信息行（start/end=12dp）严格对齐。
+                        .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)
                 ) {
-                    // 大引号风格：左上巨大引号
-                    if (isDarkCover && styleIdx == 2) {
-                        Text(
-                            text = "“",
-                            color = Color.White.copy(alpha = 0.07f),
-                            fontSize = 92.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.align(Alignment.TopStart).offset(x = (-2).dp, y = (-10).dp)
-                        )
-                    }
                     Text(
                         text = title,
                         color = titleColor,
@@ -721,20 +512,15 @@ fun XhsPostCard(
                         maxLines = 5,
                         overflow = TextOverflow.Ellipsis,
                         lineHeight = 21.sp,
-                        // 幻彩流光封面标题居中；其余深色封面仍左下角，浅色封面仍居中。
-                        // 标题可读性由底部磨砂纱保证，不再叠白字柔光阴影（浅色下会洗字）。
-                        textAlign = if (coverStyle == 5 || !isDarkCover) TextAlign.Center else TextAlign.Start,
+                        textAlign = TextAlign.Center,
                         style = androidx.compose.material3.LocalTextStyle.current,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .then(
-                                if (coverStyle == 5 || !isDarkCover) Modifier.align(Alignment.Center)
-                                else Modifier.align(Alignment.BottomStart)
-                            )
+                            .align(Alignment.Center)
                             .padding(
                                 start = if (coverStyle == 5) 8.dp else 0.dp,
                                 end = if (coverStyle == 5) 8.dp else 0.dp,
-                                top = if (isDarkCover && coverStyle != 5) 6.dp else 0.dp,
+                                top = 0.dp,
                                 bottom = 0.dp
                             )
                     )
