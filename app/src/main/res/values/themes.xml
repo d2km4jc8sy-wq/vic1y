@@ -453,20 +453,20 @@
         <item name="s1MenuSheetBg">#CC202125</item>
     </style>
 
-    <!-- 2026-10-18 三版：灰底 + 卡片上蓝下红 + 红色图标字。红只出现在卡片下半与图标。 -->
+    <!-- 2026-10-18 四版·最终：主蓝副红。页面/上下栏红，卡片蓝，强调蓝，列缝灰。 -->
     <style name="Theme.S1Client.Doraemon" parent="Theme.S1Client.Base.Dark">
         <item name="colorPrimary">#E60012</item>
         <item name="colorPrimaryVariant">#C00010</item>
         <item name="colorOnPrimary">#FFFFFF</item>
         <item name="colorSurface">#0099E5</item>
         <item name="colorOnSurface">#FFFFFF</item>
-        <item name="android:windowBackground">#2E2E33</item>
-        <item name="android:navigationBarColor">#2E2E33</item>
-        <item name="s1BgPage">#2E2E33</item>
+        <item name="android:windowBackground">#E60012</item>
+        <item name="android:navigationBarColor">#E60012</item>
+        <item name="s1BgPage">#E60012</item>
         <item name="s1BgCard">#0099E5</item>
         <item name="s1BgCardLight">#0099E5</item>
-        <item name="s1BgTopbar">#2E2E33</item>
-        <item name="s1BgTabbar">#26262B</item>
+        <item name="s1BgTopbar">#E60012</item>
+        <item name="s1BgTabbar">#E60012</item>
         <item name="s1BorderCard">#66FFFFFF</item>
         <item name="s1BorderLight">#33FFFFFF</item>
         <item name="s1TextTitle">#FFFFFF</item>
@@ -478,7 +478,7 @@
         <item name="s1Accent">#E60012</item>
         <item name="s1Divider">#33FFFFFF</item>
         <item name="s1AvatarPlaceholder">#E60012</item>
-        <item name="s1QuoteBg">#2E2E33</item>
+        <item name="s1QuoteBg">#E60012</item>
         <item name="s1QuoteBar">#FF6B7A</item>
         <item name="s1QuoteText">#CCFFFFFF</item>
         <item name="s1QuoteBorder">#66FFFFFF</item>
@@ -488,7 +488,7 @@
         <item name="s1AccentCyan">#FF6B7A</item>
         <item name="s1ActionIcon">#CCFFFFFF</item>
         <item name="s1ActionIconActive">#FF6B7A</item>
-        <item name="s1GlassBarBg">#F22E2E33</item>
+        <item name="s1GlassBarBg">#F2E60012</item>
         <item name="s1GlassBarLine">#4DFFFFFF</item>
         <item name="s1GlassSheetBg">#F22E2E33</item>
         <item name="s1GlassSheetLine">#33FFFFFF</item>

@@ -130,6 +130,7 @@ import com.example.s1client.ui.design.CardBg
 import com.example.s1client.ui.design.ChipBg
 import com.example.s1client.ui.design.FlowCoverColors
 import com.example.s1client.ui.design.GlassBar
+import com.example.s1client.ui.design.FeedGap
 import com.example.s1client.ui.design.GlassCard
 import com.example.s1client.ui.design.GlassDialog
 import com.example.s1client.ui.design.GlassDialogLine
@@ -388,7 +389,8 @@ fun ForumFeedPage(
                         state = gridState,
                         // 滚轮呼出时物理禁滚（模态）：事件即使泄漏到列表也无视觉后果
                         userScrollEnabled = !showPagePicker,
-                        modifier = Modifier.fillMaxSize(),
+                        // 列缝底色：机器猫用中性灰把红蓝切开，其余主题默认同页面底
+                        modifier = Modifier.fillMaxSize().background(FeedGap),
                         contentPadding = PaddingValues(
                             start = 10.dp,
                             end = 10.dp,
@@ -865,7 +867,7 @@ fun XhsCategoryTabs(
                         .height(26.dp)
                         .clip(RoundedCornerShape(99.dp))
                         // 单色 accent 填充（渐变在深色主题下发脏，全局去彩色的延伸）
-                        .background(s1c.accent)
+                        .background(s1c.pillTint)
                 )
             }
             LazyRow(

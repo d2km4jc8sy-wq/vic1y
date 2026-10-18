@@ -95,7 +95,18 @@ data class S1Colors(
      * 机器猫单独给成中性灰：红页 + 蓝卡已经很满，底栏再上色会让屏幕底部继续「发声」，
      * 灰色把它压成安静的框架（2026-10-18 用户要求）。
      */
-    val navBar: Color = glassBar
+    val navBar: Color = glassBar,
+    /**
+     * 瀑布流列表区域的底色（卡片之间露出来的那一层）。默认 = [bgBottom]，与页面一致。
+     * 机器猫单独给中性灰：页面与上下栏是红，列缝用灰，
+     * 红蓝在列缝处才不会被误读成同一种颜色（用户指定，灰只此一处）。
+     */
+    val feedGap: Color = bgBottom,
+    /**
+     * 首页分类栏「选中胶囊」的底色。默认 = [accent]。
+     * 机器猫单独给蓝：它的顶栏是红的，胶囊若也用红就看不见，必须互斥。
+     */
+    val pillTint: Color = accent
 )
 
 // ————————— 原有三套（不动，只扩展 headerGradient）—————————
@@ -325,40 +336,39 @@ val LinearPalette = S1Colors(
 )
 
 /**
- * 机器猫（2026-10-18 三版）：**灰底 + 卡片上蓝下红 + 红色图标字**。
- * 按用户指令重排（2026-10-18 20:30）：
- *   页面底 / 顶栏 / 底栏 = 中性灰——红铺满屏会腻，灰才是「底」；
- *   卡片 = 蓝（封面蓝、信息区红）→ 红只出现在卡片下半，不铺满；
- *   图标圆底 = 蓝（与卡片同色，融进去），字形 = 红 → 红色靠图标本身突出，
- *   而不是靠一个色块。
- * 红蓝仍是这对品牌色，灰只是把它们之间的间隔。
+ * 机器猫（2026-10-18 四版·最终）：**主蓝副红，灰只出现在列缝**。
+ *   页面 / 顶栏 / 底栏 = 红 #E60012（「我的」等页面因此整屏红）
+ *   卡片 = 蓝（封面蓝、信息区红）→ 红蓝互斥，一屏之内必有一蓝一红
+ *   强调色 = 蓝（tab 胶囊压红底，互斥）；图标字 = 红
+ *   列缝 = 灰 #2E2E33 —— 唯一允许用灰的地方，只为把红蓝切开
  */
 val DoraemonPalette = S1Colors(
-    bgTop = Color(0xFF2E2E33), bgBottom = Color(0xFF2E2E33),
-    headerGradient = listOf(Color(0xFF2E2E33), Color(0xFF2E2E33)),
+    bgTop = Color(0xFFE60012), bgBottom = Color(0xFFE60012),
+    headerGradient = listOf(Color(0xFFE60012), Color(0xFFE60012)),
     textMain = Color(0xFFFFFFFF), textSub = Color(0xCCFFFFFF),
     accent = Color(0xFFE60012), onAccent = Color(0xFFFFFFFF),
-    accentCyan = Color(0xFFFF5A66), heart = Color(0xFFFF6B7A),
+    accentCyan = Color(0xFFFF6B7A), heart = Color(0xFFFF6B7A),
     cardBg = Color(0xFF0099E5),
     glassCard = Color(0xF20099E5), glassLine = Color(0x33FFFFFF),
-    glassBar = Color(0xF22E2E33), glassFloat = Color(0xF22E2E33),
+    glassBar = Color(0xF2E60012), glassFloat = Color(0xF22E2E33),
     glassFloatLine = Color(0x4DFFFFFF),
     glassDialog = Color(0xF22E2E33), glassDialogLine = Color(0x4DFFFFFF),
-    // 图标圆底 = 卡片蓝（融进去，不再是色块）；红色靠字形 #FF6B7A 突出
     chipBg = Color(0xFF0099E5),
     strongIcon = Color(0xFFFF6B7A),
     snackbarBg = Color(0xFF2E2E33), onSnackbar = Color(0xFFFFFFFF),
     flowCoverColors = listOf(
-        Color(0xFFE60012), Color(0xFF0099E5), Color(0xFFFF6B7A), Color(0xFF0A6FA8)
+        Color(0xFF0099E5), Color(0xFFE60012), Color(0xFFFF6B7A), Color(0xFF0A6FA8)
     ),
     glassEdgeTop = Color(0x66FFFFFF), glassEdgeMid = Color(0x33FFFFFF),
     glassEdgeBottom = Color(0x26FFFFFF),
     glassInsetLight = Color(0x99FFFFFF),
     isDark = true,
-    // 封面 = 蓝（与卡片同色），信息区 = 红 → 上篮下红
     coverTint = Color(0xFF0099E5),
     metaTint = Color(0xFFE60012),
-    navBar = Color(0xFF26262B)
+    navBar = Color(0xFFE60012),
+    feedGap = Color(0xFF2E2E33),
+    // 胶囊单独给蓝：红顶栏上必须用蓝，才叫互斥
+    pillTint = Color(0xFF0099E5)
 )
 
 val LocalS1Colors = staticCompositionLocalOf { TeaPalette }
