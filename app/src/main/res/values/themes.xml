@@ -409,48 +409,48 @@
         <item name="s1MenuSheetBg">#CC1A1E24</item>
     </style>
 
-    <!-- 2026-10-18 新增：朱砂（深色基底 + 红强调）。
-         中性深灰（不带蓝），强调色 #BF0426 取自用户给的参考按钮；
-         卡面比页底亮一档、封面比卡面沉一档，与 Linear 同一套层级。 -->
+    <!-- 2026-10-18 定稿：朱砂 = 红做缝、灰做面。
+         页面底红 #A23341，卡片不透明深灰 #222226，红色只从卡片缝隙里露出来；
+         顶栏/底栏比卡片略深的灰，避免红从顶部漫出去。 -->
     <style name="Theme.S1Client.Crimson" parent="Theme.S1Client.Base.Dark">
-        <item name="colorPrimary">#BF0426</item>
-        <item name="colorPrimaryVariant">#A00320</item>
+        <item name="colorPrimary">#D62839</item>
+        <item name="colorPrimaryVariant">#B71F2F</item>
         <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorSurface">#262628</item>
-        <item name="colorOnSurface">#DEDEDE</item>
-        <item name="android:windowBackground">#1C1C1E</item>
-        <item name="android:navigationBarColor">#1C1C1E</item>
-        <item name="s1BgPage">#1C1C1E</item>
-        <item name="s1BgCard">#262628</item>
-        <item name="s1BgCardLight">#202022</item>
-        <item name="s1BgTopbar">#1C1C1E</item>
-        <item name="s1BgTabbar">#202023</item>
-        <item name="s1BorderCard">#3A3A3D</item>
-        <item name="s1BorderLight">#303033</item>
-        <item name="s1TextTitle">#E8E8EA</item>
-        <item name="s1TextBody">#DEDEDE</item>
-        <item name="s1TextSecondary">#9A9A9E</item>
-        <item name="s1TextTertiary">#757579</item>
-        <item name="s1TextTopbar">#DEDEDE</item>
+        <item name="colorSurface">#222226</item>
+        <item name="colorOnSurface">#E2E2E4</item>
+        <item name="android:windowBackground">#A23341</item>
+        <item name="android:navigationBarColor">#A23341</item>
+        <item name="s1BgPage">#A23341</item>
+        <item name="s1BgCard">#222226</item>
+        <item name="s1BgCardLight">#16171A</item>
+        <item name="s1BgTopbar">#202125</item>
+        <item name="s1BgTabbar">#202125</item>
+        <item name="s1BorderCard">#35353A</item>
+        <item name="s1BorderLight">#2A2B30</item>
+        <item name="s1TextTitle">#ECECEE</item>
+        <item name="s1TextBody">#E2E2E4</item>
+        <item name="s1TextSecondary">#9C9CA2</item>
+        <item name="s1TextTertiary">#717177</item>
+        <item name="s1TextTopbar">#ECECEE</item>
         <item name="s1TextOnAccent">#FFFFFF</item>
-        <item name="s1Accent">#BF0426</item>
-        <item name="s1Divider">#333336</item>
-        <item name="s1AvatarPlaceholder">#BF0426</item>
-        <item name="s1QuoteBg">#2E2E31</item>
-        <item name="s1QuoteBar">#BF0426</item>
-        <item name="s1QuoteText">#BFBFC3</item>
-        <item name="s1QuoteBorder">#3A3A3D</item>
-        <item name="s1TagBg">#3A3A3D</item>
-        <item name="s1TagText">#DEDEDE</item>
+        <item name="s1Accent">#D62839</item>
+        <item name="s1Divider">#35353A</item>
+        <item name="s1AvatarPlaceholder">#D62839</item>
+        <item name="s1QuoteBg">#2A2B30</item>
+        <item name="s1QuoteBar">#D62839</item>
+        <item name="s1QuoteText">#B9B9BF</item>
+        <item name="s1QuoteBorder">#35353A</item>
+        <item name="s1TagBg">#3E1F27</item>
+        <item name="s1TagText">#FF6B7A</item>
         <item name="s1AccentPurple">#8E6BE8</item>
-        <item name="s1AccentCyan">#E05A6A</item>
-        <item name="s1ActionIcon">#9A9A9E</item>
+        <item name="s1AccentCyan">#FF6B7A</item>
+        <item name="s1ActionIcon">#9C9CA2</item>
         <item name="s1ActionIconActive">#FF4D5E</item>
-        <item name="s1GlassBarBg">#E61C1C1E</item>
+        <item name="s1GlassBarBg">#E6202125</item>
         <item name="s1GlassBarLine">#3DFFFFFF</item>
-        <item name="s1GlassSheetBg">#F2262628</item>
+        <item name="s1GlassSheetBg">#F2222226</item>
         <item name="s1GlassSheetLine">#33FFFFFF</item>
-        <item name="s1MenuSheetBg">#CC1C1C1E</item>
+        <item name="s1MenuSheetBg">#CC202125</item>
     </style>
 
 </resources>

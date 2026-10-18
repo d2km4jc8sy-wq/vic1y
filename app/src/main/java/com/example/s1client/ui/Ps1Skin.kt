@@ -57,8 +57,10 @@ object Ps1Skin {
 fun ticketDrawable(): android.graphics.drawable.Drawable {
         val s1 = com.example.s1client.ui.theme.s1PaletteFor(ThemeManager.currentTheme)
         // 磨砂膜：取主题 accent 极淡的一层（比 bgCard 更贴"玻璃膜带一点主题味"）
-        val film = s1.accent.copy(alpha = 0.10f)
-        val edge = s1.accent.copy(alpha = 0.28f)
+        // 2026-10-18：页面底改成红色后，半透明膜会把红透上来（卡片变酒红，成了第三种颜色）。
+        // 改用不透明的卡片色，红只留在卡片之间的缝里；描边也换成中性亮线，不再带主题色。
+        val film = s1.cardBg
+        val edge = s1.textMain.copy(alpha = 0.10f)
         val d = Resources.getSystem().displayMetrics.density
         return android.graphics.drawable.GradientDrawable(
             android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,

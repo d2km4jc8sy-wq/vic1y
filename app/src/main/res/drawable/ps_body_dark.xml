@@ -1,14 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- PS1 主楼机身（深色页面主题用）：浅灰金属渐变 + 细描边，靠大阴影呈现厚重感。
-     内阴影在 Android 无原生实现，用 135deg 明暗渐变模拟，不做实时模糊以保 120Hz 流畅。 -->
+<!-- PS1 主楼机身（深色页面主题用）。
+     2026-10-18：原来是银灰金属渐变（#D4D4D4→#999999），在深色主题里是一块「亮卡片」，
+     和页面底/卡片/强调色凑成三四种颜色。现在改走主题色：机身 = 卡面色，描边 = 卡片描边，
+     机身的厚重感由屏幕和按键承担，不由银色承担。 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <gradient
-        android:angle="135"
-        android:startColor="#D4D4D4"
-        android:centerColor="#BCBCBC"
-        android:endColor="#999999"
-        android:type="linear" />
-    <stroke android:width="1dp" android:color="#8F8F8F" />
+    <solid android:color="?attr/s1BgCard" />
+    <stroke android:width="1dp" android:color="?attr/s1BorderCard" />
     <corners android:radius="12dp" />
 </shape>

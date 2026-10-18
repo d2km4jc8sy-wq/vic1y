@@ -321,38 +321,38 @@ val LinearPalette = S1Colors(
 val LocalS1Colors = staticCompositionLocalOf { TeaPalette }
 
 /**
- * 朱砂（2026-10-18 新增）：深色基底的第二套变体。
- * 与 Linear 的区别只在色相 —— Linear 是蓝灰 + 靛蓝，朱砂是**中性深灰 + 朱红**，
- * 层级规则完全一致：底 #1C1C1E / 卡 #262628 / 封面 #202022 / 强调色 #BF0426。
- * 强调色取自用户给的参考按钮（#BF0426 底 + #DEDEDE 字），是整屏唯一的高饱和色。
+ * 朱砂（2026-10-18 三版定稿）：**红做缝、灰做面**。
+ * 页面底 = 红 #A23341(降饱和后的砖红，满屏铺不刺眼)，卡片 = 不透明深灰 #222226，卡片之间 6~10dp 的缝露出红色当分隔，
+ * 不靠描边也不靠阴影。红只占「缝 + 强调」，卡片内部全是中性色，读起来不刺眼。
+ * 顶栏/底栏用比卡片略深的灰，避免红色从顶部漫出去。
  */
 val CrimsonPalette = S1Colors(
-    bgTop = Color(0xFF1C1C1E), bgBottom = Color(0xFF1C1C1E),
-    headerGradient = listOf(Color(0xFF1C1C1E), Color(0xFF1C1C1E)),
-    textMain = Color(0xFFDEDEDE), textSub = Color(0xFF9A9A9E),
-    accent = Color(0xFFBF0426), onAccent = Color(0xFFFFFFFF),
-    accentCyan = Color(0xFFE05A6A), heart = Color(0xFFFF4D5E),
-    cardBg = Color(0xFF262628),
-    // 玻璃层：比 Linear 更中性（不带蓝），描边只比卡面亮一点点
-    glassCard = Color(0xF2262628), glassLine = Color(0xFF3A3A3D),
-    glassBar = Color(0xF21C1C1E), glassFloat = Color(0xFF303033),
-    glassFloatLine = Color(0xFF454548),
-    glassDialog = Color(0xFF2A2A2D), glassDialogLine = Color(0xFF454548),
-    // 图标圆底统一用红调（2026-10-18 用户定案）：像 #3E1F27 这种「暗红」，不是中性灰
+    bgTop = Color(0xFFA23341), bgBottom = Color(0xFFA23341),
+    headerGradient = listOf(Color(0xFF202125), Color(0xFF202125)),
+    textMain = Color(0xFFE2E2E4), textSub = Color(0xFF9C9CA2),
+    accent = Color(0xFFD62839), onAccent = Color(0xFFFFFFFF),
+    accentCyan = Color(0xFFFF6B7A), heart = Color(0xFFFF4D5E),
+    cardBg = Color(0xFF222226),
+    glassCard = Color(0xF2222226), glassLine = Color(0xFF35353A),
+    glassBar = Color(0xF2202125), glassFloat = Color(0xFF2C2C31),
+    glassFloatLine = Color(0xFF45464C),
+    glassDialog = Color(0xFF2C2C31), glassDialogLine = Color(0xFF45464C),
     chipBg = Color(0xFF3E1F27),
-    strongIcon = Color(0xFFDEDEDE),
-    snackbarBg = Color(0xFF303033), onSnackbar = Color(0xFFDEDEDE),
+    strongIcon = Color(0xFFECECEE),
+    snackbarBg = Color(0xFF3E1F27), onSnackbar = Color(0xFFECECEE),
     flowCoverColors = listOf(
-        Color(0xFFBF0426), Color(0xFF8E1B2C), Color(0xFFE5484D), Color(0xFF6E1420)
+        Color(0xFFD62839), Color(0xFF8E1B2C), Color(0xFFE5484D), Color(0xFF6E1420)
     ),
     glassEdgeTop = Color(0x66FFFFFF), glassEdgeMid = Color(0x33FFFFFF),
     glassEdgeBottom = Color(0x26FFFFFF),
     glassInsetLight = Color(0x99FFFFFF),
     isDark = true,
-    // 「上黑下红」：封面近黑，信息区整块红；两块之间一条 1px 底色线
-    coverTint = Color(0xFF202022),
-    metaTint = Color(0xFFBF0426)
+    // 封面比卡面更沉一档：标题落在近黑上，红只在页面缝里
+    coverTint = Color(0xFF16171A),
+    // 信息区不再单独上红——红已经由页面底承担，卡片内部保持整块灰
+    metaTint = null
 )
+
 
 /**
  * 主题索引 → 调色板。唯一一份映射，供 S1Theme 与「非 Compose 场景」共用

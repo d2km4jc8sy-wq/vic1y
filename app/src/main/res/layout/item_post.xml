@@ -427,6 +427,7 @@
                         android:padding="7dp"
                         android:background="@drawable/ps_btn_circle"
                         android:src="@drawable/ic_ps_triangle"
+                        android:tint="?attr/s1TextTertiary"
                         android:contentDescription="收藏楼层"
                         android:clickable="true"
                         android:focusable="true" />
@@ -455,6 +456,7 @@
                         android:padding="7dp"
                         android:background="@drawable/ps_btn_circle"
                         android:src="@drawable/ic_ps_circle"
+                        android:tint="?attr/s1TextTertiary"
                         android:contentDescription="回复"
                         android:clickable="true"
                         android:focusable="true" />
@@ -483,6 +485,7 @@
                         android:padding="7dp"
                         android:background="@drawable/ps_btn_circle"
                         android:src="@drawable/ic_ps_cross"
+                        android:tint="?attr/s1TextTertiary"
                         android:contentDescription="评分"
                         android:clickable="true"
                         android:focusable="true" />
@@ -510,6 +513,7 @@
                         android:padding="7dp"
                         android:background="@drawable/ps_btn_circle"
                         android:src="@drawable/ic_ps_square"
+                        android:tint="?attr/s1TextTertiary"
                         android:contentDescription="更多"
                         android:clickable="true"
                         android:focusable="true" />
@@ -541,6 +545,7 @@
                     android:padding="5dp"
                     android:background="@drawable/ps_btn_circle"
                     android:src="@drawable/ic_ps_triangle"
+                        android:tint="?attr/s1TextTertiary"
                     android:contentDescription="收藏楼层"
                     android:clickable="true"
                     android:focusable="true" />
@@ -553,6 +558,7 @@
                     android:padding="5dp"
                     android:background="@drawable/ps_btn_circle"
                     android:src="@drawable/ic_ps_circle"
+                        android:tint="?attr/s1TextTertiary"
                     android:contentDescription="回复"
                     android:clickable="true"
                     android:focusable="true" />
@@ -565,6 +571,7 @@
                     android:padding="5dp"
                     android:background="@drawable/ps_btn_circle"
                     android:src="@drawable/ic_ps_cross"
+                        android:tint="?attr/s1TextTertiary"
                     android:contentDescription="评分"
                     android:clickable="true"
                     android:focusable="true" />
@@ -576,6 +583,7 @@
                     android:padding="5dp"
                     android:background="@drawable/ps_btn_circle"
                     android:src="@drawable/ic_ps_square"
+                        android:tint="?attr/s1TextTertiary"
                     android:contentDescription="更多"
                     android:clickable="true"
                     android:focusable="true" />
