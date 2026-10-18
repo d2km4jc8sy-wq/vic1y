@@ -314,6 +314,38 @@ val LinearPalette = S1Colors(
 val LocalS1Colors = staticCompositionLocalOf { TeaPalette }
 
 /**
+ * 朱砂（2026-10-18 新增）：深色基底的第二套变体。
+ * 与 Linear 的区别只在色相 —— Linear 是蓝灰 + 靛蓝，朱砂是**中性深灰 + 朱红**，
+ * 层级规则完全一致：底 #1C1C1E / 卡 #262628 / 封面 #202022 / 强调色 #BF0426。
+ * 强调色取自用户给的参考按钮（#BF0426 底 + #DEDEDE 字），是整屏唯一的高饱和色。
+ */
+val CrimsonPalette = S1Colors(
+    bgTop = Color(0xFF1C1C1E), bgBottom = Color(0xFF1C1C1E),
+    headerGradient = listOf(Color(0xFF1C1C1E), Color(0xFF1C1C1E)),
+    textMain = Color(0xFFDEDEDE), textSub = Color(0xFF9A9A9E),
+    accent = Color(0xFFBF0426), onAccent = Color(0xFFFFFFFF),
+    accentCyan = Color(0xFFE05A6A), heart = Color(0xFFFF4D5E),
+    cardBg = Color(0xFF262628),
+    // 玻璃层：比 Linear 更中性（不带蓝），描边只比卡面亮一点点
+    glassCard = Color(0xF2262628), glassLine = Color(0xFF3A3A3D),
+    glassBar = Color(0xF21C1C1E), glassFloat = Color(0xFF303033),
+    glassFloatLine = Color(0xFF454548),
+    glassDialog = Color(0xFF2A2A2D), glassDialogLine = Color(0xFF454548),
+    chipBg = Color(0xFF303033),
+    strongIcon = Color(0xFFDEDEDE),
+    snackbarBg = Color(0xFF303033), onSnackbar = Color(0xFFDEDEDE),
+    flowCoverColors = listOf(
+        Color(0xFFBF0426), Color(0xFF8E1B2C), Color(0xFFE5484D), Color(0xFF6E1420)
+    ),
+    glassEdgeTop = Color(0x66FFFFFF), glassEdgeMid = Color(0x33FFFFFF),
+    glassEdgeBottom = Color(0x26FFFFFF),
+    glassInsetLight = Color(0x99FFFFFF),
+    isDark = true,
+    // 封面比卡面更沉：让信息区（要读的字）站在前面，封面退成一块底
+    coverTint = Color(0xFF202022)
+)
+
+/**
  * 主题索引 → 调色板。唯一一份映射，供 S1Theme 与「非 Compose 场景」共用
  * （例如换主题后同步系统栏颜色，见 ThemeEdge.syncSystemBarsWithPalette）。
  */
@@ -321,6 +353,7 @@ fun s1PaletteFor(themeIndex: Int, seed: Int = ThemeManager.iridescentSeed): S1Co
     ThemeManager.THEME_LIGHT -> TeaPalette
     ThemeManager.THEME_PURE -> PurePalette
     ThemeManager.THEME_LINEAR -> LinearPalette
+    ThemeManager.THEME_CRIMSON -> CrimsonPalette
     ThemeManager.THEME_IRIDESCENT -> buildIridescentPalette(ThemeManager.iridescentSeed)
     else -> TeaPalette
 }

@@ -24,8 +24,10 @@ object ThemeManager {
     const val THEME_LINEAR = 6      // Linear 墨蓝
     /** 纯白（2026-10-18 新增）：参考 iOS 默认浅色。索引追加在末尾，避免重排已存的值 */
     const val THEME_PURE = 7
+    /** 朱砂（2026-10-18 新增）：深色基底的第二套，中性深灰 + 朱红。索引继续追加 */
+    const val THEME_CRIMSON = 8
 
-    private const val THEME_MAX = THEME_PURE
+    private const val THEME_MAX = THEME_CRIMSON
 
     /** 无图卡片风格数量（4 套：深色莫兰迪 / 微网格 / 大引号 / 暗色玻璃） */
     const val COVER_STYLE_COUNT = 4
@@ -39,6 +41,7 @@ object ThemeManager {
     val VISIBLE_THEMES: List<Int> = listOf(
         THEME_PURE,        // 纯白：参考 iOS 默认浅色
         THEME_LINEAR,      // Linear 墨蓝：参考 iOS 深色
+        THEME_CRIMSON,     // 朱砂：深色基底 + 朱红强调
         THEME_LIGHT,       // 焙茶午后：S1 网页主色，是特色
         THEME_IRIDESCENT   // 幻彩渐变：固定流光封面
     )
@@ -145,7 +148,7 @@ object ThemeManager {
      * 其余 = 本次进程随机锁定的 0..3
      */
     fun coverStyleForCurrent(): Int = when (currentTheme) {
-        THEME_LINEAR -> -2   // Linear 专用：纯色底 + 底部微光
+        THEME_LINEAR, THEME_CRIMSON -> -2   // 深色基底专用：纯色封面 + 收敛圆角
         THEME_IRIDESCENT -> 5   // 幻彩渐变：固定用流光封面
         else -> sessionCoverStyle
     }
@@ -157,8 +160,9 @@ object ThemeManager {
         // XML 页面（帖子详情等）必须跟着当次抽到的那套，否则会「首页深色、详情浅色」
         THEME_IRIDESCENT -> if (iridescentSeed == 1) R.style.Theme_S1Client_IridescentDark
                             else R.style.Theme_S1Client_Iridescent
-        // Linear 与已移除的曜石同为深色，复用同一套 XML 深色样式
-        THEME_LINEAR -> R.style.Theme_S1Client_OLED
+        // 深色主题各有专属 XML 样式（原先 Linear 复用 OLED，页面标题会变成琥珀金）
+        THEME_LINEAR -> R.style.Theme_S1Client_Linear
+        THEME_CRIMSON -> R.style.Theme_S1Client_Crimson
         else -> R.style.Theme_S1Client_Light
     }
 
@@ -234,7 +238,8 @@ object ThemeManager {
         "苔绿灰阶",      // 4（隐藏）
         "幻彩渐变",      // 5
         "Linear 墨蓝",   // 6
-        "纯白"           // 7
+        "纯白",          // 7
+        "朱砂"           // 8
     )
 
     /**
