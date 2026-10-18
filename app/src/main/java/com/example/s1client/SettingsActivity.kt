@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,10 +51,14 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -78,6 +84,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -220,11 +227,54 @@ fun SettingsScreen(onFinish: () -> Unit) {
     var tail by remember { mutableStateOf(SettingStore.postTail(context)) }
     var cacheText by remember { mutableStateOf("计算中…") }
 
+    // —— 一屏宫格所需：原分散在各组内的状态提升到顶层（卡片摘要与弹层共用）——
+    var activeSheet by remember { mutableStateOf<String?>(null) }
+    var followDark by remember { mutableStateOf(SettingStore.followSystemDark(context)) }
+    var recordHist by remember { mutableStateOf(SettingStore.recordHistory(context)) }
+    var camLever by remember { mutableStateOf(SettingStore.cameraLeverRefresh(context)) }
+    var cacheCap by remember { mutableStateOf(SettingStore.cacheCapMb(context)) }
+    var imgCap by remember { mutableStateOf(SettingStore.maxImagesPerFloor(context)) }
+    var iconVariant by remember { mutableStateOf(com.example.s1client.util.AppIconManager.current(context)) }
+
     // —— 外观（R6 回归：让「全部设置」真的是全集，弹窗只是快捷副本）——
     var fontSize by remember { mutableIntStateOf(SettingStore.fontSize(context)) }
     var fontName by remember { mutableStateOf(SettingStore.customFontName(context)) }
     // —— 字体导入预览（点5 防破坏，2026-10-17）：选文件先预览+覆盖检测，应用才落盘 ——
     var fontPreview by remember { mutableStateOf<com.example.s1client.util.FontInspector.Preview?>(null) }
+    // 备份 / 恢复（原定义在「数据管理」组内，改版后上提到顶层供弹层使用）
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        if (uri != null) {
+            val r = runCatching {
+                context.contentResolver.openOutputStream(uri)?.use {
+                    com.example.s1client.util.BackupManager.export(context, it).getOrThrow()
+                } ?: error("无法写入所选位置")
+            }
+            r.onSuccess {
+                S1Notify.show(context, "备份完成：$it 项设置与数据", S1Notify.Type.SUCCESS)
+            }.onFailure {
+                S1Notify.show(context, it.message ?: "备份失败", S1Notify.Type.ERROR)
+            }
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            val r = runCatching {
+                context.contentResolver.openInputStream(uri)?.use {
+                    com.example.s1client.util.BackupManager.import(context, it).getOrThrow()
+                } ?: error("无法读取所选文件")
+            }
+            r.onSuccess {
+                S1Notify.show(context, "已恢复 $it 个模块 · 重启 App 后生效", S1Notify.Type.SUCCESS)
+            }.onFailure {
+                S1Notify.show(context, it.message ?: "恢复失败", S1Notify.Type.ERROR)
+            }
+        }
+    }
+
     val fontPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -262,7 +312,6 @@ fun SettingsScreen(onFinish: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Brush.verticalGradient(listOf(c.bgTop, c.bgBottom)))
-            .verticalScroll(rememberScrollState())
     ) {
         // —— 顶栏 ——
         Row(
@@ -287,23 +336,157 @@ fun SettingsScreen(onFinish: () -> Unit) {
             Spacer(Modifier.width(48.dp))
         }
 
-        // ═══ 外观 ═══
-        // R6 回归：这三项原本只存在于头像右侧的「快捷」弹窗，设置页里找不到，
-        // 于是「全部设置」名不副实、产生割裂感。这里补回，设置页＝全集，弹窗＝快捷副本。
-        GroupTitle("外观")
-        Group {
-            SettingRow(
-                Icons.Outlined.Palette, "主题",
-                sub = com.example.s1client.ui.themeNameShort(),
-                onClick = { showThemeSheet = true }
-            ) { Chevron() }
-
-            // 深色跟随系统（阶段四 2026-10-17）：默认关；手动选主题自动退出跟随
-            var followDark by remember { mutableStateOf(SettingStore.followSystemDark(context)) }
-            SettingRow(
-                Icons.Outlined.DarkMode, "深色跟随系统",
-                sub = "系统深浅自动切换 焙茶 ↔ Linear；手动选主题会自动关闭"
+        // ═══ 一屏六格 ═══
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(horizontal = 13.dp, vertical = 12.dp)
+        ) {
+            SettingsCard(
+                modifier = Modifier.fillMaxWidth().weight(1.12f),
+                icon = Icons.Outlined.Palette,
+                title = "外观",
+                summary = com.example.s1client.ui.themeNameShort() + " · " + fontSizeLabel(fontSize),
+                wide = true,
+                onClick = { activeSheet = "look" }
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                SettingsCard(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    icon = Icons.Outlined.DataUsage,
+                    title = "图片与流量",
+                    summary = imgPolicyState.label() + " · " + cacheCapLabel(cacheCap),
+                    onClick = { activeSheet = "media" }
+                )
+                SettingsCard(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    icon = Icons.Outlined.Vibration,
+                    title = "交互与图标",
+                    summary = (if (hapticEnabled) "震动开" else "震动关") + " · " +
+                        com.example.s1client.util.AppIconManager.labelOf(iconVariant),
+                    onClick = { activeSheet = "touch" }
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                SettingsCard(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    icon = Icons.Outlined.History,
+                    title = "阅读与发帖",
+                    summary = (if (tail.enabled) "小尾巴开" else "小尾巴关") +
+                        " · 历史" + (if (recordHist) "开" else "关"),
+                    onClick = { activeSheet = "read" }
+                )
+                SettingsCard(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    icon = Icons.Outlined.Save,
+                    title = "存储与备份",
+                    summary = cacheText,
+                    onClick = { activeSheet = "store" }
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            SettingsCard(
+                modifier = Modifier.fillMaxWidth().weight(0.74f),
+                icon = Icons.Outlined.Science,
+                title = "实验功能",
+                summary = if (camLever) "相机扳手已开启" else "相机扳手 · 未开启",
+                wide = true,
+                onClick = { activeSheet = "lab" }
+            )
+        }
+
+        // ═══ 底部：关于与隐私 / 退出登录 ═══
+        Box(Modifier.fillMaxWidth().padding(horizontal = 13.dp)) {
+            FlowGlassCard(Modifier.fillMaxWidth(), rotating = false, soft = true) {
+                Column {
+                    SettingRow(
+                        Icons.Outlined.Info, "关于与隐私",
+                        sub = "关于 · 更新日志 · 检查更新 · 隐私政策",
+                        onClick = { activeSheet = "about" }
+                    ) { Chevron() }
+                    if (loggedIn) {
+                        SettingRow(
+                            Icons.Outlined.Logout, "退出登录",
+                            onClick = { showLogoutConfirm = true }
+                        ) { Chevron() }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+    }
+
+    // 字体预览（点5 防破坏）：预渲染 + 字形覆盖率，应用才落盘
+    fontPreview?.let { pv ->
+        AlertDialog(
+            onDismissRequest = { pv.tmpFile.delete(); fontPreview = null },
+            title = { Text("字体预览 · ${pv.name}", fontSize = 16.sp) },
+            text = {
+                Column {
+                    val ffa = androidx.compose.ui.text.font.FontFamily(pv.typeface)
+                    Text("Stage1st 岁月史书 0123", fontFamily = ffa, fontSize = 16.sp)
+                    Text("今天也没有人盖楼，楼层 12345 层。", fontFamily = ffa, fontSize = 14.sp)
+                    Text("ABCDEFGHIJKLMN abcdefghijklmn", fontFamily = ffa, fontSize = 13.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "字形覆盖 ${pv.coverage.coveragePercent}%（抽样 ${pv.coverage.total} 字 · 缺 ${pv.coverage.missingCount} 字）",
+                        fontSize = 12.sp, color = c.textSub
+                    )
+                    if (pv.coverage.missingSample.isNotEmpty()) {
+                        Text(
+                            "缺字示例：${pv.coverage.missingSample.joinToString("")}",
+                            fontSize = 12.sp, color = c.heart
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "应用后全 App 生效；取消不写入任何数据。",
+                        fontSize = 11.sp, color = c.textSub.copy(alpha = 0.8f)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    SettingStore.importFont(context, pv.uri)
+                        .onSuccess {
+                            fontName = it
+                            S1Notify.show(
+                                context,
+                                "字体已导入：$it（字形覆盖 ${pv.coverage.coveragePercent}%）",
+                                S1Notify.Type.SUCCESS
+                            )
+                        }
+                        .onFailure { S1Notify.show(context, it.message ?: "导入失败", S1Notify.Type.ERROR) }
+                    pv.tmpFile.delete()
+                    fontPreview = null
+                }) { Text("应用并替换", color = c.accent) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pv.tmpFile.delete(); fontPreview = null }) {
+                    Text("取消", color = c.textSub)
+                }
+            }
+        )
+    }
+
+    // ═════════ 六个设置弹层（一屏宫格的落点）═════════
+
+    if (activeSheet == "look") {
+        SettingsSheet("外观", onDismiss = { activeSheet = null }) {
+            SettingRow(
+                Icons.Outlined.Palette, "主题", sub = com.example.s1client.ui.themeNameShort(),
+                onClick = { activeSheet = null; showThemeSheet = true }
+            ) { Chevron() }
+            SettingRow(Icons.Outlined.DarkMode, "深色跟随系统", sub = "跟随系统深浅色") {
                 S1Switch(
                     checked = followDark,
                     onCheckedChange = {
@@ -313,22 +496,18 @@ fun SettingsScreen(onFinish: () -> Unit) {
                     }
                 )
             }
-
-            // 文字大小：行内 chips 即点即换（与快捷弹窗同一形态）
             SettingRow(Icons.Outlined.FormatSize, "文字大小") {
                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     SettingStore.FONT_SIZES.forEach { size ->
                         val selected = size == fontSize
                         Text(
-                            text = when (size) { 12 -> "小"; 14 -> "标准"; 16 -> "大"; else -> "超大" },
+                            text = fontSizeLabel(size),
                             fontSize = 11.sp,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                             color = if (selected) Color.White else c.textSub,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(
-                                    if (selected) c.accent.copy(alpha = 0.85f) else c.chipBg
-                                )
+                                .background(if (selected) c.accent.copy(alpha = 0.85f) else c.chipBg)
                                 .clickable {
                                     fontSize = size
                                     SettingStore.setFontSize(context, size)
@@ -338,119 +517,89 @@ fun SettingsScreen(onFinish: () -> Unit) {
                     }
                 }
             }
-
             SettingRow(
                 Icons.Outlined.TextFields, "字体",
                 sub = fontName ?: "默认字体",
                 onClick = { fontPicker.launch(arrayOf("*/*")) }
             ) { Chevron() }
+            SettingRow(
+                Icons.Outlined.Refresh, "重置外观偏好",
+                sub = "字号/字体恢复默认，不影响版块屏蔽与历史",
+                onClick = { activeSheet = null; showResetAppearance = true }
+            ) { Chevron() }
+        }
+    }
 
-            // 字体预览对话框（点5 防破坏）：预渲染 + 字形覆盖率，应用才落盘
-            fontPreview?.let { pv ->
-                androidx.compose.material3.AlertDialog(
-                    onDismissRequest = { pv.tmpFile.delete(); fontPreview = null },
-                    title = { Text("字体预览 · ${pv.name}", fontSize = 16.sp) },
-                    text = {
-                        Column {
-                            val ffa = androidx.compose.ui.text.font.FontFamily(pv.typeface)
-                            Text("Stage1st 岁月史书 0123", fontFamily = ffa, fontSize = 16.sp)
-                            Text("今天也没有人盖楼，楼层 12345 层。", fontFamily = ffa, fontSize = 14.sp)
-                            Text("ABCDEFGHIJKLMN abcdefghijklmn", fontFamily = ffa, fontSize = 13.sp)
-                            Spacer(Modifier.height(10.dp))
-                            Text(
-                                "字形覆盖 ${pv.coverage.coveragePercent}%（抽样 ${pv.coverage.total} 字 · 缺 ${pv.coverage.missingCount} 字）",
-                                fontSize = 12.sp, color = c.textSub
-                            )
-                            if (pv.coverage.missingSample.isNotEmpty()) {
-                                Text(
-                                    "缺字示例：${pv.coverage.missingSample.joinToString("")}",
-                                    fontSize = 12.sp, color = c.heart
-                                )
-                            }
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                "应用后全 App 生效；取消不写入任何数据。",
-                                fontSize = 11.sp, color = c.textSub.copy(alpha = 0.8f)
-                            )
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            SettingStore.importFont(context, pv.uri)
-                                .onSuccess {
-                                    fontName = it
-                                    S1Notify.show(
-                                        context,
-                                        "字体已导入：$it（字形覆盖 ${pv.coverage.coveragePercent}%）",
-                                        S1Notify.Type.SUCCESS
-                                    )
-                                }
-                                .onFailure { S1Notify.show(context, it.message ?: "导入失败", S1Notify.Type.ERROR) }
-                            pv.tmpFile.delete()
-                            fontPreview = null
-                        }) { Text("应用并替换", color = c.accent) }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { pv.tmpFile.delete(); fontPreview = null }) {
-                            Text("取消", color = c.textSub)
-                        }
-                    }
-                )
+    if (activeSheet == "media") {
+        SettingsSheet("图片与流量", onDismiss = { activeSheet = null }) {
+            SheetChips(
+                title = "图片加载",
+                options = ImageLoadPolicy.values().map { it.label() },
+                selected = imgPolicyState.label()
+            ) { label ->
+                val p = ImageLoadPolicy.values().first { it.label() == label }
+                Haptic.selection(context)
+                DataSaverStore.setPolicy(context, p)
+                imgPolicyState = p
+            }
+            SheetChips(
+                title = "头像加载",
+                options = ImageLoadPolicy.values().map { it.label() },
+                selected = avPolicyState.label()
+            ) { label ->
+                val p = ImageLoadPolicy.values().first { it.label() == label }
+                Haptic.selection(context)
+                DataSaverStore.setAvatarPolicy(context, p)
+                avPolicyState = p
+            }
+            SheetChips(
+                title = "图片缓存上限",
+                options = listOf("100 MB", "256 MB", "512 MB", "1 GB", "2 GB"),
+                selected = cacheCapLabel(cacheCap)
+            ) { label ->
+                val mb = cacheCapValue(label)
+                SettingStore.setCacheCapMb(context, mb)
+                cacheCap = mb
+            }
+            SheetChips(
+                title = "每楼层图片上限",
+                options = listOf("不限", "3 张", "6 张", "9 张"),
+                selected = if (imgCap == 0) "不限" else "$imgCap 张"
+            ) { label ->
+                val n = if (label == "不限") 0 else label.filter { ch -> ch.isDigit() }.toIntOrNull() ?: 0
+                SettingStore.setMaxImagesPerFloor(context, n)
+                imgCap = n
             }
         }
+    }
 
-        // ═══ 交互 ═══
-        GroupTitle("交互")
-        Group {
+    if (activeSheet == "touch") {
+        SettingsSheet("交互与图标", onDismiss = { activeSheet = null }) {
             SettingRow(Icons.Outlined.Vibration, "交互震动", sub = "全局触觉反馈") {
                 S1Switch(
                     checked = hapticEnabled,
                     onCheckedChange = {
                         Haptic.setEnabled(context, it)
                         hapticEnabled = it
-                        // 对标 s1er：开关自身切换给一次反馈
                         if (it) Haptic.selection(context)
                     }
                 )
             }
+            SheetChips(
+                title = "应用图标",
+                options = com.example.s1client.util.AppIconManager.VARIANTS.map { it.label },
+                selected = com.example.s1client.util.AppIconManager.labelOf(iconVariant)
+            ) { label ->
+                val v = com.example.s1client.util.AppIconManager.VARIANTS.first { it.label == label }
+                Haptic.selection(context)
+                com.example.s1client.util.AppIconManager.apply(context, v.id)
+                iconVariant = v.id
+            }
+        }
+    }
 
-            // 图片加载三档（点1/点2，2026-10-17）：始终/仅 Wi-Fi/手动 点击循环；默认=始终
-            SettingRow(
-                Icons.Outlined.DataUsage, "图片加载",
-                sub = "当前 ${imgPolicyState.label()} · 点击切换",
-                onClick = {
-                    Haptic.selection(context)
-                    val next = imgPolicyState.next()
-                    DataSaverStore.setPolicy(context, next)
-                    imgPolicyState = next
-                }
-            ) {}
-
-            // 头像加载三档（点2）：独立于图片加载，默认=始终
-            SettingRow(
-                Icons.Outlined.Person, "头像加载",
-                sub = "当前 ${avPolicyState.label()} · 点击切换（独立于图片加载）",
-                onClick = {
-                    Haptic.selection(context)
-                    val next = avPolicyState.next()
-                    DataSaverStore.setAvatarPolicy(context, next)
-                    avPolicyState = next
-                }
-            ) {}
-
-            // 应用图标切换（点3，2026-10-17）：默认/经典圆环/蓝/绿/紫 activity-alias 循环（紧挨头像切换）
-            var iconVariant by remember { mutableStateOf(com.example.s1client.util.AppIconManager.current(context)) }
-            SettingRow(
-                Icons.Outlined.Palette, "应用图标",
-                sub = "当前 ${com.example.s1client.util.AppIconManager.labelOf(iconVariant)} · 点击切换（桌面刷新可能有延迟）",
-                onClick = {
-                    Haptic.selection(context)
-                    iconVariant = com.example.s1client.util.AppIconManager.cycle(context)
-                }
-            ) {}
-
-            // 记录阅读历史（R1 低成本批）：关闭后不落库，存量保留
-            var recordHist by remember { mutableStateOf(SettingStore.recordHistory(context)) }
+    if (activeSheet == "read") {
+        SettingsSheet("阅读与发帖", onDismiss = { activeSheet = null }) {
             SettingRow(Icons.Outlined.History, "记录阅读历史", sub = "关闭后不再保存最近浏览记录") {
                 S1Switch(
                     checked = recordHist,
@@ -460,30 +609,6 @@ fun SettingsScreen(onFinish: () -> Unit) {
                     }
                 )
             }
-        }
-
-        // ═══ 实验功能 ═══
-        // 2026-10-15：转盘翻页实验剔除（与预期出入）；分组保留，后续新想法在此上架
-        // 2026-10-18：相机扳手刷新上架（设计者直派，HTML 原型移植，默认关）
-        GroupTitle("实验功能")
-        Group {
-            var camLever by remember { mutableStateOf(SettingStore.cameraLeverRefresh(context)) }
-            SettingRow(Icons.Outlined.PhotoCamera, "相机扳手刷新",
-                sub = "开启后首页右上换成相机，下拉扳手松手触发刷新"
-            ) {
-                S1Switch(
-                    checked = camLever,
-                    onCheckedChange = {
-                        SettingStore.setCameraLeverRefresh(context, it)
-                        camLever = it
-                    }
-                )
-            }
-        }
-
-        // ═══ 发帖 ═══
-        GroupTitle("发帖")
-        Group {
             SettingRow(
                 Icons.Outlined.Edit, "发帖小尾巴",
                 sub = if (tail.enabled) "发帖 / 回复 / 编辑提交时自动追加" else "已关闭"
@@ -498,168 +623,88 @@ fun SettingsScreen(onFinish: () -> Unit) {
                     }
                 )
             }
-
             if (tail.enabled) {
-                // 去重（用户拍板）：机型/前缀/预览收进一个二级弹层，主列表只留一行
                 SettingRow(
                     null, "小尾巴内容",
                     sub = "机型 · 前缀 · 预览",
                     onClick = { showTailEdit = true }
-                ) {
-                    Chevron()
-                }
+                ) { Chevron() }
             }
-        }
-
-        // R6：「屏蔽」组整体取消 ——
-        //   · 版块屏蔽：用户未做该功能、瀑布流也不需要；
-        //   · 用户黑名单：已上移到「我的」页三功能格，此处不再重复。
-
-        // ═══ 数据管理 ═══
-        GroupTitle("数据管理")
-        Group {
             SettingRow(
-                Icons.Outlined.History, "清除阅读历史",
+                Icons.Outlined.Delete, "清除阅读历史",
                 sub = "本地最近浏览的帖子记录",
-                onClick = { showClearHistory = true }
+                onClick = { activeSheet = null; showClearHistory = true }
             ) {}
+        }
+    }
 
-            // 防误点（用户拍板 2026-10-17）：清除前弹确认
+    if (activeSheet == "store") {
+        SettingsSheet("存储与备份", onDismiss = { activeSheet = null }) {
             SettingRow(
-                Icons.Outlined.Delete, "清除图片缓存",
-                sub = cacheText,
-                onClick = { showClearCache = true }
+                Icons.Outlined.Delete, "清除图片缓存", sub = cacheText,
+                onClick = { activeSheet = null; showClearCache = true }
             ) {}
-
-            // 本地备份/恢复（点4，2026-10-17）：SP 快照打包 ZIP（不含 Cookie/图片/投票缓存）
-            val exportLauncher = rememberLauncherForActivityResult(
-                ActivityResultContracts.CreateDocument("application/zip")
-            ) { uri ->
-                if (uri != null) {
-                    val r = runCatching {
-                        context.contentResolver.openOutputStream(uri)?.use {
-                            com.example.s1client.util.BackupManager.export(context, it).getOrThrow()
-                        } ?: error("无法写入所选位置")
-                    }
-                    r.onSuccess {
-                        S1Notify.show(context, "备份完成：$it 项设置与数据", S1Notify.Type.SUCCESS)
-                    }.onFailure {
-                        S1Notify.show(context, it.message ?: "备份失败", S1Notify.Type.ERROR)
-                    }
-                }
-            }
-            val importLauncher = rememberLauncherForActivityResult(
-                ActivityResultContracts.OpenDocument()
-            ) { uri ->
-                if (uri != null) {
-                    val r = runCatching {
-                        context.contentResolver.openInputStream(uri)?.use {
-                            com.example.s1client.util.BackupManager.import(context, it).getOrThrow()
-                        } ?: error("无法读取所选文件")
-                    }
-                    r.onSuccess {
-                        S1Notify.show(context, "已恢复 $it 个模块 · 重启 App 后生效", S1Notify.Type.SUCCESS)
-                    }.onFailure {
-                        S1Notify.show(context, it.message ?: "恢复失败", S1Notify.Type.ERROR)
-                    }
-                }
-            }
             SettingRow(
                 Icons.Outlined.Save, "备份到文件",
-                sub = "设置·阅读历史·屏蔽体系·收藏·草稿 → ZIP（不含 Cookie/图片）",
+                sub = "设置·历史·屏蔽·收藏·草稿 → ZIP",
                 onClick = { exportLauncher.launch("s1client-backup.zip") }
             ) { Chevron() }
             SettingRow(
                 Icons.Outlined.Restore, "从文件恢复",
-                sub = "选择本应用导出的 ZIP，覆盖同名数据 · 重启生效",
+                sub = "覆盖同名数据 · 重启生效",
                 onClick = { importLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }
             ) { Chevron() }
-
-            // 图片缓存上限（R1）：点击在五档间循环，重启后对 Coil DiskCache 生效
-            var cacheCap by remember { mutableStateOf(SettingStore.cacheCapMb(context)) }
-            SettingRow(
-                Icons.Outlined.DataUsage, "图片缓存上限",
-                sub = "当前 $cacheCap MB · 点击切换",
-                onClick = {
-                    Haptic.selection(context)
-                    val opts = intArrayOf(100, 256, 512, 1024, 2048)
-                    val idx = opts.indexOf(cacheCap).let { if (it < 0) 0 else it }
-                    val next = opts[(idx + 1) % opts.size]
-                    SettingStore.setCacheCapMb(context, next)
-                    cacheCap = next
-                }
-            ) {}
-
-            // 每楼层图片上限（R1）：点击在 不限/3/6/9 间循环
-            var imgCap by remember { mutableStateOf(SettingStore.maxImagesPerFloor(context)) }
-            SettingRow(
-                Icons.Outlined.FormatSize, "每楼层图片上限",
-                sub = (if (imgCap > 0) "当前 $imgCap 张" else "当前不限") + " · 点击切换",
-                onClick = {
-                    Haptic.selection(context)
-                    val opts = intArrayOf(0, 3, 6, 9)
-                    val idx = opts.indexOf(imgCap).let { if (it < 0) 0 else it }
-                    val next = opts[(idx + 1) % opts.size]
-                    SettingStore.setMaxImagesPerFloor(context, next)
-                    imgCap = next
-                }
-            ) {}
-
-            SettingRow(
-                Icons.Outlined.Refresh, "重置外观偏好",
-                sub = "字号/字体恢复默认，不影响版块屏蔽与历史",
-                onClick = { showResetAppearance = true }
-            ) {}
-
             SettingRow(
                 Icons.Outlined.Language, "网络参数",
                 sub = "基础网址 / IP 直连（DNS 污染自救）",
                 onClick = { context.startActivity(NetworkParamsActivity.intent(context)) }
             ) { Chevron() }
         }
+    }
 
-        // ═══ 关于 ═══
-        GroupTitle("关于")
-        Group {
+    if (activeSheet == "lab") {
+        SettingsSheet("实验功能", onDismiss = { activeSheet = null }) {
+            SettingRow(
+                Icons.Outlined.PhotoCamera, "相机扳手刷新",
+                sub = "开启后首页右上换成相机，下拉扳手松手触发刷新"
+            ) {
+                S1Switch(
+                    checked = camLever,
+                    onCheckedChange = {
+                        SettingStore.setCameraLeverRefresh(context, it)
+                        camLever = it
+                    }
+                )
+            }
+            Text(
+                "这里专门放还没定型的新想法。做成开关的直接开，需要单独界面的会在这里多一行入口。",
+                fontSize = 11.sp,
+                color = c.textSub.copy(alpha = 0.7f),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+            )
+        }
+    }
+
+    if (activeSheet == "about") {
+        SettingsSheet("关于与隐私", onDismiss = { activeSheet = null }) {
             SettingRow(
                 Icons.Outlined.Info, "关于",
-                // 版本号改读 BuildConfig（2026-10-17）：原硬编码 V1.0 与实际 1.1.0 脱节
                 sub = "S1 Client · V" + BuildConfig.VERSION_NAME,
-                onClick = { showAbout = true }
+                onClick = { activeSheet = null; showAbout = true }
             ) {}
             SettingRow(
-                Icons.Outlined.History, "更新日志",
-                sub = "版本与新特性",
+                Icons.Outlined.History, "更新日志", sub = "版本与新特性",
                 onClick = { context.startActivity(ChangelogActivity.intent(context)) }
             ) { Chevron() }
-
-            // 检查更新（PROBLEMS P9，对齐 s1er 图2）：发布渠道 + 发现新版本弹窗（图3）
             SettingRow(
-                Icons.Outlined.CloudDownload, "检查更新",
-                sub = "从发布渠道获取最新版本",
+                Icons.Outlined.CloudDownload, "检查更新", sub = "从发布渠道获取最新版本",
                 onClick = { checkForUpdates() }
             ) { Chevron() }
-
-            // 隐私政策（PROBLEMS P13）：内置全文，分发合规配套
             SettingRow(
-                Icons.Outlined.PrivacyTip, "隐私政策",
-                sub = "我们不收集任何个人数据",
+                Icons.Outlined.PrivacyTip, "隐私政策", sub = "我们不收集任何个人数据",
                 onClick = { context.startActivity(com.example.s1client.feature_privacy.PrivacyActivity.intent(context)) }
             ) { Chevron() }
         }
-
-        // ═══ 退出登录（确认弹窗式——长按式被手指遮挡确认文案，用户拍板回滚，宪法 11）═══
-        if (loggedIn) {
-            GroupTitle("账号")
-            Box(Modifier.padding(horizontal = 13.dp)) {
-                SettingRow(
-                    Icons.Outlined.Logout, "退出登录",
-                    onClick = { showLogoutConfirm = true }
-                ) { Chevron() }
-            }
-        }
-
-        Spacer(Modifier.height(30.dp))
     }
 
     // ———————— 弹层 ————————
@@ -846,6 +891,155 @@ fun SettingsScreen(onFinish: () -> Unit) {
     }
 }
 
+// ————————— 一屏宫格卡片 —————————
+
+/**
+ * 设置首页的卡片：wide = 整宽横排（外观 / 实验功能），否则为 2×2 方格。
+ * 只用主题色板（glassCard 底 + glassLine 描边），不写死颜色。
+ */
+@Composable
+private fun SettingsCard(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    title: String,
+    summary: String,
+    wide: Boolean = false,
+    onClick: () -> Unit
+) {
+    val c = LocalS1Colors.current
+    val shape = RoundedCornerShape(16.dp)
+    if (wide) {
+        Row(
+            modifier = modifier
+                .clip(shape)
+                .background(c.glassCard)
+                .border(0.5.dp, c.glassLine, shape)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(40.dp).clip(CircleShape).background(c.chipBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = c.strongIcon, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(13.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontSize = 14.sp, color = c.textMain, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    summary, fontSize = 11.sp, color = c.textSub,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+            }
+            Chevron()
+        }
+    } else {
+        Column(
+            modifier = modifier
+                .clip(shape)
+                .background(c.glassCard)
+                .border(0.5.dp, c.glassLine, shape)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 10.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier.size(34.dp).clip(CircleShape).background(c.chipBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = c.strongIcon, modifier = Modifier.size(17.dp))
+            }
+            Spacer(Modifier.height(9.dp))
+            Text(title, fontSize = 13.sp, color = c.textMain, fontWeight = FontWeight.Bold, maxLines = 1)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                summary, fontSize = 10.5.sp, color = c.textSub,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+// ————————— 底部设置弹层 —————————
+
+/**
+ * 设置弹层外壳。按宪法 11/76：不放顶栏关闭按钮，靠 drag handle、点蒙层、系统返回关闭。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsSheet(
+    title: String,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val c = LocalS1Colors.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = c.cardBg,
+        contentColor = c.textMain
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 28.dp)
+        ) {
+            Text(
+                title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = c.textMain,
+                modifier = Modifier.padding(start = 20.dp, bottom = 6.dp)
+            )
+            content()
+        }
+    }
+}
+
+// ————————— 弹层内「多选一」 —————————
+
+/** 把原来的「点击循环盲选」换成能看见全部选项的 chip 行，每行最多 4 个自动折行。 */
+@Composable
+private fun SheetChips(
+    title: String,
+    options: List<String>,
+    selected: String,
+    onSelect: (String) -> Unit
+) {
+    val c = LocalS1Colors.current
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text(
+            title, fontSize = 13.sp, color = c.textMain, fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(start = 4.dp, bottom = 7.dp)
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            options.chunked(4).forEach { rowOpts ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    rowOpts.forEach { opt ->
+                        val on = opt == selected
+                        Text(
+                            opt, fontSize = 11.sp,
+                            fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                            color = if (on) Color.White else c.textSub,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (on) c.accent.copy(alpha = 0.85f) else c.chipBg)
+                                .clickable { onSelect(opt) }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ————————— 基础组件 —————————
 
 @Composable
@@ -927,6 +1121,25 @@ private fun Chevron() {
         tint = c.textSub.copy(alpha = 0.6f),
         modifier = Modifier.size(13.dp)
     )
+}
+
+private fun fontSizeLabel(size: Int): String = when (size) {
+    12 -> "小"
+    14 -> "标准"
+    16 -> "大"
+    else -> "超大"
+}
+
+private fun cacheCapLabel(mb: Int): String = when (mb) {
+    1024 -> "1 GB"
+    2048 -> "2 GB"
+    else -> "$mb MB"
+}
+
+private fun cacheCapValue(label: String): Int = when (label) {
+    "1 GB" -> 1024
+    "2 GB" -> 2048
+    else -> label.filter { it.isDigit() }.toIntOrNull() ?: 100
 }
 
 private fun themeName(): String = when (ThemeManager.currentTheme) {
