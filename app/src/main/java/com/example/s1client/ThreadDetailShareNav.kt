@@ -57,6 +57,9 @@ import com.example.s1client.data.api.RetrofitClient
 import com.example.s1client.data.session.SessionRepository
 import com.example.s1client.data.model.Post
 import com.example.s1client.databinding.ActivityThreadDetailBinding
+import com.example.s1client.share.ShareCardActivity
+import com.example.s1client.share.ShareCardPost
+import com.example.s1client.share.fmtDateline
 import com.example.s1client.databinding.DialogReplySheetBinding
 import com.example.s1client.databinding.DialogUserCardBinding
 import com.example.s1client.ui.PageAdapter
@@ -135,7 +138,7 @@ internal fun ThreadDetailActivity.updateShareSelectBar() {
     }
 
     /**
-     * 把选中的楼层拼成纯文本，调起系统分享面板（可发微信/QQ/备忘录等）。
+     * 多选分享：把选中的楼层投影成 ShareCardPost，启动 ShareCardActivity 渲染长图。
      * 顺序：按页码 + 页内顺序遍历已加载页并筛出选中楼层，天然等于楼层顺序。
      */
 
@@ -149,28 +152,27 @@ internal fun ThreadDetailActivity.shareSelectedFloors() {
         }
         picked.sortBy { it.position?.toIntOrNull() ?: Int.MAX_VALUE }
 
-        val subjectText = subject.ifBlank { "Stage1st 帖子" }
-        val url = "https://stage1st.com/2b/thread-$tid-1-1.html"
-        val sb = StringBuilder()
-        sb.append(subjectText).append("\n").append(url).append("\n\n")
-        sb.append("—— 多选分享（${picked.size} 楼）——\n\n")
-        picked.forEachIndexed { i, post ->
-            val floorLabel = if (post.first == "1") "楼主" else "${post.position ?: "?"}楼"
-            sb.append("${post.author ?: "未知"} ($floorLabel):\n")
-            val body = extractPlainText(post.message)
-            sb.append(if (body.isBlank()) "（无文字内容）" else body)
-            if (i < picked.lastIndex) sb.append("\n\n")
+        // G16（2026-10-18）：多选分享改为「生成分享卡」。把选中楼投影成 ShareCardPost，
+        // 交给 ShareCardActivity 渲染长图并调起系统分享面板（微信/QQ/备忘录等）。
+        val posts = picked.map { p ->
+            val floorLabel = if (p.first == "1") "楼主" else "${p.position ?: "?"}楼"
+            ShareCardPost(
+                author = p.author ?: "未知",
+                floorLabel = floorLabel,
+                timeText = fmtDateline(p.dateline),
+                content = extractPlainText(p.message),
+                isOP = p.first == "1"
+            )
         }
-
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, subjectText)
-            putExtra(Intent.EXTRA_TEXT, sb.toString())
+        val title = subject.ifBlank { "Stage1st 帖子" }
+        val intent = Intent(this, ShareCardActivity::class.java).apply {
+            putExtra("title", title)
+            putParcelableArrayListExtra("posts", ArrayList(posts))
         }
         try {
-            startActivity(Intent.createChooser(intent, "分享选中的楼层"))
+            startActivity(intent)
         } catch (e: Exception) {
-            toast("无法分享")
+            toast("无法打开分享卡")
         }
     }
 

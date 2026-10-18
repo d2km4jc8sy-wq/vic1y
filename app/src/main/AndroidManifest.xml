@@ -166,5 +166,20 @@
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity android:name="com.example.s1client.feature_privacy.PrivacyActivity" android:exported="false" android:screenOrientation="portrait" />
+        <!-- G16 长图分享卡：多选分享落点 -->
+        <activity
+            android:name=".share.ShareCardActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <!-- 分享卡图片对外授权（FileProvider，G16） -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.example.s1client.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 </application>
 </manifest>
