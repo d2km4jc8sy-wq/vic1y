@@ -711,7 +711,8 @@ fun ForumFeedPage(
                                     "跳转到页", 1,
                                     if (state.totalPages > 0) state.totalPages else 1,
                                     state.currentPage.coerceAtLeast(1),
-                                    0xFF5E6AD2.toInt(), 0x295E6AD2
+                                    s1ForSheet.accent.toArgb(),
+                                    s1ForSheet.accent.copy(alpha = 0.16f).toArgb()
                                 )
                                 v.setS1Colors(s1ForSheet)
                             },
@@ -812,7 +813,10 @@ fun ForumFeedPage(
 }
 
 
-private fun accentColorOf(ctx: android.content.Context): Int = 0x295E6AD2
+// R8（审计报告 v2 2026-10-18 第 9 轮）：accentColorOf() 已删除 ——
+// 全库 grep 无任何调用点，且唯一作用是把滚轮 accent 硬编码为 Linear 主题的蓝（0x295E6AD2）。
+// 滚轮 accent 现统一由 setS1Colors() 从当前主题色板派生（见上方 ensureSetup 调用处），
+// 该函数失去存在意义，删除以免后人误以为它是主题色来源。
 
 @Composable
 fun XhsCategoryTabs(

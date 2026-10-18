@@ -193,7 +193,9 @@ class PostViewModel(app: Application) : AndroidViewModel(app) {
                     // 一级版面：默认顶部栏只放这些，避免一次塞进几十个子版块
                     val topLevel = raw
                         .filter { !it.fid.isNullOrBlank() && !it.name.isNullOrBlank() }
-                        .map { ForumTab(it.fid!!, it.name!!) }
+                        // R7（审计报告 v2 2026-10-18 第 9 轮）：去掉 !! —— 上一行 filter 已保证
+                        // 两者非空，但编译器不做跨行智能转换，故用 elvis 收敛为安全解包
+                        .map { ForumTab(it.fid ?: "", it.name ?: "") }
                     // 全部版面（含子版块）：供「板块管理 → 可添加」挑选
                     val all = flattenForumTabs(raw)
                     if (all.isNotEmpty()) {

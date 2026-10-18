@@ -142,8 +142,13 @@ class LoginActivity : BaseActivity() {
     }
 }
 
-/** 成功绿是通用语义色，不随主题变 */
-private val CpnGreenSuccess = Color(0xFF34C759)
+/**
+ * 成功绿：R3 修复（审计报告 v2 2026-10-18 第 9 轮）——原为本地写死常量，
+ * 现改为从主题 token [com.example.s1client.ui.theme.S1Colors.success] 取，
+ * 默认值与原来一致（34C759），故视觉零变化，但配色来源已收敛到色板。
+ */
+private val CpnGreenSuccess: Color
+    @Composable get() = LocalS1Colors.current.success
 
 // 注：原先这里有一套写死的深层 LoginDarkPalette，用 CompositionLocalProvider 覆盖 S1Theme，
 // 让登录页固定走暖暗色调。现已移除 —— 登录页改为跟随全局主题（浅色主题就是浅底），

@@ -299,7 +299,9 @@ private fun BookmarkDetailDialog(
                             .clickable(enabled = !bookmark.authorId.isNullOrBlank()) {
                                 showUserCardDialog(
                                     context as ComponentActivity,
-                                    bookmark.authorId!!,
+                                    // R7（审计报告 v2 2026-10-18 第 9 轮）：去掉 !! ——
+                                    // authorId 为 null 时传空串（用户卡片按未取到 uid 处理），不再崩溃
+                                    bookmark.authorId ?: "",
                                     bookmark.author ?: "未知"
                                 )
                             }

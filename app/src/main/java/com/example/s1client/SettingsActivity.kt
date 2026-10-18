@@ -58,6 +58,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -196,7 +197,21 @@ fun SettingsScreen(onFinish: () -> Unit) {
             checkingUpdate = false
         }
     }
-    val loggedIn = ForumDataCache.isLoggedIn()
+    // 登录态：**改 resume 复检**（R9 同法 · 设计者裁定「这种看不到的地方，既然不合理就处理掉」）。
+    // 原来是组合期一次性快照：若本页在登录态之外被打开（或登录后从其它入口返回），
+    // 会停留在旧值 —— 表现为「退出登录」行该显示时不显示 / 不该显示时还在。
+    // 机制与 MainActivity:366-368 的 homeLoggedIn 完全一致（宪法 23.A.3：状态由页面权威驱动）。
+    var loggedIn by remember { mutableStateOf(ForumDataCache.isLoggedIn()) }
+    val settingsLifecycle = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(settingsLifecycle) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                loggedIn = ForumDataCache.isLoggedIn()
+            }
+        }
+        settingsLifecycle.lifecycle.addObserver(observer)
+        onDispose { settingsLifecycle.lifecycle.removeObserver(observer) }
+    }
 
     // —— 可变设置状态（即时生效、即时持久化，无「保存」按钮，对标 s1er）——
     var hapticEnabled by remember { mutableStateOf(Haptic.enabled) }

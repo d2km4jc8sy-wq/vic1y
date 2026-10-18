@@ -24,20 +24,24 @@ object FavoriteManager {
     }
 
     fun isLocalFaved(tid: String): Boolean {
-        val r = tid.isNotBlank() && localPrefs.getStringSet("faved", emptySet())!!.contains(tid)
-        return r
+        // R7（审计报告 v2 2026-10-18 第 9 轮）：去掉 !! —— getStringSet 可能返回 null
+        // （首次使用/被清除），原写法会在此崩溃。
+        val faved = localPrefs.getStringSet("faved", null) ?: emptySet<String>()
+        return tid.isNotBlank() && faved.contains(tid)
     }
 
     fun markLocalFaved(tid: String) {
         if (tid.isBlank()) return
-        val set = localPrefs.getStringSet("faved", emptySet())!!.toMutableSet()
+        // R7：同上，去掉 !!
+        val set = (localPrefs.getStringSet("faved", null) ?: emptySet<String>()).toMutableSet()
         set.add(tid)
         localPrefs.edit().putStringSet("faved", set).apply()
     }
 
     fun unmarkLocalFaved(tid: String) {
         if (tid.isBlank()) return
-        val set = localPrefs.getStringSet("faved", emptySet())!!.toMutableSet()
+        // R7：同上，去掉 !!
+        val set = (localPrefs.getStringSet("faved", null) ?: emptySet<String>()).toMutableSet()
         set.remove(tid)
         localPrefs.edit().putStringSet("faved", set).apply()
     }

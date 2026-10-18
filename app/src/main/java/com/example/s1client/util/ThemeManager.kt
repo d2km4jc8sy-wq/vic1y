@@ -91,8 +91,11 @@ object ThemeManager {
 
     fun init(context: Context) {
         if (appContext == null) {
-            appContext = context.applicationContext
-            val prefs = appContext!!.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+            // R7（审计报告 v2 2026-10-18 第 9 轮）：去掉 appContext!! ——
+            // 直接用入参的 applicationContext（同一实例），不再依赖可空属性 + 强制解包
+            val ctx = context.applicationContext
+            appContext = ctx
+            val prefs = ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE)
             val theme = if (prefs.getBoolean(KEY_MIGRATED, false)) {
                 // 新版索引 0-5 原样保留，上限扩到 THEME_MAX
                 prefs.getInt(KEY, THEME_LIGHT).coerceIn(THEME_LIGHT, THEME_MAX)
@@ -166,17 +169,17 @@ object ThemeManager {
      */
     private fun applyTheme(index: Int, fromUser: Boolean) {
         // 兜底：任何调用方传进来隐藏主题索引，都按明暗意图落到可见主题，绝不串位
-            val next = migrateHiddenTheme(index).coerceIn(THEME_LIGHT, THEME_MAX)
-            if (next != currentTheme) {
-                currentTheme = next
-                appContext?.getSharedPreferences(PREF, Context.MODE_PRIVATE)
-                    ?.edit()?.putInt(KEY, currentTheme)?.apply()
-                // 切主题立刻重随：卡片风格/幻彩色板换一套
-                rollSessionRandoms()
-                // 即时生效的关键：Compose 此刻已经重组完成，把已登记过的 Activity 全部记为
-                // 新主题，这样它们下次 onResume 不会再走一遍 recreate（会白闪一下、还丢位置）。
-                appliedByActivity.keys.toList().forEach { appliedByActivity[it] = next }
-            }
+        val next = migrateHiddenTheme(index).coerceIn(THEME_LIGHT, THEME_MAX)
+        if (next != currentTheme) {
+            currentTheme = next
+            appContext?.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+                ?.edit()?.putInt(KEY, currentTheme)?.apply()
+            // 切主题立刻重随：卡片风格/幻彩色板换一套
+            rollSessionRandoms()
+            // 即时生效的关键：Compose 此刻已经重组完成，把已登记过的 Activity 全部记为
+            // 新主题，这样它们下次 onResume 不会再走一遍 recreate（会白闪一下、还丢位置）。
+            appliedByActivity.keys.toList().forEach { appliedByActivity[it] = next }
+        }
         // 手动选主题 = 用户显式接管：自动退出跟随模式
         if (fromUser && followSystemDark) {
             followSystemDark = false
