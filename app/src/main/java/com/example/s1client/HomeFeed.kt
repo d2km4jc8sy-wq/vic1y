@@ -440,21 +440,30 @@ fun ForumFeedPage(
                             tween(durationMillis = 120) else
                             tween(durationMillis = 280, delayMillis = 350)
                     )
-                    // 实验功能（相机扳手 PULL_IMPL=1）隐现联动，照 HTML 行为（拍板 5）：
-                    // 滚动中隐藏、停手 ~200ms 浮现；进场 600ms 后现身一次（HTML 800ms 入场仪式感）。
+                    // 实验功能（相机扳手 PULL_IMPL=1）隐现联动。
+                    // 2026-10-18 设计者**推翻原拍板 5** 的隐现时序，新需求三条：
+                    //   ① 首页静止时不显示；
+                    //   ② 滚动越过视口 8% 阈值后才允许现身（口径对齐票夹 ticketRevealed
+                    //      —— 2026-10-17 设计者定：常驻会压住右列第一张卡、抢触摸）；
+                    //   ③ 停手后延迟 400ms 再浮现（原 200ms，设计者反馈偏急）。
+                    // 因此去掉原「进场 600ms 后无条件现身一次」——那正是「首页静止时却显示」的来源。
                     // 与票夹的 ticketRevealed 独立——相机模式下两者互斥（key 重建，不会同屏）。
                     var leverRevealed by remember { mutableStateOf(false) }
                     LaunchedEffect(gridState, PULL_IMPL) {
                         if (PULL_IMPL != 1) return@LaunchedEffect
-                        delay(600)
-                        leverRevealed = true
                         snapshotFlow { gridState.isScrollInProgress }
                             .distinctUntilChanged()
                             .collect { scrolling ->
-                                if (scrolling) leverRevealed = false
-                                else {
-                                    delay(200)
-                                    leverRevealed = true
+                                if (scrolling) {
+                                    leverRevealed = false
+                                } else {
+                                    // 停手 400ms 后再判断：滚过阈值才现身
+                                    delay(400L)
+                                    val reached = gridState.firstVisibleItemIndex > 0 ||
+                                            gridState.firstVisibleItemScrollOffset >
+                                            (0.08f * android.content.res.Resources.getSystem()
+                                        .displayMetrics.heightPixels).toInt()
+                                    leverRevealed = reached
                                 }
                             }
                     }
