@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- ============ 浅色：午后红茶 ============ -->
-    <color name="light_bg_page">#EADCC0</color>
+    <color name="light_bg_page">#EFE6D3</color>
     <color name="light_bg_card">#FFFCF0</color>
-    <color name="light_bg_card_light">#E0D0AE</color>
+    <color name="light_bg_card_light">#E9DFC9</color>
     <color name="light_bg_topbar">#C9B896</color>
-    <color name="light_bg_tabbar">#E7D8B8</color>
+    <color name="light_bg_tabbar">#EBE1CC</color>
     <color name="light_border_card">#E5D5A8</color>
     <color name="light_border_light">#EDE0BE</color>
     <color name="light_text_title">#5C2E0E</color>
@@ -23,11 +23,11 @@
 
     <!-- ============ OLED 纯黑 ============ -->
     <color name="oled_bg_page">#1A1E24</color>
-    <color name="oled_bg_card">#242832</color>
-    <color name="oled_bg_card_light">#333B4A</color>
+    <color name="oled_bg_card">#333B4A</color>
+    <color name="oled_bg_card_light">#242832</color>
     <color name="oled_bg_topbar">#1A1E24</color>
     <color name="oled_bg_tabbar">#1E2229</color>
-    <color name="oled_border_card">#3E4657</color>
+    <color name="oled_border_card">#454D5D</color>
     <color name="oled_border_light">#262626</color>
     <color name="oled_text_title">#E8C88A</color>
     <color name="oled_text_body">#CCCCCC</color>

@@ -89,17 +89,17 @@ data class S1Colors(
 
 /** 午后红茶 */
 private val TeaPalette = S1Colors(
-    bgTop = Color(0xFFEADCC0), bgBottom = Color(0xFFEADCC0),
+    bgTop = Color(0xFFEFE6D3), bgBottom = Color(0xFFEFE6D3),
     headerGradient = listOf(Color(0xFFA0522D), Color(0xFFA0522D)),
     textMain = Color(0xFF3A3A3A), textSub = Color(0xFF8B7355),
     accent = Color(0xFFA0522D), onAccent = Color(0xFFFFF8DC),
     accentCyan = Color(0xFF1FB8FF), heart = Color(0xFFFF2C55),
     cardBg = Color(0xFFFFFCF0),
     glassCard = Color(0xFAFFFCF0), glassLine = Color(0x1AA0522D),
-    glassBar = Color(0xF2EADCC0), glassFloat = Color(0xFAFFFCF0),
+    glassBar = Color(0xF2EFE6D3), glassFloat = Color(0xFAFFFCF0),
     glassFloatLine = Color(0x24A0522D),
     glassDialog = Color(0xFAFFFCF0), glassDialogLine = Color(0x24A0522D),
-    chipBg = Color(0xFFE0D1B2),
+    chipBg = Color(0xFFE9DFC9),
     strongIcon = Color(0xFF5C2E0E),
     snackbarBg = Color(0xFF3A2410), onSnackbar = Color(0xFFFFF8DC),
     flowCoverColors = listOf(Color(0xFFFF6FA5), Color(0xFF1FB8FF), Color(0xFF8B5CF6), Color(0xFFFF6FA5)),
@@ -272,7 +272,7 @@ private fun buildIridescentPalette(seed: Int): S1Colors {
 
 /**
  * Linear 风格暗色：**低饱和 + 单强调色 + 靠边框分层**
- * 底 #1A1E24 / 卡片 #242832 / 封面块 #333B4A / 悬浮 #2B303B / 边框 #3E4657 / 主色 #5E6AD2
+ * 底 #1A1E24 / 卡片 #333B4A / 封面块 #242832 / 悬浮 #3A4252 / 边框 #454D5D / 主色 #5E6AD2
  * 2026-10-18 二改：暗色不是「越黑越高级」。原来的 #08090A / #0D0E10 是一整块死黑，
  * 卡片与封面连成一片，长时间看找不到边界很累眼。现在三级明度各差 10~16 个色阶，
  * 整体也抬到「深灰」而不是「黑」，白字的眩光随之降低。
@@ -284,15 +284,15 @@ val LinearPalette = S1Colors(
     textMain = Color(0xFFEDEDEF), textSub = Color(0xFF9197A3),
     accent = Color(0xFF5E6AD2), onAccent = Color(0xFFFFFFFF),
     accentCyan = Color(0xFF828FFF), heart = Color(0xFFFF2C55),
-    cardBg = Color(0xFF242832),
+    cardBg = Color(0xFF333B4A),
     // 玻璃层：Linear 用「几乎不透明的深灰 + 极细描边」，避免传统玻璃的高光感
-    glassCard = Color(0xF2242832), glassLine = Color(0xFF3E4657),
-    glassBar = Color(0xF21A1E24), glassFloat = Color(0xFF2B303B),
-    glassFloatLine = Color(0xFF454D5D),
-    glassDialog = Color(0xFF2B303B), glassDialogLine = Color(0xFF454D5D),
-    chipBg = Color(0xFF333B4A),
+    glassCard = Color(0xF2333B4A), glassLine = Color(0xFF454D5D),
+    glassBar = Color(0xF21A1E24), glassFloat = Color(0xFF3A4252),
+    glassFloatLine = Color(0xFF4A5364),
+    glassDialog = Color(0xFF3A4252), glassDialogLine = Color(0xFF4A5364),
+    chipBg = Color(0xFF3E4657),
     strongIcon = Color(0xFFEDEDEF),
-    snackbarBg = Color(0xFF333B4A), onSnackbar = Color(0xFFEDEDEF),
+    snackbarBg = Color(0xFF3E4657), onSnackbar = Color(0xFFEDEDEF),
     // 卡片顶部语义色条：低饱和，与主色同族，避免花
     flowCoverColors = listOf(
         Color(0xFF5E6AD2), Color(0xFF3E8E6E), Color(0xFFC79A3A),
@@ -302,7 +302,10 @@ val LinearPalette = S1Colors(
     glassEdgeTop = Color(0x66FFFFFF), glassEdgeMid = Color(0x33FFFFFF),
     glassEdgeBottom = Color(0x26FFFFFF),
     glassInsetLight = Color(0x99FFFFFF),
-    isDark = true
+    isDark = true,
+    // 封面比卡面更沉：卡面承载作者/分类/时间这些「要读的字」，封面只是标题的容器，
+    // 让它退到背景里去，主体的对比才落在信息区（2026-10-18 用户定案：与卡面对调）
+    coverTint = Color(0xFF242832)
 )
 
 val LocalS1Colors = staticCompositionLocalOf { TeaPalette }
