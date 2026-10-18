@@ -689,7 +689,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
                     context.startActivity(
                         android.content.Intent(context, LoginActivity::class.java)
                     )
-                }) { Text("退出", color = Color(0xFFFF3B30)) }
+                }) { Text("退出", color = c.danger) }
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutConfirm = false }) {
@@ -785,7 +785,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
                         Haptic.selection(context)
                         S1Notify.show(context, "已清除图片缓存", S1Notify.Type.SUCCESS)
                     }
-                }) { Text("确定", color = Color(0xFFFF3B30)) }
+                }) { Text("确定", color = c.danger) }
             },
             dismissButton = {
                 TextButton(onClick = { showClearCache = false }) { Text("取消", color = c.textSub) }
@@ -802,7 +802,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
                     ReadHistoryStore.clear(context)
                     showClearHistory = false
                     S1Notify.show(context, "阅读历史已清除", S1Notify.Type.SUCCESS)
-                }) { Text("确定", color = Color(0xFFFF3B30)) }
+                }) { Text("确定", color = c.danger) }
             },
             dismissButton = {
                 TextButton(onClick = { showClearHistory = false }) { Text("取消", color = c.textSub) }
@@ -819,7 +819,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
                     SettingStore.resetAppearance(context)
                     showResetAppearance = false
                     S1Notify.show(context, "外观偏好已重置", S1Notify.Type.SUCCESS)
-                }) { Text("确定", color = Color(0xFFFF3B30)) }
+                }) { Text("确定", color = c.danger) }
             },
             dismissButton = {
                 TextButton(onClick = { showResetAppearance = false }) { Text("取消", color = c.textSub) }

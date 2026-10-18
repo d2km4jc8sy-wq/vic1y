@@ -23,6 +23,10 @@ val TextSub: Color
 val HeartRed: Color
     @Composable get() = LocalS1Colors.current.heart
 
+/** 破坏性语义红：R2（第 9 轮审计 2026-10-18）收口为 token，默认 FF3B30（视觉零变化） */
+val DangerRed: Color
+    @Composable get() = LocalS1Colors.current.danger
+
 /** 强调色：跟随主题（粉/棕/琥珀） */
 val AccentPink: Color
     @Composable get() = LocalS1Colors.current.accent

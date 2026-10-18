@@ -1094,7 +1094,7 @@ private fun HiddenPostsDialog(onDismiss: () -> Unit) {
                     HiddenPostManager.unhideAll()
                     hidden = emptyList()
                 }) {
-                    Text("全部恢复", color = Color(0xFFFF3B30))
+                    Text("全部恢复", color = c.danger)
                 }
             }
         },

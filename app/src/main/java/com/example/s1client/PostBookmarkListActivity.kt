@@ -143,7 +143,7 @@ internal fun PostBookmarkListScreen(onFinish: () -> Unit, embedded: Boolean = fa
                             S1Notify.show(context, "已删除")
                         }
                     }
-                ) { Text("删除", color = Color(0xFFFF3B30)) }
+                ) { Text("删除", color = c.danger) }
             },
             dismissButton = {
                 TextButton(onClick = { deleting = null }) { Text("取消", color = c.textSub) }
@@ -229,7 +229,7 @@ private fun BookmarkCard(bookmark: PostBookmark, onClick: () -> Unit, onDelete: 
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "删除",
-                    tint = Color(0xFFFF3B30),
+                    tint = c.danger,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -359,7 +359,7 @@ private fun BookmarkDetailDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = onDelete) {
-                        Text("删除收藏", color = Color(0xFFFF3B30))
+                        Text("删除收藏", color = c.danger)
                     }
                     Spacer(Modifier.width(8.dp))
                     TextButton(onClick = {

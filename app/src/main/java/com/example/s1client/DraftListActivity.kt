@@ -161,7 +161,7 @@ private fun DraftListScreen(onFinish: () -> Unit) {
                     drafts = DraftStore.listDrafts(context)
                     deleting = null
                     S1Notify.show(context, "已删除草稿")
-                }) { Text("删除", color = Color(0xFFFF3B30)) }
+                }) { Text("删除", color = c.danger) }
             },
             dismissButton = { TextButton(onClick = { deleting = null }) { Text("取消", color = c.textSub) } }
         )

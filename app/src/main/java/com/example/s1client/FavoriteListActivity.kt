@@ -61,6 +61,7 @@ import com.example.s1client.ui.design.BgColorBottom
 import com.example.s1client.ui.design.GlassBar
 import com.example.s1client.ui.design.TextMain
 import com.example.s1client.ui.design.TextSub
+import com.example.s1client.ui.design.DangerRed
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.util.UserPostParser
@@ -384,7 +385,7 @@ private fun FavoriteThreadList(loggedIn: Boolean, reloadTick: Int) {
                             S1Notify.show(context, "已取消收藏", S1Notify.Type.SUCCESS)
                         }
                     }
-                }) { Text("取消收藏", color = Color(0xFFFF3B30)) }
+                }) { Text("取消收藏", color = DangerRed) }
             },
             dismissButton = {
                 TextButton(onClick = { removing = null }) { Text("保留", color = TextSub) }

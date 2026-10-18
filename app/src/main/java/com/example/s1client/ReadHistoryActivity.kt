@@ -145,7 +145,7 @@ private fun ReadHistoryScreen(onFinish: () -> Unit) {
                     entries = emptyList()
                     confirmClear = false
                     S1Notify.show(context, "已清空浏览历史")
-                }) { Text("清空", color = Color(0xFFFF3B30)) }
+                }) { Text("清空", color = c.danger) }
             },
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("取消", color = c.textSub) } }
         )

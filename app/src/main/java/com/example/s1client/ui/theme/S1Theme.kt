@@ -60,7 +60,15 @@ data class S1Colors(
      * 原先写死在 LoginActivity:146（34C759），违反宪法 18 条「配色从主题色板派生」。
      * 现收口为 token，默认取原值以保证视觉零变化；各主题如需差异可单独覆盖。
      */
-    val success: Color = Color(0xFF34C759)
+    val success: Color = Color(0xFF34C759),
+    /**
+     * 破坏性语义红（R2 · 审计报告 v2 2026-10-18 第 9 轮）。
+     * 原先散落在 11 处写死 FF3B30（删除/清空/退出/确定文字、图标 tint、
+     * HoldToConfirmButton 默认填充），违反宪法 18 条「配色从主题色板派生」。
+     * 现收口为 token，默认取原值 FF3B30 以保证视觉零变化；各主题如需差异可单独覆盖。
+     * 与 [heart]（热帖红 FF2C55）刻意分两套，避免「删除/退出」红与心形/热帖红撞色。
+     */
+    val danger: Color = Color(0xFFFF3B30)
 )
 
 // ————————— 原有三套（不动，只扩展 headerGradient）—————————

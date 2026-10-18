@@ -37,7 +37,7 @@ fun HoldToConfirmButton(
     label: String,
     modifier: Modifier = Modifier,
     holdMillis: Int = 1000,
-    fillColor: Color = Color(0xFFFF3B30),
+    fillColor: Color = LocalS1Colors.current.danger,
     onConfirm: () -> Unit
 ) {
     val c = LocalS1Colors.current

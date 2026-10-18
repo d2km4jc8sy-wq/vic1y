@@ -150,7 +150,7 @@ fun QuickActionsSheet(
                 ActionRow(
                     iconRes = R.drawable.ic_exit,
                     label = "退出登录",
-                    tint = Color(0xFFFF3B30)
+                    tint = c.danger
                 ) {
                     onDismiss()
                     onLogout()
