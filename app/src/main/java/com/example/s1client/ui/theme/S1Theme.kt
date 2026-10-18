@@ -78,10 +78,11 @@ data class S1Colors(
     val danger: Color = Color(0xFFFF3B30),
     /**
      * 无图帖子封面的底色（卡片「上下两色」的上半部分）。
-     * 默认 = 卡面底色（不产生色差）。浅色主题必须给出一个比卡面明显深一档的实色，
-     * 否则白卡里只掺 7% 主题色，远看仍是一片白（2026-10-18 用户反馈）。
+     * 默认 = [chipBg]，也就是「我的」「设置」里那些图标圆底的同一块灰。
+     * 2026-10-18 用户定稿：封面不与图标底各自配色，直接共用同一个 token，
+     * 这样深色/浅色/换主题时，封面块和图标底的灰度永远一致，语言才统一。
      */
-    val coverTint: Color = cardBg
+    val coverTint: Color = chipBg
 )
 
 // ————————— 原有三套（不动，只扩展 headerGradient）—————————
@@ -106,8 +107,7 @@ private val TeaPalette = S1Colors(
     glassEdgeTop = Color(0x33FFFFFF), glassEdgeMid = Color(0x1AFFFFFF),
     glassEdgeBottom = Color(0x14000000),
     glassInsetLight = Color(0x66FFFFFF),
-    isDark = false,
-    coverTint = Color(0xFFE0D0AE)
+    isDark = false
 )
 
 /**
@@ -137,8 +137,7 @@ val PurePalette = S1Colors(
     glassEdgeBottom = Color(0x0A000000),
     glassInsetLight = Color(0x66FFFFFF),
     isDark = false,
-    onHeader = Color(0xFF1C1C1E),
-    coverTint = Color(0xFFDCE4F2)
+    onHeader = Color(0xFF1C1C1E)
 )
 
 
@@ -302,8 +301,7 @@ val LinearPalette = S1Colors(
     glassEdgeTop = Color(0x66FFFFFF), glassEdgeMid = Color(0x33FFFFFF),
     glassEdgeBottom = Color(0x26FFFFFF),
     glassInsetLight = Color(0x99FFFFFF),
-    isDark = true,
-    coverTint = Color(0xFF1E222B)
+    isDark = true
 )
 
 val LocalS1Colors = staticCompositionLocalOf { TeaPalette }

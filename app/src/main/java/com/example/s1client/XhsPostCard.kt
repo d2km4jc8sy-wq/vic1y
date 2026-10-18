@@ -233,14 +233,13 @@ fun XhsPostCard(
     // 这正是"瀑布流幻彩卡片边框太细 / 主题不突出"的真因）。
     val isIridescentTheme = ThemeManager.currentTheme == ThemeManager.THEME_IRIDESCENT
     val ringBand = remember(s1) { com.example.s1client.ui.theme.s1RingColors(s1) }
-    // 两级投影（2026-10-18）：浅色主题的白卡与浅灰页面底没有明度差，层级全靠投影撑住。
-    //   ① 2dp 贴边 —— 卡片确实「压」在背景上的接触感
-    //   ② 10dp 扩散 —— 整块「浮」起来的体积感
-    // 只叠一层会显得脏；深色主题不画（黑影落在近黑底上等于没画），
-    // 深色靠「卡面比底亮一档 + 1px 描边」分层。
-    val shadowMods = if (s1.isDark) Modifier else Modifier
-        .shadow(elevation = 2.dp, shape = cardShape, clip = false)
-        .shadow(elevation = 10.dp, shape = cardShape, clip = false)
+    // 投影（2026-10-18 二改）：先只留一层 6dp，用来对比「单层 vs 双层」差别大不大。
+    // 深色主题不画：黑影落在近黑底上等于没画，深色靠「卡面比底亮一档 + 1px 描边」分层。
+    // 回退方式：把下面一行换回
+    //   Modifier.shadow(2.dp, cardShape, clip = false).shadow(10.dp, cardShape, clip = false)
+    // 两级 = 贴边实 + 扩散虚；单层 = 一圈均匀的糊影，更轻，但卡片边缘没那么「压得住」。
+    val shadowMods = if (s1.isDark) Modifier
+                     else Modifier.shadow(elevation = 6.dp, shape = cardShape, clip = false)
     Card(
         modifier = Modifier
             .fillMaxWidth()
