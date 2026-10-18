@@ -606,12 +606,14 @@ fun ForumFeedPage(
                             }
                         },
                         modifier = if (PULL_IMPL == 1)
-                            // 相机扳手：62×170dp（HTML 尺寸；浮现位移在 View 内完成不越界，
-                            // 宪法 23.B）；end 13dp = HTML right:16px 的斐波那契取整
+                            // 相机扳手（2026-10-18 重做）：68×90dp，viewBox 100×132 等比。
+                            // 旧版 62×170 的高度是为了给「外挂式」扳手留摆程，
+                            // 新几何转轴在机身内、球头走 32 半径弧，控件不再需要那么高。
+                            // end 13dp = HTML right:16px 的斐波那契取整
                             Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(top = TopBarHeight, end = 13.dp)
-                                .size(width = 62.dp, height = 170.dp)
+                                .size(width = CameraLeverView.VIEW_W_DP.dp, height = CameraLeverView.VIEW_H_DP.dp)
                                 .zIndex(2f)
                         else
                             // 票夹（现状）：水平定位链 end 2dp + 控件内 clipRightGap 8dp =

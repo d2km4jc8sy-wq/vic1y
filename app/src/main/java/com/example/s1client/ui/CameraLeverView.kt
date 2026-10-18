@@ -12,253 +12,306 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.DecelerateInterpolator
-import android.view.animation.OvershootInterpolator
 import com.example.s1client.R
 
 /**
  * 相机过片扳手刷新（实验功能，PULL_IMPL = 1）。
  *
- * 视觉与手感基准：设计者提供的《相机扳手.html》（2026-10-18，宪法 19：有 HTML 原型的
- * 自绘一次过；HTML 数值已锁定到 companion 常量并有单测锚点防回归）。
+ * **2026-10-18 22:30 重做**：几何与素材整体换成设计者提供的《相机下拉.html》SVG，
+ * 只取相机与扳手，不取胶片帘幕 / FRAME 计数 / 提示字等动画元素。
  *
- * 结构：右上角浮件——相机机身（52dp 圆角方）+ 镜头 + 过片扳手（38×8dp 金属条，右端为轴）。
- * 手势：向下拨动扳手（分档咔哒震感）→ 过 55° 发光就绪 → 松手触发刷新
- * （快门组合震 + 扳手 300ms 回位 + onRefresh）。
- * 曝光中反馈在页面层（HomeFeed 刷新遮罩 overlay：📷 脉冲 + 「快门曝光中...」），
- * 本控件不画任何提示文字（2026-10-18 设计者反馈：提示字与白闪去掉，护眼）。
+ * ### 为什么要推倒重来（旧版的两个结构性问题）
+ * 1. **不连相机**：旧版转轴在 `bodyBottom + 8dp`，即机身轮廓**之外**，
+ *    金属杆和机身之间天然有一道缝，看着像外挂的。
+ * 2. **往下拉杆却往上走**：旧版球头画在转轴**左侧**，绕右侧轴向下旋转时，
+ *    左侧点必然先上升——这是几何决定的，不是动画问题（用户反馈「违和感」）。
  *
- * 配色纪律（宪法 18）：
- * - 发光 / 提示字 / 镜面反光全部主题派生（s1Accent / s1TextTertiary，onDraw 自愈取色）；
- * - 机身与扳手为**拟物固有色**（中性深灰 + 金属银，等同桌面图标第 20 条例外逻辑：
- *   相机这个「物件」本来就是黑机身金属杆，深浅主题一致不产生主题间色彩差异），
- *   具名常量如下，改前先对照 HTML 原型。
+ * ### 现在的几何（viewBox 100 × 132，单位 = vb）
+ * - 机身：矩形 (14,38,56,62) 圆角 13，镜头在下半部 (42,72)
+ * - 转轴：**(58,50)，在机身内部** —— 杆与机身连成一体
+ * - 球头：**在转轴右侧**，半径 32，0° 时在 (90,50)，90° 时在 (58,82)，走纯向下的弧
  *
- * 状态权威（宪法 23.A.3）：revealed（滚动隐现）与 refreshing（曝光中）由 HomeFeed
- * 的 update lambda 权威回写，View 内部不自行猜测页面状态。
+ * ### 触摸模型：球头跟手
+ * 角度不再由「下拉多少 dp」换算，而是**由球头当前坐标反算**（atan2），手指到哪球头到哪。
+ * 起手热区跟着球头走（[HIT_BALL]）或转轴附近（[HIT_AXIS]），不用按看不见的地方。
+ * 松手判定两条：过 [THRESHOLD_ANGLE]，或甩动速度够快（[FLICK_DEG_PER_MS]）直接到位。
  *
- * 隐现动画在 View 边界内完成（宪法 23.B）：内容从 topPad 60dp 开始绘制，
- * 浮现位移 -58dp 全程不越界，alpha < 1 时不会被离屏层裁掉半截。
+ * 配色纪律（宪法 18）：就绪弧、球头到位色取 s1Accent（onDraw 自愈跟色）；
+ * 机身与扳手为**拟物固有色**（黑机身 + 金属杆），等同桌面图标第 20 条例外逻辑。
+ *
+ * 状态权威（宪法 23.A.3）：revealed（滚动隐现）与 refreshing（曝光中）由 HomeFeed 回写。
  */
 class CameraLeverView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
 ) : View(context, attrs) {
 
-    // ————————— HTML 基准常量（CameraLeverViewTest 锚点，勿随手改） —————————
     companion object {
-        /** 扳手初始角（HTML BASE_ANGLE -15°） */
-        const val BASE_ANGLE = -15f
-        /** 拨到头的角度（HTML MAX_ANGLE 75°） */
-        const val MAX_ANGLE = 75f
-        /** 松手触发阈值（HTML THRESHOLD 55） */
-        const val THRESHOLD_ANGLE = 55f
-        /** 手指最大行程 dp（HTML MAX_PULL 130px） */
-        const val MAX_PULL_DP = 130f
-        /** 分档咔哒步长 dp（HTML tick = pull / 16） */
-        const val TICK_STEP_DP = 16f
+        // ————————— 画布基准（CameraLeverViewTest 锚点） —————————
+        /** viewBox 宽（vb 单位），几何常量都以它为参照 */
+        const val VB_W = 100f
+        /** viewBox 高（vb 单位） */
+        const val VB_H = 132f
+        /** View 建议宽度 dp；高度按比例推出 */
+        const val VIEW_W_DP = 68f
 
-        /** 拉动距离 → 扳手角度（HTML: base + pull/max*(max-base)） */
-        fun angleForPull(pullDp: Float, maxPullDp: Float = MAX_PULL_DP): Float =
-            BASE_ANGLE + (pullDp.coerceIn(0f, maxPullDp) / maxPullDp) * (MAX_ANGLE - BASE_ANGLE)
+        /** 转轴（机身内） */
+        const val PIVOT_X = 58f
+        const val PIVOT_Y = 50f
+        /** 球头回转半径 */
+        const val BALL_R = 32f
+        /** 起始角：扳手水平指向右 */
+        const val BASE_ANGLE = 0f
+        /** 到底角：扳手垂直指向下 */
+        const val MAX_ANGLE = 90f
+        /** 松手触发阈值 */
+        const val THRESHOLD_ANGLE = 52f
+        /** 甩动触发：角速度（度/ms）超过此值且已离开起点即到位 */
+        const val FLICK_DEG_PER_MS = 1.6f
+        /** 甩动判定的最小起角（防止原地轻抖也算甩） */
+        const val FLICK_MIN_ANGLE = 18f
+        /** 分档咔哒步长（度），跨档给一次 selection 震感 */
+        const val TICK_STEP_DEG = 15f
+        /** 起手热区：球头半径 vb */
+        const val HIT_BALL = 28f
+        /** 起手热区：转轴附近半径 vb */
+        const val HIT_AXIS = 46f
+        /** 浮现/隐藏位移 dp */
+        const val REVEAL_SHIFT_DP = -56f
 
-        /** 当前咔哒档位（跨档给一次 selection 震感） */
-        fun tickIndex(pullDp: Float, stepDp: Float = TICK_STEP_DP): Int =
-            (pullDp / stepDp).toInt()
+        /** 建议 View 高度 dp（按 viewBox 比例） */
+        val VIEW_H_DP: Float = VB_H * (VIEW_W_DP / VB_W)
 
-        /** 松手是否触发刷新 */
+        /** 角度钳制 */
+        fun clampAngle(a: Float): Float = a.coerceIn(BASE_ANGLE, MAX_ANGLE)
+
+        /**
+         * 球头坐标 → 扳手角度（atan2 反算，1:1 跟手）。
+         * 指针落在转轴左侧时按上下半区给端点值，避免 atan2 在 ±180° 抖动。
+         */
+        fun angleForPoint(px: Float, py: Float): Float {
+            val dx = px - PIVOT_X
+            val dy = py - PIVOT_Y
+            if (dx < 0f) return if (dy >= 0f) MAX_ANGLE else BASE_ANGLE
+            return clampAngle(Math.toDegrees(Math.atan2(dy.toDouble(), dx.toDouble())).toFloat())
+        }
+
+        /** 角度 → 球头坐标（与 angleForPoint 互逆） */
+        fun ballPosForAngle(angle: Float): Pair<Float, Float> {
+            val r = Math.toRadians(clampAngle(angle).toDouble())
+            return Pair(
+                PIVOT_X + BALL_R * Math.cos(r).toFloat(),
+                PIVOT_Y + BALL_R * Math.sin(r).toFloat()
+            )
+        }
+
+        /** 球头是否在起手热区内 */
+        fun hitTest(px: Float, py: Float, currentAngle: Float): Boolean {
+            val b = ballPosForAngle(currentAngle)
+            val dBall = Math.hypot((px - b.first).toDouble(), (py - b.second).toDouble())
+            if (dBall <= HIT_BALL) return true
+            val dAxis = Math.hypot((px - PIVOT_X).toDouble(), (py - PIVOT_Y).toDouble())
+            return dAxis <= HIT_AXIS
+        }
+
+        /** 松手是否触发（角度维度；速度维度在 onTouchEvent 里判） */
         fun shouldFire(angle: Float): Boolean = angle >= THRESHOLD_ANGLE
 
-        // 布局（HTML：body 52 / lens 30 / lever 38×8 / zone 40×30 / widget 宽 62）
-        /** 内容顶部缓冲：浮现动画位移 -58dp 的起点区，保证不越界（宪法 23.B） */
-        const val TOP_PAD_DP = 60f
-        /** 浮现/隐藏位移（HTML translateY -80px 过大，收进 View 界内） */
-        const val REVEAL_SHIFT_DP = -58f
-        const val BODY_DP = 52f
-        const val BODY_RADIUS_DP = 14f
-        const val LENS_DP = 30f
-        const val LEVER_LEN_DP = 38f
-        const val LEVER_H_DP = 8f
-        const val KNOB_DP = 14f
-        /** View 建议尺寸：宽 62dp + 高 60(缓冲)+52(机身)+扳手全摆程(~106→ knob 底 ~166) */
-        const val VIEW_W_DP = 62f
-        const val VIEW_H_DP = 170f
+        /** 当前咔哒档位 */
+        fun tickIndex(angle: Float, stepDeg: Float = TICK_STEP_DEG): Int =
+            (clampAngle(angle) / stepDeg).toInt()
     }
 
-    // ————————— 拟物固有色（具名常量登记，见类注释宪法 20 例外依据） —————————
-    private val bodyTop = 0xFF3A3A3C.toInt()      // 机身渐变亮端（HTML #3a3a3c）
-    private val bodyBottom = 0xFF1A1A1C.toInt()   // 机身渐变暗端（HTML #1a1a1c）
-    private val bodyEdge = 0x0DFFFFFF             // 机身描边 rgba(255,255,255,0.05)
-    private val leverTop = 0xFFDDDDDD.toInt()      // 扳手金属亮端（HTML #ddd）
-    private val leverMid = 0xFF999999.toInt()     // 金属中段（HTML #999）
-    private val leverBottom = 0xFF555555.toInt()  // 金属暗端（HTML #555）
-    private val knobHi = 0xFFFFFFFF.toInt()       // 圆头高光（HTML #fff）
-    private val knobLo = 0xFF888888.toInt()       // 圆头暗部（HTML #888）
-    private val ringOuter = 0xFF2A2A2A.toInt()     // 镜头外环（HTML #2a2a2a）
-    private val ringInner = 0xFF111111.toInt()    // 镜头内环（HTML #111）
-
-    // ————————— 主题派生色（resolveAttr，onDraw 自愈跟色） —————————
-    private var accentColor = 0
-    private fun resolveAttr(attr: Int): Int {
-        val tv = android.util.TypedValue()
-        context.theme.resolveAttribute(attr, tv, true)
-        return tv.data
-    }
-    private fun refreshThemeColors() {
-        val accent = resolveAttr(R.attr.s1Accent)
-        if (accent != accentColor) {
-            accentColor = accent
-            invalidate()
-        }
-    }
-
-    // ————————— 回调 —————————
-    /** 触发刷新（调用方负责滚回第一页并走刷新流程） */
-    var onRefresh: (() -> Unit)? = null
+    // ————————— 拟物固有色（宪法 20 例外） —————————
+    private val bodyTop = 0xFF3F3F44.toInt()
+    private val bodyMid = 0xFF232327.toInt()
+    private val bodyBottom = 0xFF131315.toInt()
+    private val bodyEdge = 0xFF4A4A4E.toInt()
+    private val decoDark = 0xFF2C2C30.toInt()
+    private val decoLight = 0xFF3A3A3F.toInt()
+    private val lensRingOuter = 0xFF55555A.toInt()
+    private val lensRingInner = 0xFF2E2E33.toInt()
+    private val lensInner = 0xFF0A0A0C.toInt()
+    private val lensRingDeep = 0xFF38383D.toInt()
+    private val leverTop = 0xFFF4F4F4.toInt()
+    private val leverMid = 0xFFC4C4C4.toInt()
+    private val leverLow = 0xFF8D8D8D.toInt()
+    private val leverBottom = 0xFF484848.toInt()
+    private val knurl = 0xFF707070.toInt()
+    private val ballHi = 0xFFFFFFFF.toInt()
+    private val ballMid = 0xFFD4D4D4.toInt()
+    private val ballLo = 0xFF6F6F6F.toInt()
+    private val ballEdge = 0xFF5A5A5A.toInt()
+    private val axisOuter = 0xFF2A2A2E.toInt()
+    private val axisRing = 0xFF55555A.toInt()
+    private val axisDot = 0xFF77777C.toInt()
+    private val trackBase = 0xFF3A3A3F.toInt()
 
     // ————————— 状态 —————————
     private var angle = BASE_ANGLE
     private var dragging = false
-    private var startY = 0f
-    private var lastTick = 0
-    private var busy = false          // firing / exposing 期间锁手势
-    private var revealed = false      // 由 HomeFeed update 回写（滚动隐现）
-    private var exposing = false     // 曝光中（refreshing 回写）
+    private var busy = false
+    private var revealed = false
+    private var exposing = false
     private var resetAnimator: ValueAnimator? = null
+    private var lastTick = 0
+    private var samples = ArrayList<FloatArray>()   // [timeMs, angle]
 
     private val density get() = resources.displayMetrics.density
-    private val d get() = density    // 简写
+    /** vb 单位 → px */
+    private var s = 1f
 
     // ————————— 画笔 —————————
-    private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val edgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
-    private val lensPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
-    private val leverPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val knobPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val bodyRect = RectF()
-    private val tmpRect = RectF()
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val rect = RectF()
+    private val arcRect = RectF()
+
+    private var accentColor = 0
+    private fun refreshThemeColors(): Boolean {
+        val tv = android.util.TypedValue()
+        context.theme.resolveAttribute(R.attr.s1Accent, tv, true)
+        val a = tv.data
+        if (a != accentColor) { accentColor = a; return true }
+        return false
+    }
+
+    var onRefresh: (() -> Unit)? = null
 
     init {
         alpha = 0f
-        translationY = REVEAL_SHIFT_DP * d
+        translationY = REVEAL_SHIFT_DP * density
         refreshThemeColors()
     }
 
-    // ————————— 布局几何（dp，onDraw 里换算） —————————
-    private val bodyTop0 get() = TOP_PAD_DP * d
-    private val bodyCx get() = width / 2f
-    private val bodyBottomY get() = bodyTop0 + BODY_DP * d
-    /** 扳手轴心：机身中线 +20dp、机底 +8dp（HTML zone 右缘 = 中线+20，条中心 y = 机底+8） */
-    private val leverPivotX get() = bodyCx + 20f * d
-    private val leverPivotY get() = bodyBottomY + 8f * d
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (w > 0) s = w / VB_W
+    }
+
+    private fun mix(c1: Int, c2: Int, t: Float): Int {
+        fun ch(shift: Int) = (((c1 shr shift) and 0xFF) * (1 - t) + (((c2 shr shift) and 0xFF) * t)).toInt()
+        return (ch(24) shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+    }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        refreshThemeColors()
-        val cx = bodyCx
+        if (refreshThemeColors()) invalidate()
+        if (width == 0) return
 
-        // ---- 机身：52dp 圆角 14，145° 深灰渐变 + 内高光描边 ----
-        bodyRect.set(cx - BODY_DP / 2 * d, bodyTop0, cx + BODY_DP / 2 * d, bodyBottomY)
-        bodyPaint.shader = LinearGradient(
-            bodyRect.left, bodyRect.top, bodyRect.right, bodyRect.bottom,
-            bodyTop, bodyBottom, Shader.TileMode.CLAMP
-        )
-        canvas.drawRoundRect(bodyRect, BODY_RADIUS_DP * d, BODY_RADIUS_DP * d, bodyPaint)
-        edgePaint.color = bodyEdge
-        edgePaint.strokeWidth = 1f * d
-        bodyRect.inset(0.5f * d, 0.5f * d)
-        canvas.drawRoundRect(bodyRect, BODY_RADIUS_DP * d, BODY_RADIUS_DP * d, edgePaint)
-        bodyRect.inset(-0.5f * d, -0.5f * d)
+        canvas.save()
+        canvas.scale(s, s)
+        if (accentColor == 0) refreshThemeColors()
 
-        // ---- 镜头：radial 玻璃 + 双环 + accent 镜面反光 ----
-        val lensCx = cx
-        val lensCy = (bodyTop0 + bodyBottomY) / 2f
-        val lensR = LENS_DP / 2 * d
-        lensPaint.shader = RadialGradient(
-            lensCx - lensR * 0.3f, lensCy - lensR * 0.4f, lensR * 1.6f,
-            intArrayOf(0xFF4A4A4A.toInt(), 0xFF1A1A1A.toInt(), 0xFF000000.toInt()),
-            floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP
-        )
-        canvas.drawCircle(lensCx, lensCy, lensR, lensPaint)
-        // 双环（HTML inset 0 0 0 3px #2a2a2a + 5px #111：外 3dp 灰环叠在内 5dp 黑环上）
-        ringPaint.strokeWidth = 5f * d
-        ringPaint.color = ringInner
-        canvas.drawCircle(lensCx, lensCy, lensR - 2.5f * d, ringPaint)
-        ringPaint.strokeWidth = 3f * d
-        ringPaint.color = ringOuter
-        canvas.drawCircle(lensCx, lensCy, lensR - 1.5f * d, ringPaint)
-        // 镜面反光（HTML 红色反光点 → accent 派生，宪法 18）
-        val glintR = 7f * d
-        val glintPaint = glowPaint
-        glintPaint.shader = RadialGradient(
-            lensCx - 7f * d, lensCy - 8f * d, glintR,
-            (accentColor and 0x00FFFFFF) or 0x66000000, (accentColor and 0x00FFFFFF),
-            Shader.TileMode.CLAMP
-        )
-        canvas.drawCircle(lensCx - 7f * d, lensCy - 8f * d, glintR, glintPaint)
+        val ready = angle >= THRESHOLD_ANGLE
 
-        // ---- 就绪光晕（垫在扳手下层；HTML .ready box-shadow 0 0 20px accent 0.8） ----
-        val ready = dragging && shouldFire(angle)
-        if (ready || exposing) {
-            val glowR = 20f * d
-            glowPaint.shader = RadialGradient(
-                leverPivotX - LEVER_LEN_DP / 2 * d, leverPivotY, glowR,
-                (accentColor and 0x00FFFFFF) or 0x59000000,
-                (accentColor and 0x00FFFFFF),
-                Shader.TileMode.CLAMP
-            )
-            canvas.drawCircle(leverPivotX - LEVER_LEN_DP / 2 * d, leverPivotY, glowR, glowPaint)
+        // ---- 机身：竖长圆角矩形 + 顶部装饰 ----
+        rect.set(14f, 38f, 70f, 100f)
+        fill.shader = LinearGradient(
+            14f, 38f, 50f, 100f,
+            intArrayOf(bodyTop, bodyMid, bodyBottom), null, Shader.TileMode.CLAMP
+        )
+        canvas.drawRoundRect(rect, 13f, 13f, fill)
+        fill.shader = null
+        stroke.strokeWidth = 1f
+        stroke.color = bodyEdge
+        canvas.drawRoundRect(rect, 13f, 13f, stroke)
+
+        fill.color = decoDark; canvas.drawRoundRect(21f, 43f, 41f, 46.5f, 1.75f, 1.75f, fill)
+        fill.color = decoLight; canvas.drawRoundRect(45f, 43f, 54f, 46.5f, 1.75f, 1.75f, fill)
+
+        // ---- 镜头：同心圆组 + 斜向高光 ----
+        stroke.strokeWidth = 2f; stroke.color = lensRingOuter
+        canvas.drawCircle(42f, 72f, 19f, stroke)
+        fill.shader = RadialGradient(36f, 66f, 30f,
+            intArrayOf(0xFF4D4D55.toInt(), 0xFF1B1B1F.toInt(), 0xFF050506.toInt()),
+            floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP)
+        canvas.drawCircle(42f, 72f, 17f, fill)
+        fill.shader = null
+        stroke.strokeWidth = 1.5f; stroke.color = lensRingInner
+        canvas.drawCircle(42f, 72f, 11f, stroke)
+        fill.color = lensInner
+        canvas.drawCircle(42f, 72f, 7f, fill)
+        stroke.strokeWidth = 1f; stroke.color = lensRingDeep
+        canvas.drawCircle(42f, 72f, 7f, stroke)
+        fill.color = 0x24FFFFFF
+        canvas.save()
+        canvas.rotate(-30f, 37f, 66f)
+        rect.set(32f, 63.2f, 42f, 68.8f)
+        canvas.drawOval(rect, fill)
+        canvas.restore()
+
+        // ---- 轨迹弧：底弧 + 就绪进度（accent） ----
+        arcRect.set(PIVOT_X - BALL_R, PIVOT_Y - BALL_R, PIVOT_X + BALL_R, PIVOT_Y + BALL_R)
+        stroke.strokeWidth = 1.5f
+        stroke.color = trackBase
+        stroke.strokeCap = Paint.Cap.ROUND
+        canvas.drawArc(arcRect, 0f, MAX_ANGLE, false, stroke)
+        if (angle > 0.5f) {
+            stroke.strokeWidth = 2.5f
+            stroke.color = accentColor
+            canvas.drawArc(arcRect, 0f, angle, false, stroke)
         }
 
-        // ---- 扳手：绕右轴旋转的金属条 + 左端圆头 ----
+        // ---- 扳手组：绕轴 (58,50) 旋转 ----
         canvas.save()
-        canvas.rotate(angle, leverPivotX, leverPivotY)
-        val half = LEVER_H_DP / 2 * d
-        tmpRect.set(leverPivotX - LEVER_LEN_DP * d, leverPivotY - half, leverPivotX, leverPivotY + half)
-        leverPaint.shader = LinearGradient(
-            0f, tmpRect.top, 0f, tmpRect.bottom,
-            intArrayOf(leverTop, leverMid, leverBottom),
-            floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP
-        )
-        canvas.drawRoundRect(tmpRect, half, half, leverPaint)
-        // 圆头（HTML ::after：left:-3 top:-3 14×14，圆心 ≈ 条左端 +4dp）
-        knobPaint.shader = RadialGradient(
-            tmpRect.left + 4f * d, leverPivotY - 2f * d, KNOB_DP * d,
-            knobHi, knobLo, Shader.TileMode.CLAMP
-        )
-        canvas.drawCircle(tmpRect.left + 4f * d, leverPivotY, KNOB_DP / 2 * d, knobPaint)
+        canvas.rotate(angle, PIVOT_X, PIVOT_Y)
+
+        rect.set(54f, 46.5f, 88f, 53.5f)
+        fill.shader = LinearGradient(0f, 46.5f, 0f, 53.5f,
+            intArrayOf(leverTop, leverMid, leverLow, leverBottom),
+            floatArrayOf(0f, 0.42f, 0.58f, 1f), Shader.TileMode.CLAMP)
+        canvas.drawRoundRect(rect, 3.5f, 3.5f, fill)
+        fill.shader = null
+        stroke.strokeWidth = 0.9f; stroke.color = knurl; stroke.strokeCap = Paint.Cap.BUTT
+        for (x in floatArrayOf(71f, 75f, 79f)) canvas.drawLine(x, 47.4f, x, 52.6f, stroke)
+
+        // 球头：过阈值时向 accent 靠一档，给「到位」视觉
+        val bMid = if (ready) mix(ballMid, accentColor, 0.55f) else ballMid
+        val bLo = if (ready) mix(ballLo, accentColor, 0.35f) else ballLo
+        fill.shader = RadialGradient(87.5f, 47.5f, 9f,
+            intArrayOf(ballHi, bMid, bLo), floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
+        canvas.drawCircle(90f, 50f, 6.5f, fill)
+        fill.shader = null
+        stroke.strokeWidth = 0.8f; stroke.color = ballEdge
+        canvas.drawCircle(90f, 50f, 6.5f, stroke)
+
+        fill.color = axisOuter
+        canvas.drawCircle(PIVOT_X, PIVOT_Y, 6f, fill)
+        stroke.strokeWidth = 1.2f; stroke.color = axisRing
+        canvas.drawCircle(PIVOT_X, PIVOT_Y, 6f, stroke)
+        fill.color = axisDot
+        canvas.drawCircle(PIVOT_X, PIVOT_Y, 2f, fill)
+
+        canvas.restore()
         canvas.restore()
     }
 
-    // ————————— 手势：只有扳手区消费触摸，其余穿透给下方卡片 —————————
-    private fun hitLever(x: Float, y: Float): Boolean {
-        // HTML zone 40×30（中心线±20dp、机底-6dp~+24dp），四周 +6dp 容差
-        val slop = 6f * d
-        return x >= bodyCx - 26f * d && x <= bodyCx + 26f * d &&
-                y >= bodyBottomY - 6f * d - slop && y <= bodyBottomY + 28f * d + slop
-    }
+    // ————————— 手势：球头跟手 —————————
+    private fun toVb(x: Float, y: Float): Pair<Float, Float> =
+        Pair(x / s, y / s)
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!revealed) return false                       // 隐藏态不拦截
-        if (event.actionMasked == MotionEvent.ACTION_DOWN && !hitLever(event.x, event.y)) {
-            return false                                  // 热区外穿透（票夹 hitTest 同款收紧）
-        }
+        if (!revealed) return false
+        val (vx, vy) = toVb(event.x, event.y)
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 if (busy) return false
+                if (!hitTest(vx, vy, angle)) return false      // 热区外穿透给下方卡片
                 dragging = true
-                startY = event.y
                 lastTick = 0
+                samples = ArrayList()
+                samples.add(floatArrayOf(System.currentTimeMillis().toFloat(), angle))
                 resetAnimator?.cancel()
                 parent?.requestDisallowInterceptTouchEvent(true)
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
                 if (!dragging) return false
-                val pullDp = ((event.y - startY) / d).coerceAtLeast(0f)
-                angle = angleForPull(pullDp)
-                // 分档咔哒：跨档给一次 selection 震感（HTML vibrate(3) + tick 声；音效拍板不做）
-                val tick = tickIndex(pullDp)
+                angle = angleForPoint(vx, vy)
+                val now = System.currentTimeMillis()
+                samples.add(floatArrayOf(now.toFloat(), angle))
+                if (samples.size > 6) samples.removeAt(0)
+                val tick = tickIndex(angle)
                 if (tick != lastTick) {
                     lastTick = tick
                     com.example.s1client.util.Haptic.selection(context)
@@ -270,75 +323,82 @@ class CameraLeverView @JvmOverloads constructor(
                 if (!dragging) return false
                 dragging = false
                 parent?.requestDisallowInterceptTouchEvent(false)
-                if (event.actionMasked == MotionEvent.ACTION_UP && shouldFire(angle)) {
-                    fire()
-                } else {
-                    springBack()
+                // 甩动判定：取窗口内首尾角速度
+                var flick = false
+                if (samples.size >= 2) {
+                    val f = samples[0]; val l = samples[samples.size - 1]
+                    val dt = (l[0] - f[0]).coerceAtLeast(1f)
+                    val v = Math.abs((l[1] - f[1]).toDouble() / dt.toDouble())
+                    flick = v >= FLICK_DEG_PER_MS && angle >= FLICK_MIN_ANGLE
                 }
+                val cancelled = event.actionMasked == MotionEvent.ACTION_CANCEL
+                if (!cancelled && (flick || shouldFire(angle))) fire(flick) else springBack()
                 return true
             }
         }
         return false
     }
 
-    /** 松手触发：快门震 + 扳手 300ms 回位 + 刷新回调 */
-    private fun fire() {
+    /** 触发：快门组合震 → 扳手 200ms 到底 → 回位 → 刷新回调 */
+    private fun fire(flick: Boolean) {
         busy = true
-        exposing = true
-        // HTML vibrate[20,50,100] 快门节奏 ≈ SUCCESS「哒哒—嗒」组合震
         com.example.s1client.util.Haptic.success(context)
         resetAnimator?.cancel()
-        resetAnimator = ValueAnimator.ofFloat(angle, BASE_ANGLE).apply {
-            duration = 300L
-            interpolator = DecelerateInterpolator()   // HTML 0.3s ease-out
-            addUpdateListener {
-                angle = it.animatedValue as Float
-                invalidate()
-            }
+        val snapshot = if (flick) MAX_ANGLE else angle
+        resetAnimator = ValueAnimator.ofFloat(snapshot, MAX_ANGLE).apply {
+            duration = 200L
+            interpolator = DecelerateInterpolator()
+            addUpdateListener { angle = it.animatedValue as Float; invalidate() }
             start()
         }
         onRefresh?.invoke()
+        // 到头后回位（不等刷新结束：回位是手感，刷新是业务）
+        postDelayed({
+            resetAnimator?.cancel()
+            resetAnimator = ValueAnimator.ofFloat(MAX_ANGLE, BASE_ANGLE).apply {
+                duration = 260L
+                interpolator = DecelerateInterpolator()
+                addUpdateListener { angle = it.animatedValue as Float; invalidate() }
+                addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) { busy = false }
+                })
+                start()
+            }
+        }, 220L)
     }
 
-    /** 未达标回弹：500ms 弹性（HTML 0.5s cubic-bezier(0.34,1.56,0.64,1)） */
+    /** 未达标回弹：420ms，末尾解锁 */
     private fun springBack() {
         busy = true
         resetAnimator?.cancel()
         resetAnimator = ValueAnimator.ofFloat(angle, BASE_ANGLE).apply {
-            duration = 500L
-            interpolator = OvershootInterpolator(1.2f)
-            addUpdateListener {
-                angle = it.animatedValue as Float
-                invalidate()
-            }
+            duration = 420L
+            interpolator = DecelerateInterpolator()
+            addUpdateListener { angle = it.animatedValue as Float; invalidate() }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) { busy = false }
+            })
             start()
         }
-        postDelayed({ busy = false }, 300)
-        invalidate()
     }
 
-    // ————————— 权威回写入口（HomeFeed update lambda 调用） —————————
-
-    /** 滚动隐现（Compose 侧滚动状态权威驱动；同值不动） */
+    // ————————— 权威回写入口（HomeFeed 调用） —————————
     fun setRevealed(value: Boolean) {
         if (revealed == value) return
         revealed = value
         animate().cancel()
         if (value) {
-            animate()
-                .translationY(0f).alpha(1f)
+            animate().translationY(0f).alpha(1f)
                 .setDuration(260L)
-                .setInterpolator(OvershootInterpolator(1.1f))
+                .setInterpolator(android.view.animation.OvershootInterpolator(1.1f))
                 .start()
         } else {
-            animate()
-                .translationY(REVEAL_SHIFT_DP * d).alpha(0f)
+            animate().translationY(REVEAL_SHIFT_DP * density).alpha(0f)
                 .setDuration(200L)
                 .start()
         }
     }
 
-    /** 刷新中回写（页面 isRefreshing 权威驱动；宪法 23.A.3——不回写=状态卡死） */
     fun setRefreshing(active: Boolean) {
         if (active) {
             exposing = true
@@ -346,12 +406,11 @@ class CameraLeverView @JvmOverloads constructor(
             invalidate()
         } else if (exposing) {
             exposing = false
-            // HTML 刷新完成：延迟 300ms 恢复提示并给一次完成震感（vibrate[8,30,8] ≈ light）
             postDelayed({
                 busy = false
                 com.example.s1client.util.Haptic.light(context)
                 invalidate()
-            }, 300)
+            }, 240)
             invalidate()
         }
     }

@@ -8,71 +8,129 @@ import org.junit.Test
 /**
  * 相机过片扳手刷新：纯逻辑单测（宪法 5——新功能必须同步加测试）。
  *
- * 全部数值对照设计者《相机扳手.html》基准锁定（宪法 19 有原型）：
- * BASE -15° / MAX 75° / 阈值 55° / 行程 130 / 分档 16。
- * 常量被随手改动时这里先红，防止"HTML 基准漂移"回归。
+ * 2026-10-18 22:30 重做后基准全部换新（几何取自设计者《相机下拉.html》）：
+ * 转轴 (58,50) 在机身内 / 球头半径 32 在轴右侧 / 角度 0→90 / 阈值 52 / 甩动 1.6 度每毫秒。
+ *
+ * **重点回归项**：`angleForPoint` 与 `ballPosForAngle` 必须互为逆运算——
+ * 旧版把球头画在转轴左侧，向下转球头反而上升（用户反馈「违和感」），
+ * 现在球头在右侧，90° 时应正好落在转轴正下方 (58,82)。
  */
 class CameraLeverViewTest {
 
-    // ——— HTML 基准数值锁定锚点 ———
+    // ——— 基准常量锁定 ———
 
     @Test
-    fun `HTML 基准常量未被漂移`() {
-        assertEquals(-15f, CameraLeverView.BASE_ANGLE, 0f)
-        assertEquals(75f, CameraLeverView.MAX_ANGLE, 0f)
-        assertEquals(55f, CameraLeverView.THRESHOLD_ANGLE, 0f)
-        assertEquals(130f, CameraLeverView.MAX_PULL_DP, 0f)
-        assertEquals(16f, CameraLeverView.TICK_STEP_DP, 0f)
+    fun `几何基准常量未被漂移`() {
+        assertEquals(100f, CameraLeverView.VB_W, 0f)
+        assertEquals(132f, CameraLeverView.VB_H, 0f)
+        assertEquals(58f, CameraLeverView.PIVOT_X, 0f)
+        assertEquals(50f, CameraLeverView.PIVOT_Y, 0f)
+        assertEquals(32f, CameraLeverView.BALL_R, 0f)
+        assertEquals(0f, CameraLeverView.BASE_ANGLE, 0f)
+        assertEquals(90f, CameraLeverView.MAX_ANGLE, 0f)
+        assertEquals(52f, CameraLeverView.THRESHOLD_ANGLE, 0f)
+        assertEquals(1.6f, CameraLeverView.FLICK_DEG_PER_MS, 0f)
     }
 
-    // ——— 拉动距离 → 扳手角度 ———
+    // ——— 角度 ↔ 球头坐标 互逆（跟手的核心） ———
 
     @Test
-    fun `零行程等于初始角`() {
-        assertEquals(-15f, CameraLeverView.angleForPull(0f), 1e-4f)
-    }
-
-    @Test
-    fun `满行程等于最大角`() {
-        assertEquals(75f, CameraLeverView.angleForPull(130f), 1e-4f)
-    }
-
-    @Test
-    fun `中点行程线性插值`() {
-        // 65/130 = 50% → -15 + 0.5*90 = 30°
-        assertEquals(30f, CameraLeverView.angleForPull(65f), 1e-4f)
+    fun `起始角时球头在转轴正右方`() {
+        val b = CameraLeverView.ballPosForAngle(0f)
+        assertEquals(90f, b.first, 1e-3f)   // 58 + 32
+        assertEquals(50f, b.second, 1e-3f)
     }
 
     @Test
-    fun `反向拉动钳制为初始角`() {
-        assertEquals(-15f, CameraLeverView.angleForPull(-40f), 1e-4f)
+    fun `到底角时球头在转轴正下方——这就是修掉违和感的几何`() {
+        val b = CameraLeverView.ballPosForAngle(90f)
+        assertEquals(58f, b.first, 1e-3f)
+        assertEquals(82f, b.second, 1e-3f)
+        // 关键回归：球头 Y 必须大于转轴 Y（旧版球头在轴左侧时会小于）
+        assertTrue(b.second > CameraLeverView.PIVOT_Y)
     }
 
     @Test
-    fun `超行程钳制为最大角`() {
-        assertEquals(75f, CameraLeverView.angleForPull(300f), 1e-4f)
+    fun `任意角度下坐标反算可还原角度`() {
+        for (a in floatArrayOf(0f, 15f, 30f, 52f, 75f, 90f)) {
+            val b = CameraLeverView.ballPosForAngle(a)
+            val back = CameraLeverView.angleForPoint(b.first, b.second)
+            assertEquals(a, back, 1e-2f)
+        }
     }
 
-    // ——— 松手触发阈值 ———
+    // ——— 跟手：atan2 反算 ———
+
+    @Test
+    fun `球头在手右侧时角度为零`() {
+        assertEquals(0f, CameraLeverView.angleForPoint(120f, 50f), 1e-3f)
+    }
+
+    @Test
+    fun `球头在正下方时角度为九十`() {
+        assertEquals(90f, CameraLeverView.angleForPoint(58f, 120f), 1e-3f)
+    }
+
+    @Test
+    fun `球头在斜下四十五度时角度为四十五`() {
+        val r = CameraLeverView.BALL_R * 0.7071f
+        val a = CameraLeverView.angleForPoint(58f + r, 50f + r)
+        assertEquals(45f, a, 0.2f)
+    }
+
+    @Test
+    fun `越过上限被钳制为九十`() {
+        assertEquals(90f, CameraLeverView.angleForPoint(20f, 140f), 1e-3f)  // 落在轴左侧下半区
+        assertEquals(90f, CameraLeverView.clampAngle(180f), 1e-3f)
+    }
+
+    @Test
+    fun `越过下限被钳制为零`() {
+        assertEquals(0f, CameraLeverView.angleForPoint(20f, 20f), 1e-3f)   // 落在轴左侧上半区
+        assertEquals(0f, CameraLeverView.clampAngle(-45f), 1e-3f)
+    }
+
+    // ——— 触发阈值 ———
 
     @Test
     fun `低于阈值不触发`() {
-        assertFalse(CameraLeverView.shouldFire(54.9f))
-        assertFalse(CameraLeverView.shouldFire(-15f))
+        assertFalse(CameraLeverView.shouldFire(0f))
+        assertFalse(CameraLeverView.shouldFire(51.9f))
     }
 
     @Test
     fun `达到阈值即触发`() {
-        assertTrue(CameraLeverView.shouldFire(55f))
-        assertTrue(CameraLeverView.shouldFire(75f))
+        assertTrue(CameraLeverView.shouldFire(52f))
+        assertTrue(CameraLeverView.shouldFire(90f))
     }
 
-    /** 行程与阈值的联动：拉过 105dp（55° 触发线对应 ≥101.1dp）后松手必然可触发 */
+    // ——— 起手热区 ———
+
     @Test
-    fun `行程过阈值点后角度必达触发线`() {
-        val angleAt = CameraLeverView.angleForPull(105f)
-        assertEquals(57.69f, angleAt, 0.01f)
-        assertTrue(CameraLeverView.shouldFire(angleAt))
+    fun `按在球头上可起手`() {
+        val b = CameraLeverView.ballPosForAngle(0f)
+        assertTrue(CameraLeverView.hitTest(b.first, b.second, 0f))
+    }
+
+    @Test
+    fun `按在转轴附近可起手`() {
+        assertTrue(CameraLeverView.hitTest(58f, 50f, 0f))
+    }
+
+    @Test
+    fun `热区外不拦截触摸`() {
+        // 机身左下角远离转轴与球头
+        assertFalse(CameraLeverView.hitTest(18f, 96f, 0f))
+    }
+
+    @Test
+    fun `球头随角度移动后热区跟着走`() {
+        val b = CameraLeverView.ballPosForAngle(90f)
+        // 90° 时球头在正下方，按这里应命中
+        assertTrue(CameraLeverView.hitTest(b.first, b.second, 90f))
+        // 机身左下角离球头和转轴都远，两个热区都不该覆盖
+        assertFalse(CameraLeverView.hitTest(18f, 96f, 90f))
+        assertFalse(CameraLeverView.hitTest(18f, 96f, 0f))
     }
 
     // ——— 分档咔哒 ———
@@ -80,13 +138,21 @@ class CameraLeverViewTest {
     @Test
     fun `分档从零起计`() {
         assertEquals(0, CameraLeverView.tickIndex(0f))
-        assertEquals(0, CameraLeverView.tickIndex(15.99f))
+        assertEquals(0, CameraLeverView.tickIndex(14.9f))
     }
 
     @Test
     fun `跨档步进`() {
-        assertEquals(1, CameraLeverView.tickIndex(16f))
-        assertEquals(2, CameraLeverView.tickIndex(32f))
-        assertEquals(8, CameraLeverView.tickIndex(130f))
+        assertEquals(1, CameraLeverView.tickIndex(15f))
+        assertEquals(3, CameraLeverView.tickIndex(52f))
+        assertEquals(6, CameraLeverView.tickIndex(90f))
+    }
+
+    // ——— 甩动阈值 ———
+
+    @Test
+    fun `甩动阈值与最小起角已登记`() {
+        assertEquals(18f, CameraLeverView.FLICK_MIN_ANGLE, 0f)
+        assertTrue(1.6f > CameraLeverView.FLICK_MIN_ANGLE / 16f)   // 1.6 度/ms 与步长量级相容
     }
 }
