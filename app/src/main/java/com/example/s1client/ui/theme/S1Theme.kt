@@ -325,28 +325,29 @@ val LinearPalette = S1Colors(
 )
 
 /**
- * 机器猫（2026-10-18 定稿 A 版）：**红页蓝卡，封面上篮下红**。
- * 纯两色，没有黑也没有灰——页面底红 #E60012，卡片蓝 #0099E5，
- * 卡片内部再分上下：封面蓝、信息区红，于是红蓝在屏幕上有节奏地交替。
- * 顶栏/底栏也用蓝（等同卡片），这样红色 tab 胶囊在蓝底上才看得见。
- * 图标圆底用红（卡片是蓝，红圆才跳得出来），字形用白。
+ * 机器猫（2026-10-18 三版）：**灰底 + 卡片上蓝下红 + 红色图标字**。
+ * 按用户指令重排（2026-10-18 20:30）：
+ *   页面底 / 顶栏 / 底栏 = 中性灰——红铺满屏会腻，灰才是「底」；
+ *   卡片 = 蓝（封面蓝、信息区红）→ 红只出现在卡片下半，不铺满；
+ *   图标圆底 = 蓝（与卡片同色，融进去），字形 = 红 → 红色靠图标本身突出，
+ *   而不是靠一个色块。
+ * 红蓝仍是这对品牌色，灰只是把它们之间的间隔。
  */
 val DoraemonPalette = S1Colors(
-    bgTop = Color(0xFFE60012), bgBottom = Color(0xFFE60012),
-    headerGradient = listOf(Color(0xFF0099E5), Color(0xFF0099E5)),
+    bgTop = Color(0xFF2E2E33), bgBottom = Color(0xFF2E2E33),
+    headerGradient = listOf(Color(0xFF2E2E33), Color(0xFF2E2E33)),
     textMain = Color(0xFFFFFFFF), textSub = Color(0xCCFFFFFF),
     accent = Color(0xFFE60012), onAccent = Color(0xFFFFFFFF),
-    accentCyan = Color(0xFFFF6B7A), heart = Color(0xFFFF6B7A),
+    accentCyan = Color(0xFFFF5A66), heart = Color(0xFFFF6B7A),
     cardBg = Color(0xFF0099E5),
     glassCard = Color(0xF20099E5), glassLine = Color(0x33FFFFFF),
-    glassBar = Color(0xF20099E5), glassFloat = Color(0xF20099E5),
+    glassBar = Color(0xF22E2E33), glassFloat = Color(0xF22E2E33),
     glassFloatLine = Color(0x4DFFFFFF),
-    glassDialog = Color(0xF20099E5), glassDialogLine = Color(0x4DFFFFFF),
-    // 图标圆底用暗红（赤红的做法）：圆是压暗的红，字是提亮的红，
-    // 比「纯红圆 + 白字」安静，也不会和蓝卡片抢
-    chipBg = Color(0xFF8E0A18),
-    strongIcon = Color(0xFFFFFFFF),
-    snackbarBg = Color(0xFFE60012), onSnackbar = Color(0xFFFFFFFF),
+    glassDialog = Color(0xF22E2E33), glassDialogLine = Color(0x4DFFFFFF),
+    // 图标圆底 = 卡片蓝（融进去，不再是色块）；红色靠字形 #FF6B7A 突出
+    chipBg = Color(0xFF0099E5),
+    strongIcon = Color(0xFFFF6B7A),
+    snackbarBg = Color(0xFF2E2E33), onSnackbar = Color(0xFFFFFFFF),
     flowCoverColors = listOf(
         Color(0xFFE60012), Color(0xFF0099E5), Color(0xFFFF6B7A), Color(0xFF0A6FA8)
     ),
@@ -357,7 +358,6 @@ val DoraemonPalette = S1Colors(
     // 封面 = 蓝（与卡片同色），信息区 = 红 → 上篮下红
     coverTint = Color(0xFF0099E5),
     metaTint = Color(0xFFE60012),
-    // 底栏走中性灰：红页蓝卡已经两色对抗，底栏退成框架
     navBar = Color(0xFF26262B)
 )
 

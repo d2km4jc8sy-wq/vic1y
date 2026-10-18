@@ -56,6 +56,7 @@ import com.example.s1client.ui.design.BgColor
 import com.example.s1client.ui.design.BgColorBottom
 import com.example.s1client.ui.design.GlassBar
 import com.example.s1client.ui.design.HeartRed
+import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.ui.design.ChipBg
 import com.example.s1client.ui.design.TextMain
 import com.example.s1client.ui.showUserCardDialog
@@ -431,12 +432,15 @@ private fun FeedChips(
 /** 行底发丝线：让列表成为"连续信息流"，行不再浮在空白里（对标 ThreadRow 的分割线） */
 @Composable
 private fun RowHairline() {
+    // 2026-10-18：原来用 ChipBg 画分隔线。机器猫把 chipBg 改成蓝（图标圆要融进卡片），
+    // 结果列表分隔线全变蓝。这里改用中性亮线的低透明度，不再跟图标底色联动。
+    val divider = LocalS1Colors.current.textMain.copy(alpha = 0.12f)
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 60.dp)
             .height(1.dp)
-            .background(ChipBg)
+            .background(divider)
     )
 }
 
