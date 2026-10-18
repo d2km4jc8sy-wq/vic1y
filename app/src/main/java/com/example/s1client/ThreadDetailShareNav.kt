@@ -154,14 +154,19 @@ internal fun ThreadDetailActivity.shareSelectedFloors() {
 
         // G16（2026-10-18）：多选分享改为「生成分享卡」。把选中楼投影成 ShareCardPost，
         // 交给 ShareCardActivity 渲染长图并调起系统分享面板（微信/QQ/备忘录等）。
+        // 二问增补（同日）：带上 authorId（拉真头像）与正文图片 URL（贴进卡片）；
+        // parse 结果有 LruCache，与 extractPlainText 二次解析几乎零开销。
         val posts = picked.map { p ->
             val floorLabel = if (p.first == "1") "楼主" else "${p.position ?: "?"}楼"
+            val parsed = com.example.s1client.util.PostContentParser.parse(p.message)
             ShareCardPost(
                 author = p.author ?: "未知",
                 floorLabel = floorLabel,
                 timeText = fmtDateline(p.dateline),
                 content = extractPlainText(p.message),
-                isOP = p.first == "1"
+                isOP = p.first == "1",
+                authorId = p.authorId,
+                imageUrls = parsed.imageUrls
             )
         }
         val title = subject.ifBlank { "Stage1st 帖子" }

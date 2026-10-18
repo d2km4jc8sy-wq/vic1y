@@ -1,13 +1,17 @@
 package com.example.s1client.share
 
 import android.content.Context
-import android.graphics.Color
+import android.graphics.Bitmap
+import android.graphics.Outline
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 
@@ -25,6 +29,12 @@ private fun circleBg(color: Int): GradientDrawable =
  * 三样式：CLASSIC 经典文字 / BARS 极简竖杠 / EDGE 卡片描边。
  * 配色全部来自 [CardColors]（主题派生，宪法18条）。
  *
+ * 2026-10-18 二问升级（对齐 S1er 观感，设计者拍板）：
+ * - 真头像：bitmaps 里有 authorId 对应头像则贴图（圆形裁剪），否则降级首字母圆
+ * - 楼层徽章移到作者行右侧（S1er 同款），左侧元信息只留时间
+ * - 正文下方贴楼层图片（圆角，最多 3 张，更多计“还有 N 张图”）
+ * - 页脚不再提“扫码”（不做真二维码，诚实文案）
+ *
  * 比例（宪法15条）：内边距 21/13、间距 8/13、圆角 21 取自斐波那契；
  * 标题 21sp : 元信息 13sp ≈ φ。主角=正文（字号最大、色最深），元信息弱化。
  */
@@ -33,7 +43,8 @@ fun buildCardView(
     config: ShareCardConfig,
     posts: List<ShareCardPost>,
     colors: CardColors,
-    title: String
+    title: String,
+    bitmaps: Map<String, Bitmap> = emptyMap()
 ): View {
     val pad = ctx.dip(21)
     val padSm = ctx.dip(13)
@@ -115,7 +126,7 @@ fun buildCardView(
                 typeface = Typeface.DEFAULT_BOLD
             }
             val sub = TextView(ctx).apply {
-                text = "Stage1 论坛"
+                text = "Stage1st"
                 textSize = 12f
                 setTextColor(colors.textSub)
             }
@@ -175,8 +186,11 @@ fun buildCardView(
             gravity = Gravity.CENTER_VERTICAL
         }
         if (config.showAvatar) {
+            val avSize = ctx.dip(34)
+            val avWrap = FrameLayout(ctx)
+            // 降级底：首字母圆（拉不到头像时始终可见）
             val initial = (p.author.firstOrNull()?.toString() ?: "?")
-            val av = TextView(ctx).apply {
+            val letter = TextView(ctx).apply {
                 text = initial
                 textSize = 15f
                 setTextColor(colors.onAccent)
@@ -184,10 +198,26 @@ fun buildCardView(
                 gravity = Gravity.CENTER
                 background = circleBg(colors.accent)
             }
-            av.layoutParams = LinearLayout.LayoutParams(ctx.dip(34), ctx.dip(34)).apply {
+            avWrap.addView(letter, FrameLayout.LayoutParams(avSize, avSize))
+            // 真头像（预加载到位则盖在首字母圆上，圆形裁剪）
+            p.authorId?.let { com.example.s1client.util.avatarUrl(it, "small") }
+                ?.let { url -> bitmaps[url] }?.let { bmp ->
+                    val iv = ImageView(ctx).apply {
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+                        clipToOutline = true
+                        outlineProvider = object : ViewOutlineProvider() {
+                            override fun getOutline(view: View, outline: Outline) {
+                                outline.setOval(0, 0, view.width, view.height)
+                            }
+                        }
+                        setImageBitmap(bmp)
+                    }
+                    avWrap.addView(iv, FrameLayout.LayoutParams(avSize, avSize))
+                }
+            avWrap.layoutParams = LinearLayout.LayoutParams(avSize, avSize).apply {
                 rightMargin = gap8
             }
-            authorRow.addView(av)
+            authorRow.addView(avWrap)
         }
         val meta = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         val name = TextView(ctx).apply {
@@ -197,7 +227,6 @@ fun buildCardView(
             typeface = Typeface.DEFAULT_BOLD
         }
         val subParts = mutableListOf<String>()
-        if (config.showFloor) subParts += p.floorLabel
         if (config.showTime && p.timeText.isNotBlank()) subParts += p.timeText
         meta.addView(name)
         if (subParts.isNotEmpty()) {
@@ -209,6 +238,23 @@ fun buildCardView(
             meta.addView(sub)
         }
         authorRow.addView(meta, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        // 楼层徽章移到右侧（S1er 同款）：左侧人名+时间，右侧“楼主/N楼”药丸
+        if (config.showFloor) {
+            val pill = TextView(ctx).apply {
+                text = p.floorLabel
+                textSize = 11f
+                setTextColor(colors.accent)
+                background = GradientDrawable().apply {
+                    cornerRadius = ctx.dip(8).toFloat()
+                    setColor(withAlpha(colors.accent, 0.14f))
+                }
+                setPadding(ctx.dip(8), ctx.dip(3), ctx.dip(8), ctx.dip(3))
+            }
+            authorRow.addView(pill, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { leftMargin = gap8 })
+        }
         postWrap.addView(authorRow)
 
         // 正文（主角：15sp，行距 1.75）
@@ -240,6 +286,40 @@ fun buildCardView(
             postWrap.addView(body)
         }
 
+        // —— 正文图片（预加载到位才贴；圆角裁剪，最多 3 张） ——
+        if (config.showImages && p.imageUrls.isNotEmpty()) {
+            val shown = p.imageUrls.take(3)
+            shown.forEach { url ->
+                bitmaps[url]?.let { bmp ->
+                    val iv = ImageView(ctx).apply {
+                        setImageBitmap(bmp)
+                        adjustViewBounds = true
+                        clipToOutline = true
+                        outlineProvider = object : ViewOutlineProvider() {
+                            override fun getOutline(view: View, outline: Outline) {
+                                outline.setRoundRect(0, 0, view.width, view.height, ctx.dip(13).toFloat())
+                            }
+                        }
+                    }
+                    postWrap.addView(iv, LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { topMargin = gap8 })
+                }
+            }
+            if (p.imageUrls.size > shown.size) {
+                val more = TextView(ctx).apply {
+                    text = "还有 ${p.imageUrls.size - shown.size} 张图，原帖可见"
+                    textSize = 12f
+                    setTextColor(colors.textSub)
+                }
+                postWrap.addView(more, LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = gap8 })
+            }
+        }
+
         card.addView(postWrap, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { topMargin = padSm })
@@ -265,7 +345,8 @@ fun buildCardView(
         footer.addView(mono)
     }
     val ft = TextView(ctx).apply {
-        text = "来自 S1Client\n扫码查看原帖"
+        // 不做真二维码，文案诚实化（2026-10-18 设计者拍板：不做真二维码）
+        text = "来自 S1Client · Stage1st"
         textSize = 12f
         setTextColor(colors.textSub)
     }

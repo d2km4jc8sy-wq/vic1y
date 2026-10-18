@@ -33,11 +33,12 @@ object ShareCardCapture {
         config: ShareCardConfig,
         posts: List<ShareCardPost>,
         colors: CardColors,
-        title: String
+        title: String,
+        bitmaps: Map<String, Bitmap> = emptyMap()
     ): Bitmap {
         val density = ctx.resources.displayMetrics.density
         val baseW = (BASE_DP * density).toInt().coerceAtLeast(1)
-        val view = buildCardView(ctx, config, posts, colors, title)
+        val view = buildCardView(ctx, config, posts, colors, title, bitmaps)
         view.layoutParams = ViewGroup.LayoutParams(baseW, ViewGroup.LayoutParams.WRAP_CONTENT)
         view.measure(makeMeasureSpec(baseW, EXACTLY), makeMeasureSpec(0, UNSPECIFIED))
         val h = view.measuredHeight.coerceAtLeast(1)
@@ -63,11 +64,12 @@ object ShareCardCapture {
         activity: Activity,
         config: ShareCardConfig,
         posts: List<ShareCardPost>,
-        title: String
+        title: String,
+        bitmaps: Map<String, Bitmap> = emptyMap()
     ) {
         try {
             val colors = computeColors(config)
-            val bmp = captureBitmap(activity, config, posts, colors, title)
+            val bmp = captureBitmap(activity, config, posts, colors, title, bitmaps)
             val ext = if (config.format == ImageFormat.PNG) "png" else "jpg"
             val file = File(activity.cacheDir, "share_card_${System.currentTimeMillis()}.$ext")
             FileOutputStream(file).use { os ->

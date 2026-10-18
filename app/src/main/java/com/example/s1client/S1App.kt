@@ -30,6 +30,16 @@ class S1App : Application(), Application.ActivityLifecycleCallbacks {
         ForumDataCache.init(this)
         ThemeManager.init(this)
         com.example.s1client.util.NetworkMonitor.init(this)
+        // 图标切换（2026-10-18 设计者澄清后恢复：上一版误解需求删了功能）。
+        // 设计者本意只是「桌面图标和其他 App 不搭，复位成默认」，切换功能本身保留。
+        // 本版本一次性把图标复位为默认；之后照常走 ensureValid 自愈。
+        val iconPrefs = getSharedPreferences("s1_client_prefs", MODE_PRIVATE)
+        if (iconPrefs.getBoolean("reset_default_icon_once_1018", true)) {
+            iconPrefs.edit().putBoolean("reset_default_icon_once_1018", false).apply()
+            com.example.s1client.util.AppIconManager.apply(this, "default")
+        } else {
+            com.example.s1client.util.AppIconManager.ensureValid(this)
+        }
         BlockedAuthorManager.init(this)
         com.example.s1client.data.store.FavoriteManager.initLocal(this)
         HiddenPostManager.init(this)

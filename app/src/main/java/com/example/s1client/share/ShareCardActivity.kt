@@ -24,6 +24,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.ui.theme.S1Theme
+import kotlinx.coroutines.withTimeoutOrNull
 
 class ShareCardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -125,13 +127,29 @@ fun ShareCardScreen(title: String, posts: List<ShareCardPost>) {
     var showAvatar by remember { mutableStateOf(true) }
     var showTime by remember { mutableStateOf(true) }
     var showFloor by remember { mutableStateOf(true) }
+    var showImages by remember { mutableStateOf(true) }
     var bgMode by remember { mutableStateOf(BackgroundMode.THEME) }
     var fmt by remember { mutableStateOf(ImageFormat.PNG) }
     var resW by remember { mutableStateOf(1080) }
 
     val context = LocalContext.current
-    val config = ShareCardConfig(style, showAvatar, showTime, showFloor, bgMode, fmt, resW)
+    val config = ShareCardConfig(style, showAvatar, showTime, showFloor, showImages, bgMode, fmt, resW)
     val colors = computeColors(config)
+
+    // —— 媒体预加载（真头像 + 正文图）：进页拉一次，8s 超时降级（缺图不阻塞出图）——
+    var bitmaps by remember { mutableStateOf<Map<String, android.graphics.Bitmap>>(emptyMap()) }
+    var loadingMedia by remember { mutableStateOf(true) }
+    LaunchedEffect(posts) {
+        loadingMedia = true
+        val out = java.util.concurrent.ConcurrentHashMap<String, android.graphics.Bitmap>()
+        try {
+            withTimeoutOrNull(8_000L) {
+                ShareCardImages.preload(context.applicationContext, posts, out)
+            }
+        } catch (_: Exception) { /* 超时/失败都用已拿到的部分 */ }
+        bitmaps = out.toMap()
+        loadingMedia = false
+    }
 
     Column(
         modifier = Modifier
@@ -142,11 +160,19 @@ fun ShareCardScreen(title: String, posts: List<ShareCardPost>) {
     ) {
         SectionTitle("分享卡预览")
         Spacer(Modifier.height(8.dp))
+        if (loadingMedia) {
+            Text(
+                "正在拉取头像与图片…（超时自动降级）",
+                fontSize = 12.sp,
+                color = LocalS1Colors.current.textSub
+            )
+            Spacer(Modifier.height(8.dp))
+        }
         // 配置变化即重建预览（保证所见即所得）
-        key(config, colors) {
+        key(config, colors, bitmaps) {
             AndroidView(
                 modifier = Modifier.fillMaxWidth(),
-                factory = { ctx -> buildCardView(ctx, config, posts, colors, title) }
+                factory = { ctx -> buildCardView(ctx, config, posts, colors, title, bitmaps) }
             )
         }
         Spacer(Modifier.height(21.dp))
@@ -171,6 +197,7 @@ fun ShareCardScreen(title: String, posts: List<ShareCardPost>) {
             ToggleChip("头像", showAvatar) { showAvatar = !showAvatar }
             ToggleChip("发布时间", showTime) { showTime = !showTime }
             ToggleChip("楼层号", showFloor) { showFloor = !showFloor }
+            ToggleChip("正文图片", showImages) { showImages = !showImages }
         }
         Spacer(Modifier.height(13.dp))
 
@@ -207,7 +234,7 @@ fun ShareCardScreen(title: String, posts: List<ShareCardPost>) {
             ),
             onClick = {
                 ShareCardCapture.generateAndShare(
-                    context as Activity, config, posts, title
+                    context as Activity, config, posts, title, bitmaps
                 )
             }
         ) {

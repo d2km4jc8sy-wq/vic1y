@@ -14,14 +14,20 @@ data class ShareCardPost(
     val floorLabel: String,   // "楼主" 或 "N楼"
     val timeText: String,
     val content: String,
-    val isOP: Boolean
+    val isOP: Boolean,
+    /** 作者 UID：用于拉真头像（avatarUrl(uid)）；null 降级为首字母圆 */
+    val authorId: String? = null,
+    /** 正文图片 URL（PostContentParser 解出）；离屏渲染前由 ShareCardImages 预加载 */
+    val imageUrls: List<String> = emptyList()
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         parcel.readString() ?: "",
         parcel.readString() ?: "",
         parcel.readString() ?: "",
         parcel.readString() ?: "",
-        parcel.readInt() != 0
+        parcel.readInt() != 0,
+        parcel.readString(),
+        parcel.createStringArrayList() ?: emptyList()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -30,6 +36,8 @@ data class ShareCardPost(
         parcel.writeString(timeText)
         parcel.writeString(content)
         parcel.writeInt(if (isOP) 1 else 0)
+        parcel.writeString(authorId)
+        parcel.writeStringList(imageUrls)
     }
 
     override fun describeContents() = 0
@@ -49,12 +57,13 @@ enum class BackgroundMode { THEME, WHITE, BLACK }
 /** 导出图片格式 */
 enum class ImageFormat { PNG, JPG }
 
-/** 导出设置（用户在设置面板调整） */
+/** 卡片配置（2026-10-18 二问增补：正文图片开关） */
 data class ShareCardConfig(
     val style: CardStyle = CardStyle.EDGE,
     val showAvatar: Boolean = true,
     val showTime: Boolean = true,
     val showFloor: Boolean = true,
+    val showImages: Boolean = true,
     val backgroundMode: BackgroundMode = BackgroundMode.THEME,
     val format: ImageFormat = ImageFormat.PNG,
     val widthPx: Int = 1080
