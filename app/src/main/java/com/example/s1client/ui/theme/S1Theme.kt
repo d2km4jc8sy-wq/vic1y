@@ -200,7 +200,13 @@ private class IridescentPreset(
     val glassEdgeTop: Color = Color(0x40FFFFFF),
     val glassEdgeMid: Color = Color(0x1FFFFFFF),
     val glassEdgeBottom: Color = Color(0x14000000),
-    val glassInsetLight: Color = Color(0x73FFFFFF)
+    val glassInsetLight: Color = Color(0x73FFFFFF),
+    /**
+     * 图标字色 = 强调色的提亮版（2026-10-28 统一规则）。
+     * 此前这里是写死的蓝灰 #7FB8D8，两套板共用，图标字和紫粉主调对不上；
+     * 默认取强调色提亮 35%，各板可单独覆盖。
+     */
+    val accentCyan: Color = lerpWhite(accent, 0.35f)
 )
 
 private val IridescentPresets = listOf(
@@ -222,7 +228,9 @@ private val IridescentPresets = listOf(
         textMain = Color(0xFF3D2438), textSub = Color(0xFF8A6B85),
         glassCard = Color(0xF7FFFFFF), glassFloat = Color(0xF2FFFFFF),
         glassDialog = Color(0xFAFFFFFF),
-        chipBg = Color(0x1AB569F6),
+        // 图标圆底改为强调色同族的淡紫粉（原来 #1AB569F6 是蓝紫，与紫粉主调不同族）
+        chipBg = Color(0x1AD6339C),
+        accentCyan = Color(0xFFF57FC4),
         snackbarBg = Color(0xFFD6339C), onSnackbar = Color(0xFFFFFFFF),
         glassEdgeTop = Color(0x8AFFFFFF), glassEdgeMid = Color(0x4DFFFFFF),
         glassEdgeBottom = Color(0x1AFFFFFF), glassInsetLight = Color(0x6EFFFFFF)
@@ -240,7 +248,9 @@ private val IridescentPresets = listOf(
         textMain = Color(0xFFF4ECFA), textSub = Color(0xFFA99BBE),
         glassCard = Color(0xF2221830), glassFloat = Color(0xF22A1D3C),
         glassDialog = Color(0xF22A1D3C),
-        chipBg = Color(0x14FFFFFF),
+        // 与浅色板统一：圆底取强调色的淡版，而不是白色淡版
+        chipBg = Color(0x26FF6FB5),
+        accentCyan = Color(0xFFFF9BD0),
         snackbarBg = Color(0xFF2A1D3C), onSnackbar = Color(0xFFF4ECFA),
         glassEdgeTop = Color(0x59FFFFFF), glassEdgeMid = Color(0x2EFFFFFF),
         glassEdgeBottom = Color(0x1AFFFFFF), glassInsetLight = Color(0x8AFFFFFF)
@@ -267,6 +277,14 @@ fun s1RingColors(c: S1Colors): List<Color> {
     return out.distinct()
 }
 
+/** 与白色混合，[amount] = 0 原色，1 全白。用于派生「强调色的提亮版」 */
+private fun lerpWhite(c: Color, amount: Float): Color = Color(
+    red = c.red + (1f - c.red) * amount,
+    green = c.green + (1f - c.green) * amount,
+    blue = c.blue + (1f - c.blue) * amount,
+    alpha = c.alpha
+)
+
 private fun buildIridescentPalette(seed: Int): S1Colors {
     val p = IridescentPresets[seed.coerceIn(0, IridescentPresets.lastIndex)]
     return S1Colors(
@@ -274,7 +292,7 @@ private fun buildIridescentPalette(seed: Int): S1Colors {
         headerGradient = listOf(p.headerA, p.headerB),
         textMain = p.textMain, textSub = p.textSub,
         accent = p.accent, onAccent = Color(0xFFFFFFFF),
-        accentCyan = Color(0xFF7FB8D8), heart = Color(0xFFFF2C55),
+        accentCyan = p.accentCyan, heart = Color(0xFFFF2C55),
         cardBg = p.cardBg,
         glassCard = p.glassCard, glassLine = p.line,
         glassBar = p.bar, glassFloat = p.glassFloat,
