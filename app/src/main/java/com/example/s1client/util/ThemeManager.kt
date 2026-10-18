@@ -13,7 +13,7 @@ object ThemeManager {
     private const val KEY_FOLLOW = "follow_system_dark"
 
     // 主题索引
-    // 0/5/6/7 为当前可见的四套；1-4 已从选择列表移除（2026-10-18 用户定稿），
+    // 0/5/6/7/8 为当前可见的五套；1-4 已从选择列表移除（2026-10-18 用户定稿），
     // 常量仅保留用于识别老版本存档并做迁移，不再有对应色板。
     const val THEME_LIGHT = 0       // 焙茶午后
     const val THEME_OLED = 1        // 曜石玄夜（已移除，仅迁移识别）
@@ -24,7 +24,7 @@ object ThemeManager {
     const val THEME_LINEAR = 6      // Linear 墨蓝
     /** 纯白（2026-10-18 新增）：参考 iOS 默认浅色。索引追加在末尾，避免重排已存的值 */
     const val THEME_PURE = 7
-    /** 朱砂（2026-10-18 新增）：深色基底的第二套，中性深灰 + 朱红。索引继续追加 */
+    /** 赤红（2026-10-18 定稿，默认主题）：红做页面缝、灰做卡片。索引继续追加 */
     const val THEME_CRIMSON = 8
 
     private const val THEME_MAX = THEME_CRIMSON
@@ -39,9 +39,9 @@ object ThemeManager {
      * 老用户若停留在这些主题上，由 migrateHiddenTheme 就近迁移。
      */
     val VISIBLE_THEMES: List<Int> = listOf(
+        THEME_CRIMSON,     // 赤红：默认主题，红做缝、灰做面
         THEME_PURE,        // 纯白：参考 iOS 默认浅色
         THEME_LINEAR,      // Linear 墨蓝：参考 iOS 深色
-        THEME_CRIMSON,     // 朱砂：深色基底 + 朱红强调
         THEME_LIGHT,       // 焙茶午后：S1 网页主色，是特色
         THEME_IRIDESCENT   // 幻彩渐变：固定流光封面
     )
@@ -56,7 +56,7 @@ object ThemeManager {
      * 换主题时整棵 Compose 树立即重组 —— 即时变色，不重建 Activity、不丢滚动位置。
      * 非 Compose 代码照旧读 `ThemeManager.currentTheme`，行为不变。
      */
-    private val currentThemeState = androidx.compose.runtime.mutableStateOf(THEME_LIGHT)
+    private val currentThemeState = androidx.compose.runtime.mutableStateOf(THEME_CRIMSON)
 
     var currentTheme: Int
         get() = currentThemeState.value
@@ -107,11 +107,11 @@ object ThemeManager {
             val prefs = ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE)
             val theme = if (prefs.getBoolean(KEY_MIGRATED, false)) {
                 // 新版索引 0-5 原样保留，上限扩到 THEME_MAX
-                prefs.getInt(KEY, THEME_LIGHT).coerceIn(THEME_LIGHT, THEME_MAX)
+                prefs.getInt(KEY, THEME_CRIMSON).coerceIn(THEME_LIGHT, THEME_MAX)
             } else {
                 // 老版本索引迁移（仅首次升级时执行一次）：
                 // 0(午后红茶) -> 0，1/2/3 -> 1(OLED)，其他 -> 0
-                val saved = prefs.getInt(KEY, THEME_LIGHT)
+                val saved = prefs.getInt(KEY, THEME_CRIMSON)
                 val migrated = when (saved) {
                     THEME_LIGHT -> THEME_LIGHT
                     1, 2, 3 -> THEME_OLED
@@ -239,7 +239,7 @@ object ThemeManager {
         "幻彩渐变",      // 5
         "Linear 墨蓝",   // 6
         "纯白",          // 7
-        "朱砂"           // 8
+        "赤红"           // 8
     )
 
     /**

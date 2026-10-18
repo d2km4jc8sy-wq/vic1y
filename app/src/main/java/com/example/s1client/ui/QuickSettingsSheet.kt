@@ -345,6 +345,6 @@ internal fun themeNameShort(): String = when (ThemeManager.currentTheme) {
     ThemeManager.THEME_RP5 -> "苔绿灰阶"
     ThemeManager.THEME_IRIDESCENT -> "幻彩渐变"
     ThemeManager.THEME_LINEAR -> "Linear 墨蓝"
-    ThemeManager.THEME_CRIMSON -> "朱砂"
+    ThemeManager.THEME_CRIMSON -> "赤红"
     else -> "主题"
 }
