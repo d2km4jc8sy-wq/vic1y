@@ -232,6 +232,11 @@ class PageAdapter(
         // 仅在构造时拿过一次值，必须这里主动更新，否则重绑后仍在非多选分支。
         liveAdapters.values.forEach {
             it.shareSelectMode = mode
+            // R5 复核说明（2026-10-18 第 9 轮）：这一处仍走整页 notifyDataSetChanged，
+            // 经查是**有意保留** —— 进入/退出多选分享模式改变的是每个 item 的
+            // 「根点击行为 + 操作行可见性 + 勾选徽标」三处结构性状态，
+            // 已超出 payload 局部刷新的覆盖能力。要做真正差分需连同 PostAdapter
+            // 的 onBind 分支一起重构，属专项改动，已登记待设计者点单（见回执第 2 节）。
             it.notifyDataSetChanged()
         }
     }

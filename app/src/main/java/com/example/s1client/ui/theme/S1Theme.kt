@@ -54,7 +54,13 @@ data class S1Colors(
     /** 卡片内侧顶部高光（inset 高光），null = 不画 */
     val glassInsetLight: Color? = null,
     /** 是否深色主题（供 Material 配色桥接用） */
-    val isDark: Boolean
+    val isDark: Boolean,
+    /**
+     * 成功 / 通过语义绿（R3 · 审计报告 v2 2026-10-18 第 9 轮）。
+     * 原先写死在 LoginActivity:146（34C759），违反宪法 18 条「配色从主题色板派生」。
+     * 现收口为 token，默认取原值以保证视觉零变化；各主题如需差异可单独覆盖。
+     */
+    val success: Color = Color(0xFF34C759)
 )
 
 // ————————— 原有三套（不动，只扩展 headerGradient）—————————

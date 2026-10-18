@@ -188,10 +188,33 @@ class PmMessageAdapter(
 
     private val items = mutableListOf<PmMessage>()
 
+    /**
+     * 全量提交 —— R5（审计报告 v2 2026-10-18 第 9 轮）：
+     * 原为 clear + addAll + notifyDataSetChanged（整页全部重跑 onBindViewHolder，
+     * 长列表下正文解析/表情/引用/四钮全量重绑，是主要掉帧来源）。
+     * 改为 DiffUtil 计算差异后精准通知：只有真正变化的条目才重绑，
+     * 未变化的条目复用已绑定内容，滚动帧率不再随列表长度退化。
+     */
     fun submit(list: List<PmMessage>) {
+        val old = items.toList()
+        if (old == list) return          // 数据未变，避免无谓刷新（含乐观对账重复回写）
+        val diff = androidx.recyclerview.widget.DiffUtil.calculateDiff(
+            object : androidx.recyclerview.widget.DiffUtil.Callback() {
+                override fun getOldListSize() = old.size
+                override fun getNewListSize() = list.size
+                override fun areItemsTheSame(o: Int, n: Int): Boolean {
+                    val a = old[o]; val b = list[n]
+                    // 乐观消息 pmid 为空，靠 (作者+正文+时间) 组合判同一条
+                    return if (a.pmid.isBlank() || b.pmid.isBlank())
+                        a.author == b.author && a.message == b.message && a.dateline == b.dateline
+                    else a.pmid == b.pmid
+                }
+                override fun areContentsTheSame(o: Int, n: Int) = old[o] == list[n]
+            }
+        )
         items.clear()
         items.addAll(list)
-        notifyDataSetChanged()
+        diff.dispatchUpdatesTo(this)
     }
 
     /**
@@ -201,8 +224,9 @@ class PmMessageAdapter(
      * 就能看到（设计者 13T 实测）。与 [submitRespectingOptimistic] 配对使用。
      */
     fun appendOptimistic(m: PmMessage) {
+        val at = items.size
         items.add(m)
-        notifyDataSetChanged()
+        notifyItemInserted(at)   // 只通知新增一条，不整页重绑
     }
 
     /**

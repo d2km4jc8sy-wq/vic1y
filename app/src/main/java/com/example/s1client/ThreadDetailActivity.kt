@@ -124,7 +124,9 @@ class ThreadDetailActivity : BaseActivity() {
     /**
      * 第 1 页响应里顺带带回来的投票原始值（fetchOnePage 在 IO 线程写，主线程读并 apply）。
      * 见 [applyCapturedPoll]：不用再为投票单独发一次请求。
-     * 阶段二：存储迁到 VM（仍 @Volatile），Activity 侧同形委托，调用方零改动。
+     * 阶段二：存储迁到 VM 的 StateFlow，Activity 侧同形委托，调用方零改动。
+     * （注释订正 2026-10-18 第 9 轮审计：原注释误写「仍 @Volatile」，
+     *   实际实现为 VM StateFlow 同形委托，全文件无 @Volatile。）
      */
     internal var capturedPollSpecial: String?
         get() = vm.capturedPollSpecial
@@ -980,7 +982,9 @@ class ThreadDetailActivity : BaseActivity() {
                 startPage = intent.getIntExtra("page", 0).takeIf { it >= 1 } ?: 0
 
                 if (startPage == 0 && pendingScrollPid != null) {
-                    val pid = pendingScrollPid!!
+                    // R7（审计报告 v2 2026-10-18 第 9 轮）：去掉 !! —— 外层已判非空，
+                    // 用 elvis 收敛（此处 if 条件已保证非 null，?? 分支不可达）
+                    val pid = pendingScrollPid ?: ""
                     val p = PostLocator.locatePostPage(tid, pid)
                     android.util.Log.d("S1Locate", "open tid=$tid pid=$pid page=$p")
                     if (p == null) {
