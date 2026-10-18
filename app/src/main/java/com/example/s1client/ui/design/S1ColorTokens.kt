@@ -48,6 +48,9 @@ val GlassLine: Color
     @Composable get() = LocalS1Colors.current.glassLine
 val GlassBar: Color
     @Composable get() = LocalS1Colors.current.glassBar
+/** 底部导航栏底色（默认同 GlassBar，机器猫单独给灰） */
+val NavBar: Color
+    @Composable get() = LocalS1Colors.current.navBar
 val GlassFloat: Color
     @Composable get() = LocalS1Colors.current.glassFloat
 val GlassFloatLine: Color

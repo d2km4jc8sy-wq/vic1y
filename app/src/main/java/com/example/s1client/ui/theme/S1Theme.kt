@@ -89,7 +89,13 @@ data class S1Colors(
      * 比在封面里切一条色带整体性更好（色带会把封面切成三段）。
      * 与封面之间用 1px 底色线隔开，分区清楚但不加边框。
      */
-    val metaTint: Color? = null
+    val metaTint: Color? = null,
+    /**
+     * 底部导航栏底色。默认 = [glassBar]（与顶栏同色）。
+     * 机器猫单独给成中性灰：红页 + 蓝卡已经很满，底栏再上色会让屏幕底部继续「发声」，
+     * 灰色把它压成安静的框架（2026-10-18 用户要求）。
+     */
+    val navBar: Color = glassBar
 )
 
 // ————————— 原有三套（不动，只扩展 headerGradient）—————————
@@ -330,14 +336,15 @@ val DoraemonPalette = S1Colors(
     headerGradient = listOf(Color(0xFF0099E5), Color(0xFF0099E5)),
     textMain = Color(0xFFFFFFFF), textSub = Color(0xCCFFFFFF),
     accent = Color(0xFFE60012), onAccent = Color(0xFFFFFFFF),
-    accentCyan = Color(0xFFFFFFFF), heart = Color(0xFFFF6B7A),
+    accentCyan = Color(0xFFFF6B7A), heart = Color(0xFFFF6B7A),
     cardBg = Color(0xFF0099E5),
     glassCard = Color(0xF20099E5), glassLine = Color(0x33FFFFFF),
     glassBar = Color(0xF20099E5), glassFloat = Color(0xF20099E5),
     glassFloatLine = Color(0x4DFFFFFF),
     glassDialog = Color(0xF20099E5), glassDialogLine = Color(0x4DFFFFFF),
-    // 图标圆底用红：卡片是蓝，红圆才分得出来
-    chipBg = Color(0xFFE60012),
+    // 图标圆底用暗红（赤红的做法）：圆是压暗的红，字是提亮的红，
+    // 比「纯红圆 + 白字」安静，也不会和蓝卡片抢
+    chipBg = Color(0xFF8E0A18),
     strongIcon = Color(0xFFFFFFFF),
     snackbarBg = Color(0xFFE60012), onSnackbar = Color(0xFFFFFFFF),
     flowCoverColors = listOf(
@@ -349,7 +356,9 @@ val DoraemonPalette = S1Colors(
     isDark = true,
     // 封面 = 蓝（与卡片同色），信息区 = 红 → 上篮下红
     coverTint = Color(0xFF0099E5),
-    metaTint = Color(0xFFE60012)
+    metaTint = Color(0xFFE60012),
+    // 底栏走中性灰：红页蓝卡已经两色对抗，底栏退成框架
+    navBar = Color(0xFF26262B)
 )
 
 val LocalS1Colors = staticCompositionLocalOf { TeaPalette }

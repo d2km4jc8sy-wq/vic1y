@@ -124,6 +124,7 @@ import com.example.s1client.ui.design.CardBg
 import com.example.s1client.ui.design.ChipBg
 import com.example.s1client.ui.design.FlowCoverColors
 import com.example.s1client.ui.design.GlassBar
+import com.example.s1client.ui.design.NavBar
 import com.example.s1client.ui.design.GlassCard
 import com.example.s1client.ui.design.GlassDialog
 import com.example.s1client.ui.design.GlassDialogLine
@@ -159,7 +160,7 @@ fun XhsBottomNav(
             // 之前是「先 navigationBarsPadding 再 background」—— 那样背景只画在
             // 内缩后的内容区，导航栏那条高度是空的，只能靠 XML 的 opaque
             // navigationBarColor 去补，于是不同设备就出现了色带（小米上的「白边」）。
-            .background(GlassBar)
+            .background(NavBar)
             // 玻璃顶边
             .drawBehind {
                 drawLine(
