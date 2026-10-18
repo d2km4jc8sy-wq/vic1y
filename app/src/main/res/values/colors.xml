@@ -4,17 +4,17 @@
     <color name="light_bg_page">#EFE6D3</color>
     <color name="light_bg_card">#FFFCF0</color>
     <color name="light_bg_card_light">#E9DFC9</color>
-    <color name="light_bg_topbar">#C9B896</color>
-    <color name="light_bg_tabbar">#EBE1CC</color>
-    <color name="light_border_card">#E5D5A8</color>
-    <color name="light_border_light">#EDE0BE</color>
+    <color name="light_bg_topbar">#FFFCF0</color>
+    <color name="light_bg_tabbar">#EFE6D3</color>
+    <color name="light_border_card">#DCD0B8</color>
+    <color name="light_border_light">#E5DBC7</color>
     <color name="light_text_title">#5C2E0E</color>
     <color name="light_text_body">#3A3A3A</color>
     <color name="light_text_secondary">#8B7355</color>
     <color name="light_text_tertiary">#9C8A6A</color>
-    <color name="light_text_topbar">#3A2410</color>
+    <color name="light_text_topbar">#3A3A3A</color>
     <color name="light_accent">#A0522D</color>
-    <color name="light_divider">#EFE0B8</color>
+    <color name="light_divider">#E3D9C5</color>
     <color name="light_avatar_placeholder">#A0522D</color>
     <color name="light_quote_bg">#F2EBD8</color>
     <color name="light_quote_bar">#A0522D</color>
@@ -65,7 +65,7 @@
     <color name="pink_quote_border">#F0C8D2</color>
 
     <!-- 玻璃顶/底栏（半透明底 + 亮线） -->
-    <color name="light_glass_bar_bg">#E6C9B896</color>
+    <color name="light_glass_bar_bg">#E6FFFCF0</color>
     <color name="light_glass_bar_line">#59FFFFFF</color>
     <color name="oled_glass_bar_bg">#E60A0A0A</color>
     <color name="oled_glass_bar_line">#3DFFFFFF</color>

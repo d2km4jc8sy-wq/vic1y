@@ -90,7 +90,7 @@ data class S1Colors(
 /** 午后红茶 */
 private val TeaPalette = S1Colors(
     bgTop = Color(0xFFEFE6D3), bgBottom = Color(0xFFEFE6D3),
-    headerGradient = listOf(Color(0xFFA0522D), Color(0xFFA0522D)),
+    headerGradient = listOf(Color(0xFFFFFCF0), Color(0xFFFFFCF0)),
     textMain = Color(0xFF3A3A3A), textSub = Color(0xFF8B7355),
     accent = Color(0xFFA0522D), onAccent = Color(0xFFFFF8DC),
     accentCyan = Color(0xFF1FB8FF), heart = Color(0xFFFF2C55),
@@ -107,7 +107,10 @@ private val TeaPalette = S1Colors(
     glassEdgeTop = Color(0x33FFFFFF), glassEdgeMid = Color(0x1AFFFFFF),
     glassEdgeBottom = Color(0x14000000),
     glassInsetLight = Color(0x66FFFFFF),
-    isDark = false
+    isDark = false,
+    // 顶栏改成卡片色（与纯白用 #FFFFFF 同一规则），不再用饱和茶褐；
+    // 浅底顶栏必须配深色字，否则白字在 #FFFCF0 上等于看不见
+    onHeader = Color(0xFF3A3A3A)
 )
 
 /**
