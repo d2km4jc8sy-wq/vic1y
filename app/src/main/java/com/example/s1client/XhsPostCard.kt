@@ -484,6 +484,19 @@ fun XhsPostCard(
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = 120.dp)
                         .background(s1.coverTint)
+                        .drawBehind {
+                            // 暗色下相邻两级明度的感知差远小于浅色，两块会「连成一片」，
+                            // 眼睛一直找不到边界就会累。这里用一条 1px 底色线把它切成上下两截；
+                            // 浅色不需要（#E5E5EA 与 #FFFFFF 本身已经分开）。
+                            if (s1.isDark) {
+                                drawLine(
+                                    color = s1.bgTop,
+                                    start = Offset(0f, size.height - 0.5f),
+                                    end = Offset(size.width, size.height - 0.5f),
+                                    strokeWidth = 1.dp.toPx()
+                                )
+                            }
+                        }
                 }
 
                 // 幻彩封面（style 5）= strange-cobra 彩边 + 内层双色：

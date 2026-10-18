@@ -272,26 +272,27 @@ private fun buildIridescentPalette(seed: Int): S1Colors {
 
 /**
  * Linear 风格暗色：**低饱和 + 单强调色 + 靠边框分层**
- * 底 #0E1013 / 卡片 #17191E / 封面块 #1E222B / 悬浮 #1C1F25 / 边框 #262A32 / 主色 #5E6AD2
- * 2026-10-18：整体抬高两档——原来的 #08090A + #0D0E10 叠在一起是一整块死黑，
- * 深色主题同样需要「底 / 卡 / 封面」三级明度，只是方向与浅色相反。
- * 不用阴影，靠 1px 描边与按压高亮区分层级；圆角统一收敛到 9dp（见 MainActivity）
+ * 底 #1A1E24 / 卡片 #242832 / 封面块 #333B4A / 悬浮 #2B303B / 边框 #3E4657 / 主色 #5E6AD2
+ * 2026-10-18 二改：暗色不是「越黑越高级」。原来的 #08090A / #0D0E10 是一整块死黑，
+ * 卡片与封面连成一片，长时间看找不到边界很累眼。现在三级明度各差 10~16 个色阶，
+ * 整体也抬到「深灰」而不是「黑」，白字的眩光随之降低。
+ * 不用阴影（暗底上黑影不可见），靠明度差 + 1px 描边分层；圆角收敛到 9dp（见 MainActivity）
  */
 val LinearPalette = S1Colors(
-    bgTop = Color(0xFF0E1013), bgBottom = Color(0xFF0E1013),
-    headerGradient = listOf(Color(0xFF0E1013), Color(0xFF0E1013)),
-    textMain = Color(0xFFEDEDEF), textSub = Color(0xFF8A8F98),
+    bgTop = Color(0xFF1A1E24), bgBottom = Color(0xFF1A1E24),
+    headerGradient = listOf(Color(0xFF1A1E24), Color(0xFF1A1E24)),
+    textMain = Color(0xFFEDEDEF), textSub = Color(0xFF9197A3),
     accent = Color(0xFF5E6AD2), onAccent = Color(0xFFFFFFFF),
     accentCyan = Color(0xFF828FFF), heart = Color(0xFFFF2C55),
-    cardBg = Color(0xFF17191E),
+    cardBg = Color(0xFF242832),
     // 玻璃层：Linear 用「几乎不透明的深灰 + 极细描边」，避免传统玻璃的高光感
-    glassCard = Color(0xF217191E), glassLine = Color(0xFF262A32),
-    glassBar = Color(0xF20E1013), glassFloat = Color(0xFF1C1F25),
-    glassFloatLine = Color(0xFF2A2E37),
-    glassDialog = Color(0xFF1C1F25), glassDialogLine = Color(0xFF2A2E37),
-    chipBg = Color(0xFF202329),
+    glassCard = Color(0xF2242832), glassLine = Color(0xFF3E4657),
+    glassBar = Color(0xF21A1E24), glassFloat = Color(0xFF2B303B),
+    glassFloatLine = Color(0xFF454D5D),
+    glassDialog = Color(0xFF2B303B), glassDialogLine = Color(0xFF454D5D),
+    chipBg = Color(0xFF333B4A),
     strongIcon = Color(0xFFEDEDEF),
-    snackbarBg = Color(0xFF202329), onSnackbar = Color(0xFFEDEDEF),
+    snackbarBg = Color(0xFF333B4A), onSnackbar = Color(0xFFEDEDEF),
     // 卡片顶部语义色条：低饱和，与主色同族，避免花
     flowCoverColors = listOf(
         Color(0xFF5E6AD2), Color(0xFF3E8E6E), Color(0xFFC79A3A),

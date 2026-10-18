@@ -22,12 +22,12 @@
     <color name="light_quote_border">#D8C8A0</color>
 
     <!-- ============ OLED 纯黑 ============ -->
-    <color name="oled_bg_page">#0E1013</color>
-    <color name="oled_bg_card">#17191E</color>
-    <color name="oled_bg_card_light">#1E222B</color>
-    <color name="oled_bg_topbar">#0E1013</color>
-    <color name="oled_bg_tabbar">#12151A</color>
-    <color name="oled_border_card">#262A32</color>
+    <color name="oled_bg_page">#1A1E24</color>
+    <color name="oled_bg_card">#242832</color>
+    <color name="oled_bg_card_light">#333B4A</color>
+    <color name="oled_bg_topbar">#1A1E24</color>
+    <color name="oled_bg_tabbar">#1E2229</color>
+    <color name="oled_border_card">#3E4657</color>
     <color name="oled_border_light">#262626</color>
     <color name="oled_text_title">#E8C88A</color>
     <color name="oled_text_body">#CCCCCC</color>
