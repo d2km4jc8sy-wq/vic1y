@@ -20,82 +20,12 @@
             android:name=".MainActivity"
             android:exported="true"
             android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustResize" />
-        <!-- 桌面入口 alias（点3 图标切换）：LAUNCHER 移到 alias，切换=启用其一禁其余。
-             默认 alias 指向原 ic_launcher；变体 alias 指向 layer-list 色边变体。
-             自制 PNG 到位后替换对应 alias 的 android:icon 即可。 -->
-        <activity-alias
-            android:name=".MainAliasDefault"
-            android:enabled="true"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher"
-            android:label="@string/app_name"
-            android:targetActivity=".MainActivity">
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity-alias>
-        <activity-alias
-            android:name=".MainAliasLegacy"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_legacy"
-            android:label="@string/app_name"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-        <activity-alias
-            android:name=".MainAliasLemon"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@drawable/ic_variant_lemon"
-            android:label="@string/app_name"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-        <activity-alias
-            android:name=".MainAliasCream"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@drawable/ic_variant_cream"
-            android:label="@string/app_name"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-        <activity-alias
-            android:name=".MainAliasLilac"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@drawable/ic_variant_lilac"
-            android:label="@string/app_name"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-        <activity-alias
-            android:name=".MainAliasPink"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@drawable/ic_variant_pink"
-            android:label="@string/app_name"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
+        </activity>
         <activity android:name=".ThreadDetailActivity"
             android:exported="false" android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />

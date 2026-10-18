@@ -162,17 +162,21 @@ fun MineScreen(onFinish: () -> Unit) {
     // 本页仍停留在未登录态（无用户名/无签名/无三功能格/无签到），必须手动切走再切回才恢复。
     // MineActivity 用的是普通 startActivity，收不到 LoginActivity 的 setResult，
     // 所以只能在 resume 时复检 ForumDataCache（登录成功的唯一权威写点是 SessionRepository）。
+    var refresh by remember { mutableIntStateOf(0) }
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 loggedIn = ForumDataCache.isLoggedIn()
+                // 修复（2026-10-18）：返回「我的」页时重算未读提醒数。
+                // 原 ON_RESUME 只刷新 loggedIn，未刷新 refresh，导致点进提醒中心
+                // 看完返回后顶格「提醒」数字停留旧值（陈尸 UI）。
+                refresh++
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    var refresh by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
     // ===== 每日签到状态 =====
@@ -441,12 +445,12 @@ fun MineScreen(onFinish: () -> Unit) {
                             MenuItem("我的收藏", Icons.Outlined.StarOutline) {
                                 context.startActivity(Intent(context, FavoriteListActivity::class.java))
                             },
-                            MenuItem("帖子", Icons.Outlined.Description) {
+                            MenuItem("我的帖子", Icons.Outlined.Description) {
                                 context.startActivity(Intent(context, UserThreadListActivity::class.java).apply {
                                     putExtra("uid", uid); putExtra("username", username)
                                 })
                             },
-                            MenuItem("回复", Icons.Outlined.Forum) {
+                            MenuItem("我的回复", Icons.Outlined.Forum) {
                                 context.startActivity(Intent(context, UserReplyListActivity::class.java).apply {
                                     putExtra("uid", uid); putExtra("username", username)
                                 })

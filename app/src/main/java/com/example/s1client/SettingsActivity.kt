@@ -438,17 +438,6 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 }
             ) {}
 
-            // 应用图标切换（点3，2026-10-17）：默认/经典圆环/蓝/绿/紫 activity-alias 循环（紧挨头像切换）
-            var iconVariant by remember { mutableStateOf(com.example.s1client.util.AppIconManager.current(context)) }
-            SettingRow(
-                Icons.Outlined.Palette, "应用图标",
-                sub = "当前 ${com.example.s1client.util.AppIconManager.labelOf(iconVariant)} · 点击切换（桌面刷新可能有延迟）",
-                onClick = {
-                    Haptic.selection(context)
-                    iconVariant = com.example.s1client.util.AppIconManager.cycle(context)
-                }
-            ) {}
-
             // 记录阅读历史（R1 低成本批）：关闭后不落库，存量保留
             var recordHist by remember { mutableStateOf(SettingStore.recordHistory(context)) }
             SettingRow(Icons.Outlined.History, "记录阅读历史", sub = "关闭后不再保存最近浏览记录") {

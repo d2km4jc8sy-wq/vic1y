@@ -30,7 +30,6 @@ class S1App : Application(), Application.ActivityLifecycleCallbacks {
         ForumDataCache.init(this)
         ThemeManager.init(this)
         com.example.s1client.util.NetworkMonitor.init(this)
-        com.example.s1client.util.AppIconManager.ensureValid(this)
         BlockedAuthorManager.init(this)
         com.example.s1client.data.store.FavoriteManager.initLocal(this)
         HiddenPostManager.init(this)
