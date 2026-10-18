@@ -337,14 +337,16 @@ fun SettingsScreen(onFinish: () -> Unit) {
         }
 
         // ═══ 一屏六格 ═══
+        // 2026-10-18：原来这一层带 weight(1f)，「外观」卡被拉成半屏高，
+        // 图标位置和下面所有卡片对不齐。去掉 weight，让它按内容高度，
+        // 和「实验功能」这类单行卡一样高。
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
                 .padding(horizontal = 13.dp, vertical = 12.dp)
         ) {
             SettingsCard(
-                modifier = Modifier.fillMaxWidth().weight(1.12f),
+                modifier = Modifier.fillMaxWidth(),
                 icon = Icons.Outlined.Palette,
                 title = "外观",
                 summary = com.example.s1client.ui.themeNameShort() + " · " + fontSizeLabel(fontSize),
@@ -918,11 +920,13 @@ private fun SettingsCard(
                 .padding(horizontal = 18.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // 2026-10-18：宽卡（外观/实验功能/关于）图标原来是 40dp/20dp，
+            // 网格卡是 34dp/17dp，同一页两种规格。统一成网格卡那套（页面里 4 份网格 vs 4 份宽卡，取多数）。
             Box(
-                modifier = Modifier.size(40.dp).clip(CircleShape).background(c.chipBg),
+                modifier = Modifier.size(34.dp).clip(CircleShape).background(c.chipBg),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = c.strongIcon, modifier = Modifier.size(20.dp))
+                Icon(icon, contentDescription = null, tint = c.strongIcon, modifier = Modifier.size(17.dp))
             }
             Spacer(Modifier.width(13.dp))
             Column(Modifier.weight(1f)) {

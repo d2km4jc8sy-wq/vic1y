@@ -482,8 +482,8 @@
         <item name="s1QuoteBar">#FF6B7A</item>
         <item name="s1QuoteText">#CCFFFFFF</item>
         <item name="s1QuoteBorder">#66FFFFFF</item>
-        <item name="s1TagBg">#0099E5</item>
-        <item name="s1TagText">#FF6B7A</item>
+        <item name="s1TagBg">#E60012</item>
+        <item name="s1TagText">#FFFFFF</item>
         <item name="s1AccentPurple">#FF6B7A</item>
         <item name="s1AccentCyan">#FF6B7A</item>
         <item name="s1ActionIcon">#CCFFFFFF</item>
