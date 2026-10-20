@@ -17,30 +17,38 @@ import com.example.s1client.R
 /**
  * 相机过片扳手刷新（实验功能，PULL_IMPL = 1）。
  *
- * **2026-10-18 22:30 重做**：几何与素材整体换成设计者提供的《相机下拉.html》SVG，
- * 只取相机与扳手，不取胶片帘幕 / FRAME 计数 / 提示字等动画元素。
+ * **2026-10-19 L4 左手版重做**（用户在位置/方向预览页拍板 L4+D6）：
+ * 相机贴**左缘**常驻（HomeFeed TopStart），feed 左侧让出过片通道；
+ * 行程改为 **D6 压杆**：静息 **-30°**（斜指右上）→ 拉满 **+60°**（斜指右下），
+ * 左拇指贴缘即握、行程顺拇指下压弧线。转轴 (58,50) 与球头半径 44 不变——
+ * 扳手始终在机身**右侧**的通道内摆动，几何不再镜像。
  *
- * ### 为什么要推倒重来（旧版的两个结构性问题）
- * 1. **不连相机**：旧版转轴在 `bodyBottom + 8dp`，即机身轮廓**之外**，
- *    金属杆和机身之间天然有一道缝，看着像外挂的。
- * 2. **往下拉杆却往上走**：旧版球头画在转轴**左侧**，绕右侧轴向下旋转时，
- *    左侧点必然先上升——这是几何决定的，不是动画问题（用户反馈「违和感」）。
- *
- * ### 现在的几何（viewBox 100 × 132，单位 = vb）
- * - 机身：矩形 (14,38,56,62) 圆角 13，镜头在下半部 (42,72)
- * - 转轴：**(58,50)，在机身内部** —— 杆与机身连成一体
- * - 球头：**在转轴右侧**，半径 32，0° 时在 (90,50)，90° 时在 (58,82)，走纯向下的弧
- *
- * ### 2026-10-18 23:15 再调（真机实测反馈）
- * - 拨杆加长：球头回转半径 32 → **44**，拨杆与球头同步放大（0° 时球头在 (102,50)）。
- * - 画布加宽到 viewBox 124：球头不再顶到控件右缘。
+ * ### 沿革
+ * - 2026-10-18 22:30 重做：几何取自设计者《相机下拉.html》，修掉「不连机身」「下拉反升」。
+ * - 2026-10-18 23:15：球头半径 32→44、画布加宽 124。
+ * - 2026-10-18 22:58：阈值 52→45、热区放宽。
+ * - 2026-10-19：L4+D6（本次）+ 五项手感增强（见下）。
+ * - 2026-10-20 **方案 B（外壳重做）**：旧画布 124×132 左边空 13vb、下边空 32vb，
+ *   外框左缘与机身左缘差 11dp，挂载点怎么调都对不齐卡片边距（30dp 时机身落 41.7dp）。
+ *   画布收紧到 93×82 = 图形外框，VIEW_W 104→78dp（缩放比不变，机身大小不变）；
+ *   start 30→10dp 贴卡片边距；静止态不再画轨迹弧（改按行程角 6° 渐显）；
+ *   深色主题机身加 25% 白微光边。**行程 / 阈值 / 半径 / 热区全部未动。**
  *
  * ### 触摸模型：球头跟手
- * 角度不再由「下拉多少 dp」换算，而是**由球头当前坐标反算**（atan2），手指到哪球头到哪。
- * 起手热区跟着球头走（[HIT_BALL]）或转轴附近（[HIT_AXIS]），不用按看不见的地方。
- * 松手判定两条：过 [THRESHOLD_ANGLE]，或甩动速度够快（[FLICK_DEG_PER_MS]）直接到位。
+ * 角度由球头坐标反算（atan2），手指到哪球头到哪；起手热区跟球头 [HIT_BALL] 或转轴 [HIT_AXIS]。
+ * 松手两条：过 [THRESHOLD_ANGLE]（绝对角），或甩动速度够快（[FLICK_DEG_PER_MS]，按行程角判定）。
  *
- * 配色纪律（宪法 18）：就绪弧、球头到位色取 s1Accent（onDraw 自愈跟色）；
+ * ### 手感增强（2026-10-19 用户逐项确认）
+ * - **P1 甩动残影**：拖动中最近采样沿弧画渐隐 accent 光点（速度感可视化）。
+ * - **P2 到位磁吸**：显示角超过阈值后向拉满方向轻吸 12%，跨越阈值加一次 light 震——
+ *   把「该松手了」从记阈值变成手感。跟手仍是 1:1，磁吸只作用于显示角。
+ * - **P3 拉满光圈**：行程末 15° 镜头内圈微开 + 高光增强（「光圈全开，准备曝光」）。
+ * - **P5 浅底环境光晕**：页面底亮度 > 0.5 时机身背后加一圈 16% 白晕，
+ *   拟物黑机身在浅色主题上不再像「黑色贴纸」（深色主题不变）。
+ * （P4「下拉过片」首次提示在 HomeFeed 侧实现，触发一次后本地记住并淡出。）
+ *
+ * ### 配色纪律（宪法 18）
+ * 就绪弧、球头到位色、残影取 s1Accent（onDraw 自愈跟色）；
  * 机身与扳手为**拟物固有色**（黑机身 + 金属杆），等同桌面图标第 20 条例外逻辑。
  *
  * 状态权威（宪法 23.A.3）：revealed（滚动隐现）与 refreshing（曝光中）由 HomeFeed 回写。
@@ -51,29 +59,39 @@ class CameraLeverView @JvmOverloads constructor(
 
     companion object {
         // ————————— 画布基准（CameraLeverViewTest 锚点） —————————
-        /** viewBox 宽（vb 单位），几何常量都以它为参照 */
-        const val VB_W = 124f
-        /** viewBox 高（vb 单位） */
-        const val VB_H = 132f
+        /**
+         * viewBox 宽（vb 单位），几何常量都以它为参照。
+         *
+         * **2026-10-20 方案 B**：124 → 93。旧画布左边空 13vb、下边空 32vb，
+         * 于是「外框左缘」和用户眼睛看到的「机身左缘」差 11dp，挂载点 start 怎么调
+         * 都对不齐卡片边距（旧值 30dp 时机身实际落在 41.7dp）。现在容器 = 图形。
+         * 缩放比保持不变（78/93 = 104/124），机身视觉大小与旧版一致。
+         */
+        const val VB_W = 93f
+        /** viewBox 高（vb 单位），同步收紧（132 → 82） */
+        const val VB_H = 82f
+        /** 图形原点在旧 vb 坐标系里的偏移：onDraw translate、触摸 toVb 回加 */
+        const val ORIGIN_X = 13f
+        const val ORIGIN_Y = 19f
         /** View 建议宽度 dp；高度按比例推出 */
-        const val VIEW_W_DP = 104f
+        const val VIEW_W_DP = 78f
 
         /** 转轴（机身内） */
         const val PIVOT_X = 58f
         const val PIVOT_Y = 50f
         /** 球头回转半径（2026-10-18 23:15 由 32 加长到 44：用户实测「拨杆加长」） */
         const val BALL_R = 44f
-        /** 起始角：扳手水平指向右 */
-        const val BASE_ANGLE = 0f
-        /** 到底角：扳手垂直指向下 */
-        const val MAX_ANGLE = 90f
-        /** 松手触发阈值（2026-10-18 22:58 由 52 放宽到 45：实测「有些难操作」） */
-        const val THRESHOLD_ANGLE = 45f
+        /** 起始角：扳手斜指右上（L4 左手版 D6，2026-10-19） */
+        const val BASE_ANGLE = -30f
+        /** 到底角：扳手斜指右下 */
+        const val MAX_ANGLE = 60f
+        /** 松手触发阈值：绝对角。行程 -30→60 共 90°，半程 = -30+45 = 15°（2026-10-19 随 D6 重定） */
+        const val THRESHOLD_ANGLE = 15f
         /** 甩动触发：角速度（度/ms）超过此值且已离开起点即到位 */
         const val FLICK_DEG_PER_MS = 1.2f
         /** 甩动判定的最小起角（防止原地轻抖也算甩） */
         const val FLICK_MIN_ANGLE = 18f
-        /** 分档咔哒步长（度），跨档给一次 selection 震感 */
+        /** 分档咔哒步长（度），跨档给一次 selection 震感。按**行程角**计（静息 = 0 档） */
         const val TICK_STEP_DEG = 15f
         /** 起手热区：球头半径 vb（22:58 由 28 放宽到 34，配合控件放大，手指更好抓） */
         const val HIT_BALL = 34f
@@ -120,9 +138,17 @@ class CameraLeverView @JvmOverloads constructor(
         /** 松手是否触发（角度维度；速度维度在 onTouchEvent 里判） */
         fun shouldFire(angle: Float): Boolean = angle >= THRESHOLD_ANGLE
 
-        /** 当前咔哒档位 */
+        /** 当前咔哒档位：按行程角计（静息 = 0 档），跨 15° 一档 */
         fun tickIndex(angle: Float, stepDeg: Float = TICK_STEP_DEG): Int =
-            (clampAngle(angle) / stepDeg).toInt()
+            ((clampAngle(angle) - BASE_ANGLE) / stepDeg).toInt()
+
+        /**
+         * View 内像素坐标 → 旧 vb 坐标（几何常量的参照系）。
+         * 2026-10-20 方案 B：画布左上角裁掉了 [ORIGIN_X, ORIGIN_Y]，
+         * 触摸坐标必须回加偏移才能与 PIVOT / BALL_R 对得上。
+         */
+        fun toVb(x: Float, y: Float, s: Float): Pair<Float, Float> =
+            Pair(x / s + ORIGIN_X, y / s + ORIGIN_Y)
     }
 
     // ————————— 拟物固有色（宪法 20 例外） —————————
@@ -159,6 +185,8 @@ class CameraLeverView @JvmOverloads constructor(
     private var resetAnimator: ValueAnimator? = null
     private var lastTick = 0
     private var samples = ArrayList<FloatArray>()   // [timeMs, angle]
+    private var armed = false                       // P2：已越过阈值（到位态）
+    private val trail = ArrayList<FloatArray>()     // P1：[timeMs, angle] 甩动残影采样
 
     private val density get() = resources.displayMetrics.density
     /** vb 单位 → px */
@@ -171,12 +199,23 @@ class CameraLeverView @JvmOverloads constructor(
     private val arcRect = RectF()
 
     private var accentColor = 0
+    private var lightBg = false
     private fun refreshThemeColors(): Boolean {
         val tv = android.util.TypedValue()
+        var changed = false
         context.theme.resolveAttribute(R.attr.s1Accent, tv, true)
         val a = tv.data
-        if (a != accentColor) { accentColor = a; return true }
-        return false
+        if (a != accentColor) { accentColor = a; changed = true }
+        // P5：页面底亮度 > 0.5 视为浅底 —— 拟物黑机身加环境光晕（深色主题不加）
+        if (context.theme.resolveAttribute(R.attr.s1BgPage, tv, true)) {
+            val c = tv.data
+            val lum = (0.2126f * ((c shr 16) and 0xFF) +
+                    0.7152f * ((c shr 8) and 0xFF) +
+                    0.0722f * (c and 0xFF)) / 255f
+            val lb = lum > 0.5f
+            if (lb != lightBg) { lightBg = lb; changed = true }
+        }
+        return changed
     }
 
     var onRefresh: (() -> Unit)? = null
@@ -204,9 +243,20 @@ class CameraLeverView @JvmOverloads constructor(
 
         canvas.save()
         canvas.scale(s, s)
+        // 方案 B：画布已收紧到图形外框，把几何整体挪回左上（触摸侧由 toVb 回加偏移）
+        canvas.translate(-ORIGIN_X, -ORIGIN_Y)
         if (accentColor == 0) refreshThemeColors()
 
         val ready = angle >= THRESHOLD_ANGLE
+
+        // ---- P5 浅底环境光晕：黑机身在浅色页面上的「坐进感」（深色主题 lightBg=false 不画） ----
+        if (lightBg) {
+            fill.shader = RadialGradient(58f, 70f, 62f,
+                intArrayOf(0x29FFFFFF, 0x00FFFFFF),
+                floatArrayOf(0f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawCircle(58f, 70f, 62f, fill)
+            fill.shader = null
+        }
 
         // ---- 机身：竖长圆角矩形 + 顶部装饰 ----
         rect.set(14f, 38f, 70f, 100f)
@@ -217,7 +267,9 @@ class CameraLeverView @JvmOverloads constructor(
         canvas.drawRoundRect(rect, 13f, 13f, fill)
         fill.shader = null
         stroke.strokeWidth = 1f
-        stroke.color = bodyEdge
+        // 方案 B：深色主题下黑机身沉进卡片，描一道 25% 白微光边把它托出来
+        // （浅色主题保持原拟物深色描边；与 P5 浅底光晕互补）
+        stroke.color = if (lightBg) bodyEdge else 0x40FFFFFF.toInt()
         canvas.drawRoundRect(rect, 13f, 13f, stroke)
 
         fill.color = decoDark; canvas.drawRoundRect(21f, 43f, 41f, 46.5f, 1.75f, 1.75f, fill)
@@ -233,27 +285,54 @@ class CameraLeverView @JvmOverloads constructor(
         fill.shader = null
         stroke.strokeWidth = 1.5f; stroke.color = lensRingInner
         canvas.drawCircle(42f, 72f, 11f, stroke)
+        // P3 拉满光圈：行程末 15° 内圈微开 + 高光增强（「光圈全开，准备曝光」）
+        val ap = ((angle - (MAX_ANGLE - 15f)) / 15f).coerceIn(0f, 1f)
+        val irisR = 7f + ap * 1.6f
         fill.color = lensInner
-        canvas.drawCircle(42f, 72f, 7f, fill)
+        canvas.drawCircle(42f, 72f, irisR, fill)
         stroke.strokeWidth = 1f; stroke.color = lensRingDeep
-        canvas.drawCircle(42f, 72f, 7f, stroke)
+        canvas.drawCircle(42f, 72f, irisR, stroke)
         fill.color = 0x24FFFFFF
+        fill.alpha = (0x24 + (0x38 * ap).toInt()).coerceIn(0, 255)
         canvas.save()
         canvas.rotate(-30f, 37f, 66f)
         rect.set(32f, 63.2f, 42f, 68.8f)
         canvas.drawOval(rect, fill)
         canvas.restore()
+        fill.alpha = 255
 
-        // ---- 轨迹弧：底弧 + 就绪进度（accent） ----
-        arcRect.set(PIVOT_X - BALL_R, PIVOT_Y - BALL_R, PIVOT_X + BALL_R, PIVOT_Y + BALL_R)
-        stroke.strokeWidth = 1.8f
-        stroke.color = trackBase
-        stroke.strokeCap = Paint.Cap.ROUND
-        canvas.drawArc(arcRect, 0f, MAX_ANGLE, false, stroke)
-        if (angle > 0.5f) {
+        // ---- 轨迹弧：底弧 + 就绪进度（accent）。弧段从静息角 BASE 摆到 MAX ----
+        // 方案 B：静止态不留弧。旧版 #3A3A3F 底弧常亮，在卡片上像一道刮痕。
+        // 现在按行程角 6° 渐显渐隐：起手有引导，回位自动收干净。
+        val travel = ((angle - BASE_ANGLE) / 6f).coerceIn(0f, 1f)
+        if (travel > 0.01f) {
+            arcRect.set(PIVOT_X - BALL_R, PIVOT_Y - BALL_R, PIVOT_X + BALL_R, PIVOT_Y + BALL_R)
+            stroke.strokeWidth = 1.8f
+            stroke.color = trackBase
+            stroke.alpha = (255f * travel).toInt().coerceIn(0, 255)
+            stroke.strokeCap = Paint.Cap.ROUND
+            canvas.drawArc(arcRect, BASE_ANGLE, MAX_ANGLE - BASE_ANGLE, false, stroke)
+            stroke.alpha = 255
+        }
+        if (angle - BASE_ANGLE > 0.5f) {
             stroke.strokeWidth = 3f
             stroke.color = accentColor
-            canvas.drawArc(arcRect, 0f, angle, false, stroke)
+            canvas.drawArc(arcRect, BASE_ANGLE, angle - BASE_ANGLE, false, stroke)
+        }
+
+        // ---- P1 甩动残影：最近采样沿弧渐隐（仅拖动中，采样窗 ~6 帧复用触摸采样） ----
+        if (dragging && trail.size > 1) {
+            val now = System.currentTimeMillis()
+            for (i in 0 until trail.size - 1) {
+                val t = trail[i]
+                val age = (now - t[0]) / 380f
+                if (age >= 1f) continue
+                val b = ballPosForAngle(t[1])
+                fill.color = accentColor
+                fill.alpha = ((1f - age) * 130).toInt().coerceIn(0, 255)
+                canvas.drawCircle(b.first, b.second, 3.2f * (1f - age * 0.6f), fill)
+                fill.alpha = 255
+            }
         }
 
         // ---- 扳手组：绕轴 (58,50) 旋转 ----
@@ -291,17 +370,16 @@ class CameraLeverView @JvmOverloads constructor(
     }
 
     // ————————— 手势：球头跟手 —————————
-    private fun toVb(x: Float, y: Float): Pair<Float, Float> =
-        Pair(x / s, y / s)
-
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!revealed) return false
-        val (vx, vy) = toVb(event.x, event.y)
+        val (vx, vy) = toVb(event.x, event.y, s)
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 if (busy) return false
                 if (!hitTest(vx, vy, angle)) return false      // 热区外穿透给下方卡片
                 dragging = true
+                armed = false
+                trail.clear()
                 lastTick = 0
                 samples = ArrayList()
                 samples.add(floatArrayOf(System.currentTimeMillis().toFloat(), angle))
@@ -311,11 +389,23 @@ class CameraLeverView @JvmOverloads constructor(
             }
             MotionEvent.ACTION_MOVE -> {
                 if (!dragging) return false
-                angle = angleForPoint(vx, vy)
+                val raw = angleForPoint(vx, vy)
+                // P2 到位磁吸：显示角过阈值后向拉满方向轻吸 12%（跟手仍 1:1，只加趋势）
+                angle = if (raw > THRESHOLD_ANGLE)
+                    (raw + (raw - THRESHOLD_ANGLE) * 0.12f).coerceAtMost(MAX_ANGLE)
+                else raw
+                // P2 到位震：跨越阈值那一次给 light（比 selection 强一档）
+                if (!armed && angle >= THRESHOLD_ANGLE) {
+                    armed = true
+                    com.example.s1client.util.Haptic.light(context)
+                }
                 val now = System.currentTimeMillis()
                 samples.add(floatArrayOf(now.toFloat(), angle))
                 if (samples.size > 6) samples.removeAt(0)
-                val tick = tickIndex(angle)
+                // P1 残影采样：与触摸采样同源，onDraw 里按年龄渐隐
+                trail.add(floatArrayOf(now.toFloat(), angle))
+                if (trail.size > 8) trail.removeAt(0)
+                val tick = tickIndex(raw)
                 if (tick != lastTick) {
                     lastTick = tick
                     com.example.s1client.util.Haptic.selection(context)
@@ -327,13 +417,13 @@ class CameraLeverView @JvmOverloads constructor(
                 if (!dragging) return false
                 dragging = false
                 parent?.requestDisallowInterceptTouchEvent(false)
-                // 甩动判定：取窗口内首尾角速度
+                // 甩动判定：取窗口内首尾角速度；「已离开起点」按行程角计（静息 = 0）
                 var flick = false
                 if (samples.size >= 2) {
                     val f = samples[0]; val l = samples[samples.size - 1]
                     val dt = (l[0] - f[0]).coerceAtLeast(1f)
                     val v = Math.abs((l[1] - f[1]).toDouble() / dt.toDouble())
-                    flick = v >= FLICK_DEG_PER_MS && angle >= FLICK_MIN_ANGLE
+                    flick = v >= FLICK_DEG_PER_MS && (angle - BASE_ANGLE) >= FLICK_MIN_ANGLE
                 }
                 val cancelled = event.actionMasked == MotionEvent.ACTION_CANCEL
                 if (!cancelled && (flick || shouldFire(angle))) fire(flick) else springBack()

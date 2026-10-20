@@ -116,7 +116,6 @@ import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
-import com.example.s1client.ui.design.AccentCyan
 import com.example.s1client.ui.design.AccentPink
 import com.example.s1client.ui.design.S1Radius
 import com.example.s1client.ui.design.BgColor
@@ -564,9 +563,11 @@ fun XhsHomeScreen(viewModel: PostViewModel, resumeSignal: androidx.compose.runti
                 onSearch = {
                     context.startActivity(Intent(context, SearchActivity::class.java))
                 },
+                // 2026-10-19：未登录兜底统一 —— 原来发帖弹 toast、提醒跳登录页，两套行为。
+                // 游客底栏本来就不显示这两个入口，这里的兜底只是防并发状态（登录态刚失效那一刻）仍旧一致。
                 onCompose = {
                     if (!ForumDataCache.isLoggedIn()) {
-                        S1Notify.show(context as Activity, "请先登录")
+                        context.startActivity(Intent(context, LoginActivity::class.java))
                     } else {
                         val cur = tabs.getOrNull(pagerState.currentPage)
                         context.startActivity(
@@ -600,6 +601,19 @@ fun XhsHomeScreen(viewModel: PostViewModel, resumeSignal: androidx.compose.runti
                 .padding(paddingValues)
                 .background(Brush.verticalGradient(listOf(BgColor, BgColorBottom)))
         ) {
+            // 2026-10-19：顶栏「接到屏幕上沿」。
+            // 顶栏本身是内容区里的一条 50dp，状态栏那条高度露的是页面底色 ——
+            // 深色主题两色相近看不出来，焙茶这种白栏 + 灰底就是一条明显的接缝。
+            // 这里在状态栏高度上垫一条同色通栏（用负 offset 顶出内容区），
+            // 顶栏自己的背景、高度、坐标都不动。
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = -paddingValues.calculateTopPadding())
+                    .fillMaxWidth()
+                    .height(paddingValues.calculateTopPadding())
+                    .background(GlassBar)
+            )
             Box(modifier = Modifier.fillMaxSize().clipToBounds()) {
                 // 内容占满全屏：顶部预留高度改由瀑布流的 contentPadding 承担，
                 // 这样导航收起时内容不动、也不会留下空白带

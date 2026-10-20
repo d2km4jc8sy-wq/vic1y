@@ -124,7 +124,6 @@ import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
-import com.example.s1client.ui.design.AccentCyan
 import com.example.s1client.ui.design.AccentPink
 import com.example.s1client.ui.design.S1Radius
 import com.example.s1client.ui.design.BgColor

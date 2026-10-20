@@ -55,10 +55,10 @@ class ComponentTest {
         var lightColor: Color? = null
         var darkColor: Color? = null
         compose.setContent {
-            CompositionLocalProvider(LocalS1Colors provides s1PaletteFor(ThemeManager.THEME_LIGHT)) {
+            CompositionLocalProvider(LocalS1Colors provides s1PaletteFor(ThemeManager.THEME_TEA)) {
                 lightColor = TextMain
             }
-            CompositionLocalProvider(LocalS1Colors provides s1PaletteFor(ThemeManager.THEME_OLED)) {
+            CompositionLocalProvider(LocalS1Colors provides s1PaletteFor(ThemeManager.THEME_LINEAR)) {
                 darkColor = TextMain
             }
         }
@@ -76,7 +76,7 @@ class ComponentTest {
     fun `开关组件深色调色板渲染`() {
         compose.setContent {
             CompositionLocalProvider(
-                LocalS1Colors provides s1PaletteFor(ThemeManager.THEME_OLED)
+                LocalS1Colors provides s1PaletteFor(ThemeManager.THEME_LINEAR)
             ) {
                 SunMoonSwitch(checked = true, onCheckedChange = {})
             }

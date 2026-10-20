@@ -1,10 +1,8 @@
 package com.example.s1client.ui
 
-import android.app.Activity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,11 +16,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.s1client.data.store.DataSaverStore
@@ -51,18 +48,23 @@ import com.example.s1client.data.store.ImageLoadPolicy
 import com.example.s1client.data.store.SettingStore
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.util.Haptic
-import com.example.s1client.util.S1Notify
 import com.example.s1client.util.ThemeManager
 
 /**
  * 二级弹窗 A：头像右侧入口的「快捷」面板。
  *
- * 入选铁律（R5 层级化）：**即时生效 + 零确认**。
- *   - 主题 / 文字大小 / 字体 / 交互震动 / 省流模式
- * 落选的不在这里：小尾巴（要打字）、版块屏蔽/黑名单（要浏览列表增删）、
- * 清缓存/重置/退出登录（危险确认型）——全部留设置页（二级 B）。
+ * **2026-10-19 改版（用户拍板 B·磁贴）**：原来是 7 行纵向列表，占屏 3/4，
+ * 一行里混了四种交互（进二级 / 开关 / 分段 / 点一下换一档），还靠三条副标题去解释。
+ * 现在改成：
+ *   ① 顶部 2×2 磁贴 —— 主题 / 字号 / 震动 / 头像，每格 = 图标 + 名称 + **当前值**，
+ *      一眼能读出状态，不再需要副标题；
+ *   ② 多档位一律用**分段控件**（字号、头像、图片加载）—— 有几档、现在第几档全都看得见，
+ *      取代原来「点一下换一档」的猜谜交互；
+ *   ③ 图片加载是改得最勤的一项，常驻；字号/头像点磁贴才就地展开（同一时间只开一个）；
+ *   ④ 底部一条「全部设置」通往二级 B。
  *
- * 「全部设置」行是通往二级 B 的桥；主题行跳 [ThemePickerSheet]（由宿主切换，避免嵌套 ModalBottomSheet）。
+ * 入选铁律没变（R5 层级化）：**即时生效 + 零确认**。小尾巴、屏蔽、清缓存这类
+ * 要打字 / 要确认 / 要浏览列表的，仍然全部留在设置页。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,25 +78,15 @@ fun QuickSettingsSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var fontSize by remember { mutableIntStateOf(SettingStore.fontSize(context)) }
-    var fontName by remember { mutableStateOf(SettingStore.customFontName(context)) }
     var hapticOn by remember { mutableStateOf(Haptic.enabled) }
     val imagePolicy by DataSaverStore.policy.collectAsState()
     val avatarPolicy by DataSaverStore.avatarPolicy.collectAsState()
+    /** 当前展开的分段区：null / "font" / "avatar" —— 同一时间只开一个 */
+    var expanded by remember { mutableStateOf<String?>(null) }
 
-    val fontPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            SettingStore.importFont(context, uri)
-                .onSuccess {
-                    fontName = it
-                    S1Notify.show(context, "字体已导入：$it", S1Notify.Type.SUCCESS)
-                }
-                .onFailure {
-                    S1Notify.show(context, it.message ?: "导入失败", S1Notify.Type.ERROR)
-                }
-        }
-    }
+    val imageOptions = listOf(
+        ImageLoadPolicy.ALWAYS, ImageLoadPolicy.WIFI_ONLY, ImageLoadPolicy.MANUAL
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -107,7 +99,7 @@ fun QuickSettingsSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 26.dp)
+                .padding(bottom = 20.dp)
         ) {
             Text(
                 text = "快捷",
@@ -117,118 +109,182 @@ fun QuickSettingsSheet(
                 modifier = Modifier.padding(start = 22.dp, end = 22.dp, bottom = 12.dp)
             )
 
-            // —— 主题（跳二级主题面板，由宿主切换 sheet）——
-            SheetNavRow(
-                icon = Icons.Outlined.Palette,
-                title = "主题",
-                value = themeNameShort()
-            ) { onOpenThemePicker() }
-
-            // —— 文字大小：行内 chips 即点即换（R5 预览形态）——
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 22.dp)
-                    .padding(vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+            // ————————— 2×2 磁贴 —————————
+            Column(
+                modifier = Modifier.padding(horizontal = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(30.dp)
-                        .clip(CircleShape)
-                        .background(c.chipBg),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Outlined.FormatSize, contentDescription = null,
-                        tint = c.strongIcon, modifier = Modifier.size(17.dp)
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    QuickTile(
+                        icon = Icons.Outlined.Palette,
+                        label = "主题",
+                        value = themeNameShort(),
+                        modifier = Modifier.weight(1f)
+                    ) { onOpenThemePicker() }
+                    QuickTile(
+                        icon = Icons.Outlined.FormatSize,
+                        label = "字号",
+                        value = fontSizeLabel(fontSize),
+                        active = expanded == "font",
+                        modifier = Modifier.weight(1f)
+                    ) { expanded = if (expanded == "font") null else "font" }
                 }
-                Spacer(Modifier.width(14.dp))
-                Text(
-                    "文字大小", color = c.textMain, fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f)
-                )
-                Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
-                    SettingStore.FONT_SIZES.forEach { size ->
-                        val selected = size == fontSize
-                        Text(
-                            text = when (size) { 12 -> "小"; 14 -> "标准"; 16 -> "大"; else -> "超大" },
-                            fontSize = 11.sp,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selected) Color.White else c.textSub,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(
-                                    if (selected) c.accent.copy(alpha = 0.85f) else c.chipBg
-                                )
-                                .clickable {
-                                    fontSize = size
-                                    SettingStore.setFontSize(context, size)
-                                }
-                                .padding(horizontal = 9.dp, vertical = 4.dp)
-                        )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    QuickTile(
+                        icon = Icons.Outlined.Vibration,
+                        label = "震动",
+                        value = if (hapticOn) "开" else "关",
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        val on = !hapticOn
+                        Haptic.setEnabled(context, on)
+                        hapticOn = on
+                        if (on) Haptic.selection(context)
                     }
+                    QuickTile(
+                        icon = Icons.Outlined.AccountCircle,
+                        label = "头像",
+                        value = avatarPolicy.label(),
+                        active = expanded == "avatar",
+                        modifier = Modifier.weight(1f)
+                    ) { expanded = if (expanded == "avatar") null else "avatar" }
                 }
             }
 
-            // —— 字体（导入）——
-            SheetNavRow(
-                icon = Icons.Outlined.TextFields,
-                title = "字体",
-                value = fontName ?: "默认字体"
-            ) { fontPicker.launch(arrayOf("*/*")) }
-
-            SheetDivider()
-
-            // —— 交互震动（开关）——
-            SheetSwitchRow(
-                icon = Icons.Outlined.Vibration,
-                title = "交互震动",
-                sub = "全局触觉反馈",
-                checked = hapticOn
-            ) { on ->
-                Haptic.setEnabled(context, on)
-                hapticOn = on
-                // 对标 s1er：开关自身切换给一次反馈
-                if (on) Haptic.selection(context)
+            // ————————— 就地展开的分段（同一时间只开一个）—————————
+            if (expanded == "font") {
+                QuickSegment(
+                    title = "文字大小",
+                    options = SettingStore.FONT_SIZES.map { fontSizeLabel(it) },
+                    selected = SettingStore.FONT_SIZES.indexOf(fontSize).coerceAtLeast(0)
+                ) { i ->
+                    Haptic.selection(context)
+                    fontSize = SettingStore.FONT_SIZES[i]
+                    SettingStore.setFontSize(context, fontSize)
+                }
+            }
+            if (expanded == "avatar") {
+                QuickSegment(
+                    title = "头像加载",
+                    options = imageOptions.map { it.label() },
+                    selected = imageOptions.indexOf(avatarPolicy).coerceAtLeast(0)
+                ) { i ->
+                    Haptic.selection(context)
+                    DataSaverStore.setAvatarPolicy(context, imageOptions[i])
+                }
             }
 
-            // —— 图片加载三档（点1/点2，2026-10-17）：点击循环 ——
-            SheetNavRow(
-                icon = Icons.Outlined.DataUsage,
+            // ————————— 图片加载：改得最勤，常驻 —————————
+            QuickSegment(
                 title = "图片加载",
-                sub = "始终 / 仅 Wi-Fi / 手动（手动=原省流，进详情看图）",
-                value = imagePolicy.label(),
-                onClick = {
-                    com.example.s1client.util.Haptic.selection(context)
-                    DataSaverStore.setPolicy(context, imagePolicy.next())
-                }
-            )
+                options = imageOptions.map { it.label() },
+                selected = imageOptions.indexOf(imagePolicy).coerceAtLeast(0)
+            ) { i ->
+                Haptic.selection(context)
+                DataSaverStore.setPolicy(context, imageOptions[i])
+            }
 
-            // —— 头像加载三档（独立于图片）——
-            SheetNavRow(
-                icon = Icons.Outlined.AccountCircle,
-                title = "头像加载",
-                sub = "独立于图片加载 · 关闭后显示字母头像",
-                value = avatarPolicy.label(),
-                onClick = {
-                    com.example.s1client.util.Haptic.selection(context)
-                    DataSaverStore.setAvatarPolicy(context, avatarPolicy.next())
-                }
-            )
-
+            Spacer(Modifier.height(10.dp))
             SheetDivider()
 
-            // —— 全部设置（通往二级 B）——
+            // ————————— 全部设置（通往二级 B）—————————
             SheetNavRow(
                 icon = Icons.Outlined.Settings,
                 title = "全部设置",
-                sub = "发帖 · 屏蔽 · 数据 · 账号",
+                sub = "字体 · 发帖 · 屏蔽 · 数据 · 账号",
                 iconTint = c.accent,
                 titleColor = c.accent,
                 highlighted = true
             ) { onOpenSettings() }
+        }
+    }
+}
+
+/** 磁贴：图标 + 名称在上，当前值在下。active = 该格的分段正展开着。 */
+@Composable
+private fun QuickTile(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    active: Boolean = false,
+    onClick: () -> Unit
+) {
+    val c = LocalS1Colors.current
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (active) c.accent.copy(alpha = 0.18f) else c.textMain.copy(alpha = 0.07f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = 11.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                icon, contentDescription = null,
+                tint = c.strongIcon, modifier = Modifier.size(15.dp)
+            )
+            Spacer(Modifier.width(7.dp))
+            Text(label, color = c.textSub, fontSize = 12.sp)
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = value,
+            color = c.textMain,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/**
+ * 分段控件：一档一段，全部档位同时可见，当前档用强调色填实。
+ * 取代原来「点一下换一档」的循环交互 —— 那玩意儿看不见有几档，全靠试。
+ */
+@Composable
+private fun QuickSegment(
+    title: String,
+    options: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit
+) {
+    val c = LocalS1Colors.current
+    Column(modifier = Modifier.padding(horizontal = 18.dp).padding(top = 11.dp)) {
+        Text(
+            text = title,
+            color = c.textSub,
+            fontSize = 11.5.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(c.textMain.copy(alpha = 0.07f))
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            options.forEachIndexed { i, text ->
+                val on = i == selected
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (on) c.accent.copy(alpha = 0.9f) else Color.Transparent)
+                        .clickable { onSelect(i) }
+                        .padding(vertical = 7.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = text,
+                        color = if (on) Color.White else c.textSub,
+                        fontSize = 12.sp,
+                        fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                        maxLines = 1
+                    )
+                }
+            }
         }
     }
 }
@@ -283,48 +339,6 @@ private fun SheetNavRow(
 }
 
 @Composable
-private fun SheetSwitchRow(
-    icon: ImageVector,
-    title: String,
-    sub: String? = null,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    val c = LocalS1Colors.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 22.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(30.dp)
-                .clip(CircleShape)
-                .background(c.chipBg),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                icon, contentDescription = null,
-                tint = c.strongIcon, modifier = Modifier.size(17.dp)
-            )
-        }
-        Spacer(Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                title, color = c.textMain, fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
-            if (sub != null) {
-                Text(sub, color = c.textSub, fontSize = 11.5.sp)
-            }
-        }
-        // 统一用 S1Switch（Material You 形制），与设置页长得完全一样
-        S1Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
-@Composable
 private fun SheetDivider() {
     Box(
         Modifier
@@ -335,17 +349,18 @@ private fun SheetDivider() {
     )
 }
 
+/** 字号档位 → 文案（快捷面板与设置页共用同一套） */
+private fun fontSizeLabel(size: Int): String = when (size) {
+    12 -> "小"; 14 -> "标准"; 16 -> "大"; else -> "超大"
+}
+
 /** 当前主题短名（从 MineActivity 的外观卡原样迁入） */
 internal fun themeNameShort(): String = when (ThemeManager.currentTheme) {
-    ThemeManager.THEME_LIGHT -> "焙茶午后"
-    ThemeManager.THEME_PURE -> "纯白"
-    ThemeManager.THEME_OLED -> "曜石玄夜"
-    ThemeManager.THEME_PINK -> "樱雾粉霜"
-    ThemeManager.THEME_FC -> "朱砂红白"
-    ThemeManager.THEME_RP5 -> "苔绿灰阶"
+    ThemeManager.THEME_TEA -> "焙茶午后"
     ThemeManager.THEME_IRIDESCENT -> "幻彩渐变"
     ThemeManager.THEME_LINEAR -> "Linear 墨蓝"
-    ThemeManager.THEME_CRIMSON -> "赤红"
+    ThemeManager.THEME_CRIMSON -> "Red赤红"
     ThemeManager.THEME_DORAEMON -> "机器猫"
+    ThemeManager.THEME_YARN -> "毛线主题"
     else -> "主题"
 }

@@ -14,6 +14,7 @@
     <attr name="s1TextTopbar" format="color" />
     <attr name="s1TextOnAccent" format="color" />
     <attr name="s1Accent" format="color" />
+    <attr name="s1PmBubbleSelf" format="color" />
     <attr name="s1Divider" format="color" />
     <attr name="s1AvatarPlaceholder" format="color" />
     <attr name="s1QuoteBg" format="color" />

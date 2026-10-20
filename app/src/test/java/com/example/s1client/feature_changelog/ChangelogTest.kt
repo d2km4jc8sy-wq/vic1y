@@ -21,7 +21,7 @@ class ChangelogTest {
     @Test
     fun `最新版本在最上`() {
         // 头部条目 = 当前发布版本（1.1.0 起语义化版本）
-        assertEquals("1.1.0", ChangelogData.entries.first().version)
+        assertEquals("1.2", ChangelogData.entries.first().version)
     }
 
     @Test

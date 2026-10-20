@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 战斗力 pill（item_post.xml → tvPower）。
+     2026-10-19 二改：白底 + 红字（原先红底白字）。
+     因为机器猫的楼层便签本身改成了项圈红，红底标签压在红便签上直接消失；
+     白底红字在任何底色（蓝页面 / 红便签 / 浅色卡）上都清楚，且所有主题完全统一。
+     战斗力是跨主题都要一眼认出的身份标记，不该为了配色妥协。 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="?attr/s1TagBg" />
+    <solid android:color="#FFFFFF" />
     <corners android:radius="6dp" />
 </shape>

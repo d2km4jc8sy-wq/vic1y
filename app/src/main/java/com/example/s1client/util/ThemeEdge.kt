@@ -100,12 +100,35 @@ fun ComponentActivity.setupS1EdgeToEdge(hasGlassBottomBar: Boolean = false) {
     WindowCompat.setDecorFitsSystemWindows(window, false)
     window.statusBarColor = Color.TRANSPARENT
     applyS1NavigationBarColor(hasGlassBottomBar)
+    applyS1WindowBackground(com.example.s1client.ui.theme.s1PaletteFor(ThemeManager.currentTheme))
     // 图标明暗按当前主题底色亮度自动：亮底深色图标 / 暗底浅色图标
     val lightSystemBarIcons = isS1LightSystemBarIcons()
     WindowInsetsControllerCompat(window, window.decorView).apply {
         isAppearanceLightStatusBars = lightSystemBarIcons
         isAppearanceLightNavigationBars = lightSystemBarIcons
     }
+}
+
+/**
+ * 系统栏「白边」修复（2026-10-19）。
+ *
+ * **症状**：从浅色主题切到彩色/深色主题（例如幻彩浅板 → 机器猫），顶部状态栏和底部手势区
+ * 各留一条**上一个主题的浅色带**，看起来像整块界面被镶了一圈白边。
+ *
+ * **根因**：targetSdk 35 / Android 15 起 `statusBarColor` 与 `navigationBarColor` 已被系统忽略，
+ * 系统栏就是透明的 —— 露出来的是 **Window 自己的背景**。而主题切换是即时生效、不重建 Activity，
+ * windowBackground 还停在 onCreate 时那套 XML 主题上，于是两条边保持旧色。
+ *
+ * **修法**：按当前色板重刷窗口背景，用 bgTop → bgBottom 的竖向渐变，
+ * 与页面底（Scaffold 的 containerColor / 各页自绘底）完全同色，两条边就接上了。
+ */
+private fun ComponentActivity.applyS1WindowBackground(c: com.example.s1client.ui.theme.S1Colors) {
+    window.setBackgroundDrawable(
+        android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(c.bgTop.toArgb(), c.bgBottom.toArgb())
+        )
+    )
 }
 
 /**
@@ -116,6 +139,9 @@ fun ComponentActivity.syncSystemBarsWithPalette(hasGlassBottomBar: Boolean = fal
     val colors = com.example.s1client.ui.theme.s1PaletteFor(ThemeManager.currentTheme)
     window.statusBarColor = Color.TRANSPARENT
     applyS1NavigationBarColor(hasGlassBottomBar)
+    // 关键（2026-10-19 白边修复）：Android 15+ 系统栏颜色已失效，露的是 Window 背景，
+    // 不重刷这里就会留下上一个主题的浅色边。
+    applyS1WindowBackground(colors)
     WindowInsetsControllerCompat(window, window.decorView).apply {
         isAppearanceLightStatusBars = !colors.isDark
         isAppearanceLightNavigationBars = !colors.isDark

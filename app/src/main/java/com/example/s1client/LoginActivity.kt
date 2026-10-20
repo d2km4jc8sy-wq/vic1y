@@ -2,6 +2,8 @@ package com.example.s1client
 
 import android.app.Activity
 import android.os.Bundle
+import android.view.KeyEvent
+import android.view.inputmethod.EditorInfo
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -15,8 +17,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.Image
 import coil.compose.AsyncImage
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -55,6 +60,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.freeFocus
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.ui.draw.drawBehind
@@ -65,6 +71,7 @@ import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -73,6 +80,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -87,6 +95,15 @@ import com.example.s1client.data.session.SessionRepository
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.util.avatarUrl
+import com.example.s1client.util.ThemeManager
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -117,6 +134,46 @@ import kotlin.random.Random
  * 本页只负责「登录」这一件事，不再有已登录/退出登录的中间界面。
  */
 class LoginActivity : BaseActivity() {
+
+    /**
+     * 必须保留：联机实测证明，去掉这层拦截后「输入密码」立刻复现
+     * IllegalStateException: no active focus target 崩溃（实测崩溃 4 次）。
+     * 根布局的 focusable 兜底挡不住，所以这层是唯一有效防线。
+     *
+     * 副作用已知：它会吞掉走按键通道的输入（怀疑是「字母能输、数字输不进」的原因）。
+     * 因此这里加日志，被吞掉的按键会记录 keyCode，便于定位数字到底是不是被吞。
+     * 数字 0-9 对应 keyCode 7-16，字母 A-Z 对应 29-54。
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        return try {
+            super.dispatchKeyEvent(event)
+        } catch (e: IllegalStateException) {
+            if (e.message?.contains("focus target", ignoreCase = true) == true) {
+                // 键盘连着时 Compose 没有按键焦点目标，走按键通道的按键（数字、部分符号）
+                // 会进不来 —— 这就是「字母能输、数字输不进」的原因。
+                // 这里把字符直接提交给当前输入框补齐，避免用户输不进数字。
+                if (event.action == KeyEvent.ACTION_DOWN) {
+                    val ic = runCatching {
+                        currentFocus?.onCreateInputConnection(EditorInfo())
+                    }.getOrNull()
+                    if (ic != null) {
+                        if (event.keyCode == KeyEvent.KEYCODE_DEL) {
+                            // 退格同样走按键通道，一并补上，否则删不掉字
+                            runCatching { ic.deleteSurroundingText(1, 0) }
+                        } else {
+                            val ch = event.unicodeChar
+                            if (ch != 0) {
+                                runCatching { ic.commitText(ch.toChar().toString(), 1) }
+                            }
+                        }
+                    }
+                }
+                true
+            } else {
+                throw e
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -179,6 +236,8 @@ private data class ConfettiParticle(
 @Composable
 private fun LoginScreen(onFinish: () -> Unit) {
     val c = LocalS1Colors.current
+    // 登录页跟随全局主题配色（毛线主题是其中一套）。
+    // 注：原计划的针织纹理 / 毛线球 / 手缝虚线等绘制效果已因性能原因全部剔除。
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var celebrate by remember { mutableStateOf(false) }
@@ -193,20 +252,25 @@ private fun LoginScreen(onFinish: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Brush.verticalGradient(listOf(c.bgTop, c.bgBottom)))
+            // 注：这里曾加过 .focusable() 作为兜底焦点目标。联机实测它挡不住崩溃
+            // （去掉 dispatchKeyEvent 拦截后仍复现 4 次），且会改变按键派发层级，故移除。
     ) {
         // 背景：大块朦胧光晕 + 淡散景小点
         BokehBackdrop()
 
-        val heroSize = 148.dp   // 保持大圆一致：不再随键盘弹起缩小，消除大↔小球突兀切换
+        // 紧凑态角色球适度缩小，给键盘让出更多纵向空间（矮屏/横屏也更稳）
+        val heroSize = if (compact) 120.dp else 148.dp
 
         // 键盘弹起时窗口高度会被压缩（各 ROM/输入法差异很大），
-        // 所以紧凑态一律「顶部排列 + requiredHeightIn 保底」，完全不依赖 inset。
+        // 所以紧凑态一律「顶部排列 + 可滚动兜底」，完全不依赖 inset：
+        // requiredHeightIn 保底防过挤，verticalScroll 保证内容超高时仍可滚到登录按钮。
         val columnModifier = if (compact) {
             Modifier
                 .fillMaxWidth()
-                .requiredHeightIn(min = 480.dp)
+                .requiredHeightIn(min = 420.dp)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 28.dp)
-                .padding(top = 40.dp)
+                .padding(top = 36.dp)
         } else {
             Modifier
                 .fillMaxSize()
@@ -402,8 +466,9 @@ private fun BokehBackdrop() {
             )
         }
     }
+    // 收敛动效：散景点从 40 减到 26，朦胧感保留但更克制
     val dots = remember(palette) {
-        List(40) {
+        List(26) {
             BokehDot(
                 fx = Random.nextFloat(),
                 fy = Random.nextFloat(),
@@ -651,14 +716,16 @@ private fun OrbitRings() {
     val glassTint = if (c.isDark) Color.White else Color.Black
     val deco = if (c.isDark) 1f else 1.7f
     val inf = rememberInfiniteTransition()
-    val r0 by inf.animateFloat(0f, 360f, infiniteRepeatable(tween(30000, easing = LinearEasing), RepeatMode.Restart))
-    val r1 by inf.animateFloat(360f, 0f, infiniteRepeatable(tween(44000, easing = LinearEasing), RepeatMode.Restart))
-    val r2 by inf.animateFloat(0f, 360f, infiniteRepeatable(tween(62000, easing = LinearEasing), RepeatMode.Restart))
+    // 转速整体放慢，营造更从容的氛围
+    val r0 by inf.animateFloat(0f, 360f, infiniteRepeatable(tween(44000, easing = LinearEasing), RepeatMode.Restart))
+    val r1 by inf.animateFloat(360f, 0f, infiniteRepeatable(tween(62000, easing = LinearEasing), RepeatMode.Restart))
+    val r2 by inf.animateFloat(0f, 360f, infiniteRepeatable(tween(86000, easing = LinearEasing), RepeatMode.Restart))
     val rots = listOf(r0, r1, r2)
 
     val dots = remember(palette) {
         val out = mutableListOf<OrbitDot>()
-        val rings = listOf(11 to 106f, 13 to 134f, 15 to 164f)
+        // 收敛动效：环绕光点从 39 减到 24，降低视觉噪声、聚焦角色球与胶囊
+        val rings = listOf(7 to 108f, 8 to 136f, 9 to 166f)
         rings.forEachIndexed { ri, (count, radius) ->
             for (i in 0 until count) {
                 out.add(
@@ -766,15 +833,41 @@ private fun CapsuleLogin(
     var formhash by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
     val shakeX = remember { Animatable(0f) }
+    // 切步骤后需要把焦点交回输入框。必须在重组完成之后再请求，
+    // 否则焦点会落在尚未组合出来的节点上，之后输入法派发按键时
+    // Compose 找不到激活焦点目标会直接抛异常崩溃。
+    var pendingFocus by remember { mutableStateOf(false) }
+    // 输入框真实聚焦状态。提升到这里是为了让下面的重试逻辑能读到最新值
+    var fieldFocused by remember { mutableStateOf(false) }
 
     LaunchedEffect(step) { onStepChange(step) }
+
+    // 焦点请求统一走这里：pendingFocus 置 true 触发，等一帧布局完成后再请求
+    // 切到密码步骤时输入框内部会因 PasswordVisualTransformation 重建，
+    // 焦点节点 attach 需要时间 —— 只请求一次会静默失败（不报错但焦点没建立）。
+    // 表现为输入法走按键通道的输入全部进不来（数字输不进）、极端时直接崩。
+    // 所以这里重试，直到 onFocusChanged 真正回 focused=true 为止。
+    LaunchedEffect(pendingFocus) {
+        if (pendingFocus) {
+            // 注意：不能用 fieldFocused 当"已成功"的判断 —— 切步骤时输入框内部重建，
+            // 这个状态可能是上一步留下的旧值 true（实测就是如此）。
+            // 所以无条件重试几次，等新节点 attach 后请求才会真正落到新输入框上。
+            repeat(4) {
+                delay(80)
+                runCatching { focus.requestFocus() }
+            }
+            android.util.Log.w("LoginFocus", "焦点请求完成 step=$step focused=$fieldFocused")
+            pendingFocus = false
+        }
+    }
+
 
     // 历史账号选择：回填用户名并聚焦；选"其他账号"时清空
     LaunchedEffect(pickedUsername) {
         text = pickedUsername
         if (pickedUsername.isNotBlank()) {
             step = 1
-            focus.requestFocus()
+            pendingFocus = true
         }
     }
 
@@ -800,6 +893,7 @@ private fun CapsuleLogin(
         }
         step = target
         btnState = "normal"
+        pendingFocus = true
     }
 
     fun showToast(msg: String, type: String) {
@@ -809,7 +903,7 @@ private fun CapsuleLogin(
     }
     LaunchedEffect(toastKey) {
         if (toastKey > 0 && step != 4) {
-            delay(2600)
+            delay(3500)
             toast = ""
             toastType = ""
         }
@@ -881,7 +975,6 @@ private fun CapsuleLogin(
                         password = pwd
                         showToast("该账号设置了安全提问，请选择并填写答案", "info")
                         goto(3)
-                        focus.requestFocus()
                     } else {
                         showToast(
                             raw.takeIf { it.isNotBlank() && it.length < 40 } ?: "用户名或密码错误",
@@ -915,7 +1008,6 @@ private fun CapsuleLogin(
                 }
                 account = v
                 goto(2)
-                focus.requestFocus()
             }
             2 -> {
                 if (text.isBlank()) {
@@ -952,7 +1044,7 @@ private fun CapsuleLogin(
     }
     val disabled = isBusy || step == 4
     val btnColor = when (btnState) {
-        "error" -> c.heart
+        "error" -> c.danger
         "success" -> CpnGreenSuccess
         else -> if (disabled) c.chipBg else c.accent
     }
@@ -984,23 +1076,29 @@ private fun CapsuleLogin(
         // ===== 唯一胶囊（玻璃底）=====
             Box(modifier = Modifier.offset(x = shakeX.value.dp)) {
                 // 细节 06：聚焦时胶囊边框变主题双色渐变 + 微微加粗（外圈柔光用低透明描边叠加）
-                var fieldFocused by remember { mutableStateOf(false) }
-                val focusBrush = if (fieldFocused) Brush.linearGradient(
-                    listOf(
-                        c.flowCoverColors.getOrElse(1) { c.accent },
-                        c.accent
+                // fieldFocused 已提升到 CapsuleLogin 顶层
+                val focusBrush = when {
+                    btnState == "error" -> SolidColor(c.danger)
+                    fieldFocused -> Brush.linearGradient(
+                        listOf(
+                            c.flowCoverColors.getOrElse(1) { c.accent },
+                            c.accent
+                        )
                     )
-                ) else SolidColor(c.glassLine)
+                    else -> SolidColor(c.glassLine)
+                }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp)
                     // 控件 06：聚焦外圈柔光（三层递减描边，画在裁剪外才可见）
                     .drawBehind {
-                        if (fieldFocused) {
+                        val glowOn = fieldFocused || btnState == "error"
+                        if (glowOn) {
+                            val glowColor = if (btnState == "error") c.danger else c.accent
                             listOf(0.20f, 0.10f, 0.05f).forEachIndexed { i, a ->
                                 drawRoundRect(
-                                    color = c.accent.copy(alpha = a),
+                                    color = glowColor.copy(alpha = a),
                                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2f),
                                     style = androidx.compose.ui.graphics.drawscope.Stroke(
                                         width = (4f + i * 3f) * density
@@ -1012,7 +1110,11 @@ private fun CapsuleLogin(
                     .shadow(18.dp, RoundedCornerShape(S1Radius.pill))
                     .clip(RoundedCornerShape(S1Radius.pill))
                     .background(c.cardBg.copy(alpha = 0.66f))
-                    .border(if (fieldFocused) 1.5.dp else 1.dp, focusBrush, RoundedCornerShape(S1Radius.pill))
+                    .border(
+                        if (fieldFocused) 1.5.dp else 1.dp,
+                        focusBrush,
+                        RoundedCornerShape(S1Radius.pill)
+                    )
                     .padding(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1031,14 +1133,20 @@ private fun CapsuleLogin(
                             color = c.textSub,
                             modifier = Modifier.clickable(enabled = !isBusy) {
                                 goto(if (step == 3) 2 else 1)
-                                focus.requestFocus()
                             }
                         )
                         Spacer(Modifier.width(8.dp))
                     }
                     BasicTextField(
                         value = text,
-                        onValueChange = { text = it },
+                        onValueChange = {
+                            text = it
+                            // 错误提示在用户重新输入时立即撤掉，反馈更跟手
+                            if (toastType == "error") {
+                                toast = ""
+                                toastType = ""
+                            }
+                        },
                         singleLine = true,
                         enabled = step != 4 && !(step == 3 && questionId == 0),
                         textStyle = TextStyle(color = c.textMain, fontSize = 16.sp),
@@ -1056,14 +1164,25 @@ private fun CapsuleLogin(
                             ) {
                                 if (step == 4) {
                                     Text("登录成功", color = CpnGreenSuccess, fontSize = 15.sp, maxLines = 1)
-                                } else if (text.isEmpty()) {
-                                    Text(
-                                        if (step == 3 && questionId == 0) "未设置安全提问（无需答案）" else placeholder,
-                                        color = c.textSub,
-                                        fontSize = 15.sp,
-                                        maxLines = 1
-                                    )
-                                } else inner()
+                                } else {
+                                    // 关键修复：输入框本体 inner() 必须常驻在组合里。
+                                    // 原写法在 text 为空时不放置 inner()，导致切到密码步骤（text 为空）
+                                    // 时焦点节点根本不存在 —— 输入法走按键通道的输入全部进不来
+                                    // （表现为数字输不进），极端时直接抛 no active focus target 崩溃。
+                                    inner()
+                                    if (text.isEmpty()) {
+                                        // placeholder 叠加显示即可，不再替换掉输入框
+                                        // 安全提问「未设置」态文案较长，窄屏改为两行避免被截断
+                                        val isLongHint = step == 3 && questionId == 0
+                                        Text(
+                                            if (isLongHint) "未设置安全提问（无需答案）" else placeholder,
+                                            color = c.textSub,
+                                            fontSize = if (isLongHint) 13.5.sp else 15.sp,
+                                            maxLines = if (isLongHint) 2 else 1,
+                                            lineHeight = if (isLongHint) 18.sp else TextUnit.Unspecified
+                                        )
+                                    }
+                                }
                             }
                         },
                         modifier = Modifier
@@ -1072,6 +1191,10 @@ private fun CapsuleLogin(
                             .onFocusChanged {
                                 onFocusChange(it.isFocused)
                                 fieldFocused = it.isFocused
+                                android.util.Log.w(
+                                    "LoginFocus",
+                                    "onFocusChanged step=$step focused=${it.isFocused}"
+                                )
                             }
                     )
                     if (step == 2) {
@@ -1119,7 +1242,7 @@ private fun CapsuleLogin(
                 Text(
                     toast,
                     color = when (toastType) {
-                        "error" -> c.heart
+                        "error" -> c.danger
                         "success" -> CpnGreenSuccess
                         else -> c.textSub
                     },
@@ -1170,7 +1293,7 @@ private fun CapsuleLogin(
                                     questionId = id
                                     pickerOpen = false
                                     if (id == 0) text = ""
-                                    focus.requestFocus()
+                                    pendingFocus = true
                                 }
                                 .padding(horizontal = 20.dp),
                             verticalAlignment = Alignment.CenterVertically

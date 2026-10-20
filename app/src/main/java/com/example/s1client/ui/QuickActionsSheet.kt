@@ -67,8 +67,7 @@ fun QuickActionsSheet(
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // 省流模式：与首页瀑布流共用 DataSaverStore，改这里首页立即生效
-    val imagePolicy by com.example.s1client.data.store.DataSaverStore.policy.collectAsState()
+    // 省流模式已迁到「快捷」面板，这里不再读
     val blockedCount by BlockedAuthorManager.blockedFlow.collectAsState(initial = BlockedAuthorManager.allBlocked())
 
     var cacheText by remember { mutableStateOf("") }
@@ -113,18 +112,7 @@ fun QuickActionsSheet(
                 S1Notify.show(context, "已清理图片缓存", S1Notify.Type.SUCCESS)
             }
 
-            // 图片加载三档（点1/点2，2026-10-17）：点击循环 始终→仅Wi-Fi→手动
-            ActionRow(
-                iconRes = R.drawable.ic_clean_cache,
-                label = "图片加载",
-                trailing = imagePolicy.label(),
-                tint = c.textMain
-            ) {
-                com.example.s1client.util.Haptic.selection(context)
-                val nextP = imagePolicy.next()
-                DataSaverStore.setPolicy(context, nextP)
-                S1Notify.show(context, "图片加载：${nextP.label()}", S1Notify.Type.SUCCESS)
-            }
+            // 图片加载三档已迁到「快捷」面板（2026-10-19 去重：两个面板各一份，改起来还互相打架）
 
             // 吐抹布（黑名单管理，原在首页锤子菜单里）
             ActionRow(

@@ -37,7 +37,13 @@ import com.example.s1client.util.Haptic
 class StampOverlayView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
+    defStyleAttr: Int = 0,
+    /** 章面主文字（默认「已回复」；读毕落章传「完」） */
+    private val stampText: String = "已回复",
+    /** 章面副文字（默认 POSTED；读毕落章传 READ TO THE END） */
+    private val stampSub: String = "POSTED",
+    /** 章面固有色：不传则跟随 s1Accent；读毕落章传朱红（印泥色恒定，与主题无关） */
+    private val forceColor: Int? = null
 ) : View(context, attrs, defStyleAttr) {
 
     private val density = resources.displayMetrics.density
@@ -64,8 +70,13 @@ class StampOverlayView @JvmOverloads constructor(
     private val path = Path()
     private val box = RectF()
 
-    /** 刷新主题色（每次显示前调用，跟随当前主题） */
+    /** 刷新主题色（每次显示前调用，跟随当前主题；forceColor 优先） */
     fun refreshThemeColors() {
+        if (forceColor != null) {
+            accent = forceColor
+            ink = Color.WHITE
+            return
+        }
         val tv = TypedValue()
         val ok = context.theme.resolveAttribute(com.example.s1client.R.attr.s1Accent, tv, true)
         accent = if (ok) tv.data else Color.parseColor("#E9C8EE")
@@ -120,13 +131,13 @@ class StampOverlayView @JvmOverloads constructor(
         canvas.drawRoundRect(inner, 3f * density, 3f * density, edgePaint)
         edgePaint.pathEffect = null
 
-        // 章面文字
+        // 章面文字（主文字随字数缩放：单字「完」放大成印章体）
         textPaint.color = Color.WHITE
-        textPaint.textSize = 13f * density
-        canvas.drawText("已回复", box.centerX(), box.centerY() + textPaint.textSize / 3f, textPaint)
+        textPaint.textSize = (if (stampText.length <= 2) 20f else 13f) * density
+        canvas.drawText(stampText, box.centerX(), box.centerY() + textPaint.textSize / 3f, textPaint)
         textPaint.textSize = 8.5f * density
         textPaint.color = withAlpha(Color.WHITE, 200)
-        canvas.drawText("POSTED", box.centerX(), box.centerY() + textPaint.textSize * 2.4f, textPaint)
+        canvas.drawText(stampSub, box.centerX(), box.centerY() + (if (stampText.length <= 2) 44f else 15f) * density / 2.2f, textPaint)
 
         // 扫光：一道竖直亮带只在盖章瞬间存在（sweep 0..1），画在章面上
         if (sweep in 0f..1f) {

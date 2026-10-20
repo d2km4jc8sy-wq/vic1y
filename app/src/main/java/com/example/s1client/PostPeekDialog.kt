@@ -147,7 +147,6 @@ import com.example.s1client.data.store.BlacklistManager
 import com.example.s1client.data.store.BlockedAuthorManager
 import com.example.s1client.data.store.FavoriteManager
 import com.example.s1client.ui.RopeRefreshView
-import com.example.s1client.ui.design.AccentCyan
 import com.example.s1client.ui.design.AccentPink
 import com.example.s1client.ui.design.BgColor
 import com.example.s1client.ui.design.BgColorBottom

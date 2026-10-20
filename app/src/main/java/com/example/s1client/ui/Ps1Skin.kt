@@ -10,16 +10,15 @@ import com.example.s1client.util.ThemeManager
  * 决策：皮肤色号不进 attrs/themes，避免改动主题系统；
  * 运行时按 [ThemeManager.currentTheme] 判明暗，在两套固定 drawable 之间切换。
  *
- * 浅色主题：焙茶午后 / 樱雾粉霜 / 苔绿灰阶，以及幻彩渐变抽到浅紫粉板的那次；
- * 其余（Linear 墨蓝、朱砂红白、幻彩深板）按深色皮肤。
+ * 浅色主题：焙茶午后，以及幻彩渐变抽到镭射糖果的那次；
+ * 其余（Linear 墨蓝、Red赤红、机器猫、幻彩渐变抽到夜市）按深色皮肤。
  */
 object Ps1Skin {
 
     fun isLight(): Boolean = when (ThemeManager.currentTheme) {
-        ThemeManager.THEME_LIGHT,
-        ThemeManager.THEME_PINK,
-        ThemeManager.THEME_RP5 -> true
-        ThemeManager.THEME_IRIDESCENT -> ThemeManager.iridescentSeed != 1
+        ThemeManager.THEME_TEA -> true
+        // 幻彩渐变：夜市(深)/镭射糖果(浅)两板随机 —— 浅色板（糖果）在 seed 为奇数时
+        ThemeManager.THEME_IRIDESCENT -> ThemeManager.iridescentSeed % 2 == 1
         else -> false
     }
 
@@ -59,7 +58,10 @@ fun ticketDrawable(): android.graphics.drawable.Drawable {
         // 磨砂膜：取主题 accent 极淡的一层（比 bgCard 更贴"玻璃膜带一点主题味"）
         // 2026-10-18：页面底改成红色后，半透明膜会把红透上来（卡片变酒红，成了第三种颜色）。
         // 改用不透明的卡片色，红只留在卡片之间的缝里；描边也换成中性亮线，不再带主题色。
-        val film = s1.cardBg
+        // 2026-10-19：改读 s1.ticketBg（默认 = cardBg，其余主题零变化）——
+        // 机器猫需要让楼层便签走红色，与蓝页面形成红蓝对比，但又不能动 cardBg
+        // （那会连带首页卡片和「我的」页）。
+        val film = s1.ticketBg
         val edge = s1.textMain.copy(alpha = 0.10f)
         val d = Resources.getSystem().displayMetrics.density
         return android.graphics.drawable.GradientDrawable(

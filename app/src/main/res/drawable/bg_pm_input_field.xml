@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 私信输入框底。
+     2026-10-19：底色从 ?attr/s1BgCardLight 改为 ?attr/s1BgCard ——
+     s1BgCardLight 现在被机器猫用作红（楼层操作条 / 便签强调），输入框跟着整条发红，
+     用户明确要求「备注输入框不要用红色」。改走卡片主色后各主题都正常。 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="?attr/s1BgCardLight" />
+    <solid android:color="?attr/s1BgCard" />
     <corners android:radius="20dp" />
 </shape>

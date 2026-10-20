@@ -35,6 +35,7 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.s1client.ui.showUserCardDialog
 import com.example.s1client.ui.theme.LocalS1Colors
+import com.example.s1client.ui.theme.s1HeaderAurora
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.util.Haptic
 import com.example.s1client.data.store.PostBookmark
@@ -159,6 +160,7 @@ private fun TopBar(title: String, onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .background(Brush.horizontalGradient(c.headerGradient))
+            .s1HeaderAurora(c)
             .padding(top = 48.dp, bottom = 10.dp, start = 4.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

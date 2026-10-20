@@ -75,6 +75,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.example.s1client.ui.theme.s1RingColors
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -97,6 +103,7 @@ import com.example.s1client.ui.SunMoonSwitch
 import com.example.s1client.ui.ThemePickerSheet
 import com.example.s1client.ui.ThemeSwatch
 import com.example.s1client.ui.theme.LocalS1Colors
+import com.example.s1client.ui.theme.s1HeaderAurora
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.data.store.DataSaverStore
 import com.example.s1client.data.store.ImageLoadPolicy
@@ -229,7 +236,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
 
     // —— 一屏宫格所需：原分散在各组内的状态提升到顶层（卡片摘要与弹层共用）——
     var activeSheet by remember { mutableStateOf<String?>(null) }
-    var followDark by remember { mutableStateOf(SettingStore.followSystemDark(context)) }
+    var iriLock by remember { mutableStateOf(com.example.s1client.util.ThemeManager.isIridescentLocked()) }
     var recordHist by remember { mutableStateOf(SettingStore.recordHistory(context)) }
     var camLever by remember { mutableStateOf(SettingStore.cameraLeverRefresh(context)) }
     var cacheCap by remember { mutableStateOf(SettingStore.cacheCapMb(context)) }
@@ -311,6 +318,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .background(Brush.verticalGradient(listOf(c.bgTop, c.bgBottom)))
     ) {
         // —— 顶栏 ——
@@ -318,6 +326,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Brush.horizontalGradient(c.headerGradient))
+                .s1HeaderAurora(c)
                 .padding(top = 48.dp, bottom = 8.dp, start = 3.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -355,7 +364,9 @@ fun SettingsScreen(onFinish: () -> Unit) {
             )
             Spacer(Modifier.height(10.dp))
             Row(
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                // 2026-10-19 修复：根布局加滚动后 weight 失效（无限高度），改定行高——
+                // 「一屏六格」比例不变，小屏设备整页可滚，底部卡不再被裁出屏幕
+                modifier = Modifier.fillMaxWidth().height(150.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 SettingsCard(
@@ -376,7 +387,7 @@ fun SettingsScreen(onFinish: () -> Unit) {
             }
             Spacer(Modifier.height(10.dp))
             Row(
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                modifier = Modifier.fillMaxWidth().height(150.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 SettingsCard(
@@ -397,30 +408,36 @@ fun SettingsScreen(onFinish: () -> Unit) {
             }
             Spacer(Modifier.height(10.dp))
             SettingsCard(
-                modifier = Modifier.fillMaxWidth().weight(0.74f),
+                modifier = Modifier.fillMaxWidth().height(112.dp),
                 icon = Icons.Outlined.Science,
                 title = "实验功能",
-                summary = if (camLever) "相机扳手已开启" else "相机扳手 · 未开启",
+                summary = if (camLever) "相机扳手 · 已开启" else "相机扳手 · 未开启",
                 wide = true,
                 onClick = { activeSheet = "lab" }
             )
         }
 
-        // ═══ 底部：关于与隐私 / 退出登录 ═══
+        // ═══ 底部：关于与隐私 ═══
         Box(Modifier.fillMaxWidth().padding(horizontal = 13.dp)) {
             FlowGlassCard(Modifier.fillMaxWidth(), rotating = false, soft = true) {
-                Column {
+                SettingRow(
+                    Icons.Outlined.Info, "关于与隐私",
+                    sub = "关于 · 更新日志 · 检查更新 · 隐私政策",
+                    onClick = { activeSheet = "about" }
+                ) { Chevron() }
+            }
+        }
+        // 2026-10-19：退出登录单独成卡 —— 它是账号操作，塞在「关于与隐私」里语义不对，
+        // 而且和隐私政策、更新日志混在一张卡上，点错成本不一样。
+        if (loggedIn) {
+            Spacer(Modifier.height(10.dp))
+            Box(Modifier.fillMaxWidth().padding(horizontal = 13.dp)) {
+                FlowGlassCard(Modifier.fillMaxWidth(), rotating = false, soft = true) {
                     SettingRow(
-                        Icons.Outlined.Info, "关于与隐私",
-                        sub = "关于 · 更新日志 · 检查更新 · 隐私政策",
-                        onClick = { activeSheet = "about" }
+                        Icons.Outlined.Logout, "退出登录",
+                        danger = true,
+                        onClick = { showLogoutConfirm = true }
                     ) { Chevron() }
-                    if (loggedIn) {
-                        SettingRow(
-                            Icons.Outlined.Logout, "退出登录",
-                            onClick = { showLogoutConfirm = true }
-                        ) { Chevron() }
-                    }
                 }
             }
         }
@@ -488,13 +505,18 @@ fun SettingsScreen(onFinish: () -> Unit) {
                 Icons.Outlined.Palette, "主题", sub = com.example.s1client.ui.themeNameShort(),
                 onClick = { activeSheet = null; showThemeSheet = true }
             ) { Chevron() }
-            SettingRow(Icons.Outlined.DarkMode, "深色跟随系统", sub = "跟随系统深浅色") {
+            // 2026-10-19：原「深色跟随系统」开关改造 —— 现在只服务幻彩：
+            // 开 = 把当前这套色板钉住，不随机；关 = 每次冷启动随机（原规则）。
+            SettingRow(
+                Icons.Outlined.DarkMode,
+                "幻彩固定色板",
+                sub = if (iriLock) "已锁定当前这套，冷启动不再变" else "关：每次进幻彩随机抽深浅"
+            ) {
                 S1Switch(
-                    checked = followDark,
+                    checked = iriLock,
                     onCheckedChange = {
-                        SettingStore.setFollowSystemDark(context, it)
-                        ThemeManager.setFollowSystemDark(context, it)
-                        followDark = it
+                        com.example.s1client.util.ThemeManager.setIridescentLock(it)
+                        iriLock = it
                     }
                 )
             }
@@ -910,12 +932,51 @@ private fun SettingsCard(
 ) {
     val c = LocalS1Colors.current
     val shape = RoundedCornerShape(16.dp)
+    // 2026-10-19：幻彩主题下这张卡原来只有 0.5dp 的 glassLine 细边 —— 是上一轮漏掉的。
+    // 现在跟「我的」页、瀑布流卡用同一套 1.5dp 彩丝（s1RingColors 四色 + 4dp 同色柔光），
+    // 幻彩里所有卡框终于一致；其余主题仍是原来那条细边。
+    val isIri = ThemeManager.isIridescentFamily(ThemeManager.currentTheme)
+    val ringBand = remember(isIri, c) { if (isIri) s1RingColors(c) else emptyList() }
+    val edgeMod = if (isIri) {
+        Modifier.drawWithContent {
+            drawContent()
+            val corner = 16.dp.toPx()
+            val glowPx = 4.dp.toPx()
+            val glowInset = glowPx / 2f
+            drawRoundRect(
+                brush = Brush.linearGradient(
+                    ringBand.map { it.copy(alpha = 0.10f) },
+                    start = Offset.Zero,
+                    end = Offset(size.width, size.height)
+                ),
+                topLeft = Offset(glowInset, glowInset),
+                size = Size(size.width - glowPx, size.height - glowPx),
+                cornerRadius = CornerRadius((corner - glowInset).coerceAtLeast(0f)),
+                style = Stroke(width = glowPx)
+            )
+            val strokePx = 1.5.dp.toPx()
+            val inset = strokePx / 2f
+            drawRoundRect(
+                brush = Brush.linearGradient(
+                    ringBand.map { it.copy(alpha = 0.88f) },
+                    start = Offset.Zero,
+                    end = Offset(size.width, size.height)
+                ),
+                topLeft = Offset(inset, inset),
+                size = Size(size.width - strokePx, size.height - strokePx),
+                cornerRadius = CornerRadius((corner - inset).coerceAtLeast(0f)),
+                style = Stroke(width = strokePx)
+            )
+        }
+    } else {
+        Modifier.border(0.5.dp, c.glassLine, shape)
+    }
     if (wide) {
         Row(
             modifier = modifier
                 .clip(shape)
                 .background(c.glassCard)
-                .border(0.5.dp, c.glassLine, shape)
+                .then(edgeMod)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 18.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -923,7 +984,9 @@ private fun SettingsCard(
             // 2026-10-18：宽卡（外观/实验功能/关于）图标原来是 40dp/20dp，
             // 网格卡是 34dp/17dp，同一页两种规格。统一成网格卡那套（页面里 4 份网格 vs 4 份宽卡，取多数）。
             Box(
-                modifier = Modifier.size(34.dp).clip(CircleShape).background(c.chipBg),
+                // 2026-10-19：圆底原来用 chipBg —— 幻彩深板里它(#2F1C45)和卡面/弹窗底(#2D1A44)几乎同色，
+                // 圆底和图标框直接消失。改成「主文字色 7%」，任何主题都自动和底差一档。
+                modifier = Modifier.size(34.dp).clip(CircleShape).background(c.textMain.copy(alpha = 0.07f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(icon, contentDescription = null, tint = c.strongIcon, modifier = Modifier.size(17.dp))
@@ -944,14 +1007,16 @@ private fun SettingsCard(
             modifier = modifier
                 .clip(shape)
                 .background(c.glassCard)
-                .border(0.5.dp, c.glassLine, shape)
+                .then(edgeMod)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 10.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Box(
-                modifier = Modifier.size(34.dp).clip(CircleShape).background(c.chipBg),
+                // 2026-10-19：圆底原来用 chipBg —— 幻彩深板里它(#2F1C45)和卡面/弹窗底(#2D1A44)几乎同色，
+                // 圆底和图标框直接消失。改成「主文字色 7%」，任何主题都自动和底差一档。
+                modifier = Modifier.size(34.dp).clip(CircleShape).background(c.textMain.copy(alpha = 0.07f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(icon, contentDescription = null, tint = c.strongIcon, modifier = Modifier.size(17.dp))
@@ -1081,6 +1146,8 @@ private fun SettingRow(
     icon: ImageVector?,
     title: String,
     sub: String? = null,
+    /** 危险操作（退出登录）：图标与标题走 danger 色，和普通设置行区分 */
+    danger: Boolean = false,
     onClick: (() -> Unit)? = null,
     trailing: @Composable RowScope.() -> Unit = {}
 ) {
@@ -1097,17 +1164,25 @@ private fun SettingRow(
                 modifier = Modifier
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(c.chipBg),
+                    .background(c.textMain.copy(alpha = 0.07f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = c.strongIcon, modifier = Modifier.size(15.dp))
+                Icon(
+                    icon, contentDescription = null,
+                    tint = if (danger) c.danger else c.strongIcon,
+                    modifier = Modifier.size(15.dp)
+                )
             }
             Spacer(Modifier.width(12.dp))
         } else {
             Spacer(Modifier.width(40.dp))
         }
         Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 13.5.sp, color = c.textMain, fontWeight = FontWeight.Medium)
+            Text(
+                title, fontSize = 13.5.sp,
+                color = if (danger) c.danger else c.textMain,
+                fontWeight = FontWeight.Medium
+            )
             if (sub != null) {
                 Text(sub, fontSize = 11.sp, color = c.textSub, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
@@ -1147,15 +1222,12 @@ private fun cacheCapValue(label: String): Int = when (label) {
 }
 
 private fun themeName(): String = when (ThemeManager.currentTheme) {
-    ThemeManager.THEME_LIGHT -> "焙茶午后"
-    ThemeManager.THEME_PURE -> "纯白"
-    ThemeManager.THEME_PINK -> "樱雾粉霜"
-    ThemeManager.THEME_FC -> "朱砂红白"
-    ThemeManager.THEME_RP5 -> "苔绿灰阶"
+    ThemeManager.THEME_TEA -> "焙茶午后"
     ThemeManager.THEME_IRIDESCENT -> "幻彩渐变"
     ThemeManager.THEME_LINEAR -> "Linear 墨蓝"
-    ThemeManager.THEME_CRIMSON -> "赤红"
+    ThemeManager.THEME_CRIMSON -> "Red赤红"
     ThemeManager.THEME_DORAEMON -> "机器猫"
+    ThemeManager.THEME_YARN -> "毛线主题"
     else -> "主题"
 }
 

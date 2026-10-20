@@ -115,7 +115,6 @@ import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
-import com.example.s1client.ui.design.AccentCyan
 import com.example.s1client.ui.design.AccentPink
 import com.example.s1client.ui.design.S1Radius
 import com.example.s1client.ui.design.BgColor
@@ -152,6 +151,7 @@ fun XhsBottomNav(
 ) {
     // drawBehind 闭包不是组合上下文，颜色要在组合期先取出来
     val navBarLine = GlassFloatLine
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -187,6 +187,7 @@ fun XhsBottomNav(
             XhsNavItem(R.drawable.ic_nav_home, "首页", onClick = onHome)
             // 未登录只留「首页」+「我的」两格：搜索/发帖/提醒本来就是登录后才有意义的功能，
             // 与其摆着点了弹提示，不如不出现（用户的设想）。
+            // 2026-10-19：中途试过给游客补一个「搜索」，用户确认不需要，已还原。
             if (loggedIn) {
                 XhsNavItem(R.drawable.ic_nav_search, "搜索", onClick = onSearch)
                 XhsNavItem(R.drawable.ic_nav_compose, "发帖", onClick = onCompose)
@@ -210,8 +211,12 @@ fun XhsNavItem(
     onClick: () -> Unit = {}
 ) {
     // 所有图标默认同一中性色；只有「提醒」在真有未读时变强调色（用户要求：仅提醒会翘动状态）
+    // 2026-10-19：字色从 textSub 换成 onHeader —— textSub 是「卡片内的次要文字」，
+    // 压在深色底栏（机器猫深蓝 / 赤红深灰 / Linear 近黑）上几乎看不见。
+    // onHeader 的定义就是「栏上的文字色」，各主题都已按栏底色配好（深栏配白、浅栏配深）。
     val hasUnread = badgeCount > 0
-    val tint = if (hasUnread) AccentPink else TextSub
+    val navColors = LocalS1Colors.current
+    val tint = if (hasUnread) navColors.accentCyan else navColors.onHeader
     // 细节 03：底栏按压 morph 的状态
     val navPressSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val navPressed by navPressSource.collectIsPressedAsState()

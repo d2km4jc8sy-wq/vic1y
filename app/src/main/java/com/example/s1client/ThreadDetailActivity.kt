@@ -66,6 +66,7 @@ import com.example.s1client.databinding.ActivityThreadDetailBinding
 import com.example.s1client.databinding.DialogReplySheetBinding
 import com.example.s1client.databinding.DialogUserCardBinding
 import com.example.s1client.ui.PageAdapter
+import com.example.s1client.ui.StampOverlayView
 import com.example.s1client.util.BbCode
 import com.example.s1client.data.store.DraftStore
 import com.example.s1client.data.store.FavoriteManager
@@ -206,6 +207,9 @@ class ThreadDetailActivity : BaseActivity() {
         set(value) { vm.updateMeta { it.copy(threadFid = value) } }
 
     internal var attachedRv: RecyclerView? = null
+
+    // 读毕落章「完」（2026-10-19 五案 4，覆盖层不占版面）；FRAME 计数器已按用户反馈剔除（华而不实）
+    private var endSealShown = false
     /** 总页数：由 thread.replies + ppp 算出（IO 线程写 / 主线程读 → VM StateFlow 保证线程安全与可见性） */
     internal var totalPages: Int
         get() = vm.meta.value.totalPages
@@ -1282,6 +1286,24 @@ class ThreadDetailActivity : BaseActivity() {
         binding.tvEndFooter.visibility = View.VISIBLE
         binding.tvEndFooter.alpha = 0f
         binding.tvEndFooter.animate().alpha(1f).setDuration(200).start()
+        // 读毕落章「完」（2026-10-19 五案 4）：StampOverlay 家族第二枚——
+        // 朱红印泥恒定（不随主题），盖下 HEAVY、落定 SUCCESS（playStamp 内置）。
+        // 本会话只触发一次；楼层数 > 5 才算"读毕"（短帖/跳楼不打扰）。
+        if (!endSealShown && (pageAdapter.getPage(totalPages)?.size ?: 0) > 5) {
+            endSealShown = true
+            Haptic.heavy(this)
+            val seal = StampOverlayView(
+                this, stampText = "完", stampSub = "READ TO THE END",
+                forceColor = 0xFFE23B44.toInt()
+            )
+            val density = resources.displayMetrics.density
+            val lp = android.widget.FrameLayout.LayoutParams(
+                (150 * density).toInt(), (72 * density).toInt(),
+                android.view.Gravity.CENTER
+            )
+            (window.decorView as android.view.ViewGroup).addView(seal, lp)
+            seal.playStamp { (seal.parent as? android.view.ViewGroup)?.removeView(seal) }
+        }
     }
 
     internal fun hideEndFooter() {

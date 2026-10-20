@@ -28,6 +28,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import com.example.s1client.ui.theme.S1Theme
+import com.example.s1client.ui.theme.LocalS1Colors
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -111,7 +112,9 @@ fun SearchScreen(onBack: () -> Unit) {
             onFavorite = {
                 longPressedPost = null
                 if (!ForumDataCache.isLoggedIn()) {
-                    toast(context, "请先登录")
+                    // 2026-10-19：原来这里弹一句「请先登录」就完了 —— 和发帖/提醒/我的
+                    // 那三处「跳登录页」不是一套。统一成跳登录页，用户点一下就能直接登。
+                    context.startActivity(Intent(context, LoginActivity::class.java))
                 } else {
                     val tid = post.tid
                     scope.launch {

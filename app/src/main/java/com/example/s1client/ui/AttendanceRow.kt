@@ -132,9 +132,16 @@ fun AttendanceContent(
         }
 
         // —— 本周进度：去掉发光与徽章，只留一条安静的细线（视觉弱化，信息保留在副标题里）
-        if (loggedIn) {
+        // 2026-10-19：原来这条线是**通栏贴卡边**的，和卡片下缘重合 ——
+        // 看起来像一张卡的分隔线，而且和右侧「已完成」在说同一件事（都表示今天已完成）。
+        // 现在两头收进内容区（左对齐文字、右边留 13dp），跟「签到」这一行绑在一起读；
+        // 连签为 0 时整条不画，省得一条空轨道白占一行。
+        if (loggedIn && streak > 0) {
             Spacer(Modifier.height(8.dp))
-            WeekProgressBar(progress = streak.coerceAtMost(7) / 7f, streak = streak)
+            Box(Modifier.fillMaxWidth().padding(start = 42.dp, end = 13.dp)) {
+                WeekProgressBar(progress = streak.coerceAtMost(7) / 7f, streak = streak)
+            }
+            Spacer(Modifier.height(6.dp))
         }
     }
 }

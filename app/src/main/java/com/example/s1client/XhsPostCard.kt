@@ -66,7 +66,6 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
@@ -116,9 +115,9 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
-import com.example.s1client.ui.design.AccentCyan
 import com.example.s1client.ui.design.AccentPink
 import com.example.s1client.ui.design.S1Radius
 import com.example.s1client.ui.design.BgColor
@@ -231,7 +230,7 @@ fun XhsPostCard(
     // 幻彩主题下**无条件**用主题色环做卡框（原来只在 coverStyle==5 的分支里画，
     // 一旦封面风格不是 5，幻彩卡片就退化成"半透明白玻璃边" —— 在浅色粉底上等于没有边，
     // 这正是"瀑布流幻彩卡片边框太细 / 主题不突出"的真因）。
-    val isIridescentTheme = ThemeManager.currentTheme == ThemeManager.THEME_IRIDESCENT
+    val isIridescentTheme = ThemeManager.isIridescentFamily(ThemeManager.currentTheme)
     val ringBand = remember(s1) { com.example.s1client.ui.theme.s1RingColors(s1) }
     // 投影（2026-10-18 三改）：单层 6dp → 4dp。用户实测双层与单层无感，
     // 而 6dp 的扩散会渗进两列之间约 10dp 的缝里，把暖色底压灰一截；4dp 收窄后缝隙干净。
@@ -292,21 +291,23 @@ fun XhsPostCard(
           .fillMaxWidth()
           .then(
               if (isIridescentTheme) {
-                  // 幻彩「彩色亮丝」卡框（2026-10-15 用户定稿，替代原 4dp 饱和粗环）：
-                  // 1.5dp 主题色板渐变描边（s1RingColors 四色，左上→右下）+ 贴边 4dp@0.10
+                  // 幻彩「彩色亮丝」卡框（2026-10-15 用户定稿；2026-10-19 B 方案弱化）：
+                  // 0.75dp 主题色板渐变描边（s1RingColors 四色，左上→右下）+ 贴边 3dp@0.08
                   // 同色柔光（「亮」的来源，想更安静可整段删掉柔光那截）。
+                  // 弱化原因：B 方案的封面已有流动光幕做视觉主角，1.5dp 彩丝环会抢；
+                  // 0.75dp 保留「幻彩身份」又不打架。
                   // 描边整体内缩半个线宽——Card/Surface 会把内容 clip 到圆角形状，
                   // 直接画在边界上时靠外的一半会被裁掉（4dp 只剩 2dp 的老坑）。
-                  // 与「我的」页卡框同一套语法、同一粗细（1.5dp），幻彩主题内边框全部统一。
+                  // 与「我的」页卡框同一套语法，幻彩主题内边框全部统一。
                   Modifier.drawWithContent {
                       drawContent()
                       val band = ringBand
                       // 柔光：贴边的低透明度宽描边，让彩丝有「亮」的晕染
-                      val glowPx = 4.dp.toPx()
+                      val glowPx = 3.dp.toPx()
                       val glowInset = glowPx / 2f
                       drawRoundRect(
                           brush = Brush.linearGradient(
-                              band.map { it.copy(alpha = 0.10f) },
+                              band.map { it.copy(alpha = 0.08f) },
                               start = Offset.Zero,
                               end = Offset(size.width, size.height)
                           ),
@@ -317,12 +318,12 @@ fun XhsPostCard(
                           ),
                           style = androidx.compose.ui.graphics.drawscope.Stroke(width = glowPx)
                       )
-                      // 彩丝本体：1.5dp@0.88
-                      val strokePx = 1.5.dp.toPx()
+                      // 细边本体：0.75dp@0.55
+                      val strokePx = 0.75.dp.toPx()
                       val inset = strokePx / 2f
                       drawRoundRect(
                           brush = Brush.linearGradient(
-                              band.map { it.copy(alpha = 0.88f) },
+                              band.map { it.copy(alpha = 0.55f) },
                               start = Offset.Zero,
                               end = Offset(size.width, size.height)
                           ),
@@ -413,38 +414,35 @@ fun XhsPostCard(
             } else {
                 // 封面减法（2026-10-18 用户定案）：无图封面只保留「一块纯色底 + 标题」。
                 // 已清零：径向光斑、顶部/底部色条、微网格、大引号、玻璃高光、底部磨砂纱、全部渐变。
-                // 幻彩（coverStyle = 5）是唯一例外 —— 流光本身就是那套主题的标识，绘制保持原样。
+                // 幻彩（coverStyle = 5）是唯一例外 —— 那枚箔片本身就是这套主题的标识。
 
                 val coverModifier = when (coverStyle) {
-                    5 -> {
-                        // 幻彩封面（方案②·光斑呼吸，2026-10-15 用户定稿；技术源头：
-                        // uiverse fast-badger-70 多层 radial 极光 / blue-mole-92 磨砂纱）：
-                        //   ① 封面色板打底（s1.coverColors，浅粉调 / 深紫调）
-                        //   ② 三个径向光斑大圆慢漂 —— 幅度减半（±5%）、全墙同频
-                        //      （相位 = 系统时间取模，与卡片组合时机无关）、已读定格
-                        //   ③ 一层薄磨砂霜（近似 backdrop 磨砂，压住光斑浓度）
-                        //   ④ 底部 42% 起白/深纱，标题无论几行都落在纱上
-                        //   ⑤ 无任何扫光/亮带（方案①②③对比后用户选 ②：流动感全部
-                        //      来自色彩呼吸，不来自位移扫动；cobraPhase 亮带已删）
-                        // 旧实现只有一条 1dp「strange-cobra」五色内框（绿/黄/青 off-palette
-                        // 残留，与紫粉色板无关），已删。
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 120.dp)
-                            .drawBehind {
-                                flowHeartbeat.value // 心跳：读取以建立重绘依赖（相位本体来自系统时间）
-                                val w = size.width; val h = size.height
-                                val cover = s1.coverColors.ifEmpty {
-                                    listOf(FlowColorBottom, FlowColorMid, FlowColorTop)
-                                }
-                                // ① 底色
-                                drawRect(
-                                    color = if (s1.isDark) Color(0xFF1E1428) else Color(0xFFF2D9EA)
-                                )
-                                // ② 光斑慢漂（半幅 ±5%，全局同频；已读卡定格在固定相位退为背景）
+                    5 -> Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 120.dp)
+                        // 幻彩封面：浅板 = 近白纸底 + 三团弥散光晕（与其余主题同一套封面版式）；
+                        // 深板 = 原来的「光斑呼吸」，用户明确不要箔带效果。
+                        // ⚠️ drawBehind 不受节点边界约束，必须自己 clip：
+                        //    旧实现第三个青色光斑（圆心 y=0.88h、半径 0.68w）画到封面框外盖住作者栏，
+                        //    每张卡底部一条青带（深色板是青绿带）。
+                        .clipToBounds()
+                        .drawBehind {
+                            flowHeartbeat.value // 心跳：读取以建立重绘依赖（相位本体来自系统时间）
+                            val w = size.width; val h = size.height
+                            val foil = s1.coverColors.ifEmpty {
+                                listOf(FlowColorBottom, FlowColorMid, FlowColorTop)
+                            }
+                            val ph = if (read) 0.25f
+                                     else ((System.nanoTime() / (FLOW_CYCLE_SECONDS * 1_000_000_000.0)) % 1.0).toFloat()
+
+                            if (s1.isDark) {
+                                // ── 深色板 · 夜市：原「光斑呼吸」原样保留。
+                                //    唯一改动是底部纱的收尾：原来最后一档只有 0.94 不透明，
+                                //    剩下那 6% 是跟着 24s 相位呼吸的光斑 —— 卡片下缘每帧换色，
+                                //    滚动时看起来就是「上下两半的接缝一直在闪」。
+                                //    现在 92% 以下压成完全平涂的封面同色，接缝定格。
+                                drawRect(color = s1.coverTint)
                                 fun blob(color: Color, bx: Float, by: Float, radius: Float, dx: Float, dy: Float, shift: Float) {
-                                    val ph = if (read) 0.25f
-                                    else ((System.nanoTime() / (FLOW_CYCLE_SECONDS * 1_000_000_000.0)) % 1.0).toFloat()
                                     val ang = ((ph + shift) % 1f) * 2f * kotlin.math.PI.toFloat()
                                     val cx = bx + dx * kotlin.math.sin(ang)
                                     val cy = by + dy * kotlin.math.cos(ang)
@@ -458,29 +456,93 @@ fun XhsPostCard(
                                         center = Offset(cx, cy)
                                     )
                                 }
-                                blob(cover[0], w * 0.18f, h * 0.20f, w * 0.60f, w * 0.05f, h * 0.06f, 0f)
-                                blob(cover[1 % cover.size], w * 0.84f, h * 0.16f, w * 0.55f, w * 0.045f, h * 0.07f, 0.34f)
-                                blob(cover[cover.size - 1], w * 0.45f, h * 0.88f, w * 0.68f, w * 0.06f, h * 0.04f, 0.67f)
-                                // ③ 磨砂霜
-                                drawRect(
-                                    color = (if (s1.isDark) Color(0xFF140A1E) else Color.White)
-                                        .copy(alpha = if (s1.isDark) 0.16f else 0.22f)
-                                )
-                                // ④ 底部纱（42% 起）
-                                val veil = if (s1.isDark) Color(0xFF12091C) else Color.White
+                                blob(foil[0], w * 0.18f, h * 0.20f, w * 0.60f, w * 0.05f, h * 0.06f, 0f)
+                                blob(foil[1 % foil.size], w * 0.84f, h * 0.16f, w * 0.55f, w * 0.045f, h * 0.07f, 0.34f)
+                                blob(foil[foil.size - 1], w * 0.45f, h * 0.88f, w * 0.68f, w * 0.06f, h * 0.04f, 0.67f)
+                                // 磨砂霜
+                                drawRect(color = Color.Black.copy(alpha = 0.16f))
+                                // 底部纱：38% 起压到封面同色，92% 前收满
                                 drawRect(
                                     brush = Brush.verticalGradient(
                                         colors = listOf(
                                             Color.Transparent,
-                                            veil.copy(alpha = 0.55f),
-                                            veil.copy(alpha = 0.94f)
+                                            s1.coverTint.copy(alpha = 0.55f),
+                                            s1.coverTint
                                         ),
                                         startY = h * 0.38f,
-                                        endY = h
+                                        endY = h * 0.92f
+                                    )
+                                )
+                                // 92% 以下完全平涂：这一截不随相位变，接缝才是静的
+                                drawRect(
+                                    color = s1.coverTint,
+                                    topLeft = Offset(0f, h * 0.92f),
+                                    size = Size(w, h * 0.08f + 1f)
+                                )
+                            } else {
+                                // ── 浅色板 · 弥散光晕（2026-10-19 用户拍板「A」重做，推翻 B 流动光幕：
+                                //    真机实测光幕整屏同相位扫过像「统一光带」，抢戏且卡片零个性）。
+                                //    彻底放弃「箔」的隐喻，回归「幻彩渐变」四字：近白纸底上三团
+                                //    低透明度彩光（粉/紫/青）互相渗透，24s 相位错开慢漂移；
+                                //    无边界、无棱、无带、无扫掠 —— 光本身就是封面的全部构图。
+                                //    版式与其余主题同构（封面铺满卡边、标题居中 18dp 内缩）。
+                                //    卡间差异：tid 哈希 → 三色整体色相偏移 ±20°（同基因不同色调，
+                                //    一屏八卡不再是同一张脸）。相位 ph 与深板共用：已读卡定格 0.25。
+                                val paper = Color(0xFFFBF9FE)
+                                drawRect(color = paper)
+
+                                // tid → 稳定色相偏移（-20° ~ +20°）：同一个帖子每次进组合结果一致
+                                var tidHash = 0
+                                for (ch in post.tid) tidHash = tidHash * 31 + ch.code
+                                val hueDeg = ((tidHash and 0xFFFF) / 65535f - 0.5f) * 40f
+                                fun hueShift(c: Color): Color {
+                                    val hsv = FloatArray(3)
+                                    android.graphics.Color.colorToHSV(c.toArgb(), hsv)
+                                    hsv[0] = (hsv[0] + hueDeg + 360f) % 360f
+                                    return Color(android.graphics.Color.HSVToColor(hsv)).copy(alpha = c.alpha)
+                                }
+                                val c0 = hueShift(foil[0])
+                                val c1 = hueShift(foil[1 % foil.size])
+                                val c2 = hueShift(foil[2 % foil.size])
+
+                                // 光晕：三团低透明度 radialGradient（粉/紫/青），24s 相位错开漂移。
+                                // 半径以卡宽为基准（0.75w~0.85w）、锚点分居三角 —— 两团必重叠，
+                                // 重叠区互相渗透才是「幻彩」，而不是三张贴纸。
+                                fun glow(color: Color, alpha: Float, bx: Float, by: Float, radius: Float,
+                                         dx: Float, dy: Float, shift: Float) {
+                                    val ang = ((ph + shift) % 1f) * 2f * kotlin.math.PI.toFloat()
+                                    val gx = bx + dx * kotlin.math.sin(ang)
+                                    val gy = by + dy * kotlin.math.cos(ang)
+                                    drawCircle(
+                                        brush = Brush.radialGradient(
+                                            0f to color.copy(alpha = alpha),
+                                            0.55f to color.copy(alpha = alpha * 0.55f),
+                                            1f to Color.Transparent,
+                                            center = Offset(gx, gy),
+                                            radius = radius
+                                        ),
+                                        radius = radius,
+                                        center = Offset(gx, gy)
+                                    )
+                                }
+                                glow(c0, 0.55f, w * 0.12f, h * 0.22f, w * 0.80f, w * 0.05f, h * 0.04f, 0.00f)
+                                glow(c1, 0.50f, w * 0.88f, h * 0.12f, w * 0.85f, w * 0.04f, h * 0.05f, 0.33f)
+                                glow(c2, 0.42f, w * 0.45f, h * 0.80f, w * 0.75f, w * 0.05f, h * 0.04f, 0.67f)
+
+                                // 标题安全带：垂直 30%–72% 垫白纱（中部 66%），光晕漂过标题区时字不被咬
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            Color.White.copy(alpha = 0.66f),
+                                            Color.Transparent
+                                        ),
+                                        startY = h * 0.30f,
+                                        endY = h * 0.72f
                                     )
                                 )
                             }
-                    }
+                        }
                     else -> Modifier
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = 120.dp)
@@ -513,11 +575,9 @@ fun XhsPostCard(
                                  else baseTitleColor
 
                 Box(
+                    // 封面版式：铺满卡片上半部直到卡边（与其余主题同一个语法），
+                    // 幻彩的差别只是封面上那层弥散光晕；裁剪在 coverModifier 里做。
                     modifier = coverModifier
-                        // 幻彩保留 12dp 内缩（流光块是卡内的一枚色卡）；
-                        // 其余主题封面铺满卡片上半部，直到卡边 —— 这是「上下两色」成立的前提，
-                        // 留着白边就变成「白卡里贴了一块浅色纸」，两色对抗立刻失效。
-                        .then(if (coverStyle == 5) Modifier.padding(12.dp) else Modifier)
                 ) {
                     Text(
                         text = title,
@@ -533,8 +593,8 @@ fun XhsPostCard(
                             .fillMaxWidth()
                             .align(Alignment.Center)
                             .padding(
-                                start = if (coverStyle == 5) 8.dp else 18.dp,
-                                end = if (coverStyle == 5) 8.dp else 18.dp,
+                                start = 18.dp,
+                                end = 18.dp,
                                 top = 26.dp,
                                 bottom = 26.dp
                             )

@@ -11,6 +11,9 @@ build/
 .idea/
 local.properties
 
+# ===== 发布产物（例外：releases/ 下的正式包随版入库，供直装下载）=====
+!releases/*.apk
+
 # ===== 签名与密钥（绝不入库）=====
 *.jks
 *.keystore
@@ -19,6 +22,7 @@ local.properties
 adb_devices.txt
 app/src/main/.icon_backup/
 *.log
+.backup-yarn-*/
 # ===== 归档区（2026-10-16 根目录减负：产物/截图/日志/预览/素材不入库）=====
 outputs/
 preview/

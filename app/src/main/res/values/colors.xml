@@ -1,217 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ============ 浅色：午后红茶 ============ -->
-    <color name="light_bg_page">#EFE6D3</color>
-    <color name="light_bg_card">#FFFCF0</color>
-    <color name="light_bg_card_light">#E9DFC9</color>
-    <color name="light_bg_topbar">#FFFCF0</color>
-    <color name="light_bg_tabbar">#EFE6D3</color>
-    <color name="light_border_card">#DCD0B8</color>
-    <color name="light_border_light">#E5DBC7</color>
-    <color name="light_text_title">#5C2E0E</color>
-    <color name="light_text_body">#3A3A3A</color>
-    <color name="light_text_secondary">#8B7355</color>
-    <color name="light_text_tertiary">#9C8A6A</color>
-    <color name="light_text_topbar">#3A3A3A</color>
-    <color name="light_accent">#A0522D</color>
-    <color name="light_divider">#E3D9C5</color>
-    <color name="light_avatar_placeholder">#A0522D</color>
-    <color name="light_quote_bg">#F7F0E1</color>
-    <color name="light_quote_bar">#A0522D</color>
-    <color name="light_quote_text">#8A7A60</color>
-    <color name="light_quote_border">#E0D5BE</color>
+    
+    
 
-    <!-- ============ OLED 纯黑 ============ -->
-    <color name="oled_bg_page">#1A1E24</color>
-    <color name="oled_bg_card">#333B4A</color>
-    <color name="oled_bg_card_light">#242832</color>
-    <color name="oled_bg_topbar">#1A1E24</color>
-    <color name="oled_bg_tabbar">#1E2229</color>
-    <color name="oled_border_card">#454D5D</color>
-    <color name="oled_border_light">#262626</color>
-    <color name="oled_text_title">#E8C88A</color>
-    <color name="oled_text_body">#CCCCCC</color>
-    <color name="oled_text_secondary">#888888</color>
-    <color name="oled_text_tertiary">#666666</color>
-    <color name="oled_text_topbar">#E8C88A</color>
-    <color name="oled_accent">#D08040</color>
-    <color name="oled_divider">#1A1A1A</color>
-    <color name="oled_avatar_placeholder">#2A1A10</color>
-    <color name="oled_quote_bg">#080808</color>
-    <color name="oled_quote_bar">#D08040</color>
-    <color name="oled_quote_text">#AAAAAA</color>
-    <color name="oled_quote_border">#2A2A2A</color>
-
-
-    <!-- ============ 粉色佳人 ============ -->
-    <color name="pink_bg_page">#FFF5F7</color>
-    <color name="pink_bg_card">#FFFFFF</color>
-    <color name="pink_bg_card_light">#FFF8FA</color>
-    <color name="pink_bg_topbar">#F8D7DE</color>
-    <color name="pink_bg_tabbar">#FCE4E9</color>
-    <color name="pink_border_card">#F3D0D8</color>
-    <color name="pink_border_light">#F7DEE3</color>
-    <color name="pink_text_title">#C2185B</color>
-    <color name="pink_text_body">#2B2B2B</color>
-    <color name="pink_text_secondary">#8C6A73</color>
-    <color name="pink_text_tertiary">#B0949C</color>
-    <color name="pink_text_topbar">#5C2030</color>
-    <color name="pink_accent">#E94A72</color>
-    <color name="pink_divider">#F5DDE2</color>
-    <color name="pink_avatar_placeholder">#E94A72</color>
-    <color name="pink_quote_bg">#FFF0F3</color>
-    <color name="pink_quote_bar">#E94A72</color>
-    <color name="pink_quote_text">#8C6A73</color>
-    <color name="pink_quote_border">#F0C8D2</color>
-
+    
     <!-- 玻璃顶/底栏（半透明底 + 亮线） -->
-    <color name="light_glass_bar_bg">#E6FFFCF0</color>
-    <color name="light_glass_bar_line">#59FFFFFF</color>
-    <color name="oled_glass_bar_bg">#E60A0A0A</color>
-    <color name="oled_glass_bar_line">#3DFFFFFF</color>
-    <color name="pink_glass_bar_bg">#E6F8D7DE</color>
-    <color name="pink_glass_bar_line">#66FFFFFF</color>
 
     <!-- 回帖面板玻璃弹窗（各主题卡片色 + 微透明） -->
-    <color name="light_glass_sheet_bg">#F2FFFCF0</color>
-    <color name="light_glass_sheet_line">#59FFFFFF</color>
-    <color name="oled_glass_sheet_bg">#F20A0A0A</color>
-    <color name="oled_glass_sheet_line">#3DFFFFFF</color>
-    <color name="pink_glass_sheet_bg">#F2FFFFFF</color>
-    <color name="pink_glass_sheet_line">#40E94A72</color>
 
     <!-- 楼层菜单底部面板专用玻璃色（iOS 分享面板风，独立于卡片玻璃） -->
-    <color name="light_menu_sheet_bg">#CCFFFFFF</color>
-    <color name="oled_menu_sheet_bg">#CC1C1C1E</color>
-    <color name="pink_menu_sheet_bg">#CCFFFFFF</color>
-    <color name="fc_menu_sheet_bg">#CC222222</color>
-    <color name="rp5_menu_sheet_bg">#CCFFFFFF</color>
-    <color name="iridescent_menu_sheet_bg">#CCFFFFFF</color>
 
     <!-- Tag -->
-    <color name="light_tag_bg">#E9DFC9</color>
-    <color name="light_tag_text">#6B5A3C</color>
-    <color name="oled_tag_bg">#3A2A1A</color>
-    <color name="oled_tag_text">#E8C88A</color>
-    <color name="pink_tag_bg">#FCE4E9</color>
-    <color name="pink_tag_text">#E94A72</color>
 
-    <!-- ============ FC 红白（深红黑复古） ============ -->
-    <color name="fc_bg_page">#111111</color>
-    <color name="fc_bg_card">#1A1A1A</color>
-    <color name="fc_bg_card_light">#222222</color>
-    <color name="fc_bg_topbar">#1A1A1A</color>
-    <color name="fc_bg_tabbar">#1A1A1A</color>
-    <color name="fc_border_card">#2E2E2E</color>
-    <color name="fc_border_light">#2A2A2A</color>
-    <color name="fc_text_title">#F0E8D8</color>
-    <color name="fc_text_body">#F0E8D8</color>
-    <color name="fc_text_secondary">#887A60</color>
-    <color name="fc_text_tertiary">#6A5E48</color>
-    <color name="fc_text_topbar">#F0E8D8</color>
-    <color name="fc_accent">#C41E3A</color>
-    <color name="fc_divider">#2E2E2E</color>
-    <color name="fc_avatar_placeholder">#C41E3A</color>
-    <color name="fc_quote_bg">#1F1F1F</color>
-    <color name="fc_quote_bar">#C41E3A</color>
-    <color name="fc_quote_text">#887A60</color>
-    <color name="fc_quote_border">#2E2E2E</color>
-    <color name="fc_glass_bar_bg">#E60A0A0A</color>
-    <color name="fc_glass_bar_line">#55C41E3A</color>
-    <color name="fc_glass_sheet_bg">#E6222222</color>
-    <color name="fc_glass_sheet_line">#55C41E3A</color>
-    <color name="fc_tag_bg">#2A2A2A</color>
-    <color name="fc_tag_text">#D4AF37</color>
-
-    <!-- ============ RP5 灰彩（暖灰 + LCD 绿屏风） ============ -->
-    <color name="rp5_bg_page">#D4D0B8</color>
-    <color name="rp5_bg_card">#ECE8D4</color>
-    <color name="rp5_bg_card_light">#E0DCC8</color>
-    <color name="rp5_bg_topbar">#B8B498</color>
-    <color name="rp5_bg_tabbar">#B8B498</color>
-    <color name="rp5_border_card">#A09C82</color>
-    <color name="rp5_border_light">#B8B498</color>
-    <color name="rp5_text_title">#2F3A1E</color>
-    <color name="rp5_text_body">#2F3A1E</color>
-    <color name="rp5_text_secondary">#5B6A3E</color>
-    <color name="rp5_text_tertiary">#7A8660</color>
-    <color name="rp5_text_topbar">#2F3A1E</color>
-    <color name="rp5_accent">#4A7C23</color>
-    <color name="rp5_divider">#B8B498</color>
-    <color name="rp5_avatar_placeholder">#4A7C23</color>
-    <color name="rp5_quote_bg">#DEDAC4</color>
-    <color name="rp5_quote_bar">#4A7C23</color>
-    <color name="rp5_quote_text">#5B6A3E</color>
-    <color name="rp5_quote_border">#A09C82</color>
-    <color name="rp5_glass_bar_bg">#E6B8B498</color>
-    <color name="rp5_glass_bar_line">#404A7C23</color>
-    <color name="rp5_glass_sheet_bg">#F2ECE8D4</color>
-    <color name="rp5_glass_sheet_line">#404A7C23</color>
-    <color name="rp5_tag_bg">#C8C4A8</color>
-    <color name="rp5_tag_text">#2F3A1E</color>
-
+    
+    
     <!-- ============ 幻彩渐变（低饱和珍珠浅彩，XML 页固定使用粉紫基调） ============ -->
-    <color name="iridescent_bg_page">#F8F2F7</color>
-    <color name="iridescent_bg_card">#FFFFFF</color>
-    <color name="iridescent_bg_card_light">#F6EDF4</color>
-    <color name="iridescent_bg_topbar">#F0E4EF</color>
-    <color name="iridescent_bg_tabbar">#F0E4EF</color>
-    <color name="iridescent_border_card">#E4D6E2</color>
-    <color name="iridescent_border_light">#EEE2EC</color>
-    <color name="iridescent_text_title">#3D3845</color>
-    <color name="iridescent_text_body">#3D3845</color>
-    <color name="iridescent_text_secondary">#7C7488</color>
-    <color name="iridescent_text_tertiary">#A29AAD</color>
-    <color name="iridescent_text_topbar">#3D3845</color>
-    <color name="iridescent_accent">#C77FA0</color>
-    <color name="iridescent_divider">#E4D6E2</color>
-    <color name="iridescent_avatar_placeholder">#C77FA0</color>
-    <color name="iridescent_quote_bg">#F6EDF4</color>
-    <color name="iridescent_quote_bar">#C77FA0</color>
-    <color name="iridescent_quote_text">#7C7488</color>
-    <color name="iridescent_quote_border">#E4D6E2</color>
-    <color name="iridescent_glass_bar_bg">#E6F5ECF4</color>
-    <color name="iridescent_glass_bar_line">#40C77FA0</color>
-    <color name="iridescent_glass_sheet_bg">#F2FFFFFF</color>
-    <color name="iridescent_glass_sheet_line">#40C77FA0</color>
-    <color name="iridescent_tag_bg">#C77FA0</color>
-    <color name="iridescent_tag_text">#FFFFFF</color>
 
     <color name="text_on_accent">#FFF8DC</color>
 
-    <color name="bg_page">@color/light_bg_page</color>
-    <color name="bg_card">@color/light_bg_card</color>
-    <color name="text_title">@color/light_text_title</color>
-    <color name="text_body">@color/light_text_body</color>
+    <!-- 2026-10-19 ①：幻彩深板（夜市）主色上的文字改深字。
+         亮品红(#F44FD8)压白字只有 3.1:1（正文线 4.5:1），压页面底色 6.4:1。
+         浅板（镭射糖果）沿用 text_on_accent 不变；原极光板深字色随 v1 剔除一并删除。 -->
+    <color name="text_on_accent_neon_dark">#120820</color>
 
-    <!-- 幻彩渐变 · 深色板（与 S1Theme.kt 的 IridescentPresets[1] 对齐）：
+
+    <!-- 幻彩渐变 · 深色板（与 S1Theme.kt 的 IridescentPresets[0] 夜市对齐）：
          首页抽到深色紫时，XML 页面（帖子详情等）必须用这套，否则会闪成浅色 -->
-    <color name="iridescent_dark_bg_page">#16101F</color>
-    <color name="iridescent_dark_bg_card">#221830</color>
-    <color name="iridescent_dark_bg_card_light">#2A1D3C</color>
-    <color name="iridescent_dark_bg_topbar">#241735</color>
-    <color name="iridescent_dark_bg_tabbar">#2E1836</color>
-    <color name="iridescent_dark_border_card">#3A2B4A</color>
-    <color name="iridescent_dark_border_light">#332544</color>
-    <color name="iridescent_dark_text_title">#F4ECFA</color>
-    <color name="iridescent_dark_text_body">#F4ECFA</color>
-    <color name="iridescent_dark_text_secondary">#A99BBE</color>
-    <color name="iridescent_dark_text_tertiary">#8A7BA0</color>
-    <color name="iridescent_dark_text_topbar">#F4ECFA</color>
-    <color name="iridescent_dark_accent">#FF6FB5</color>
-    <color name="iridescent_dark_divider">#332544</color>
-    <color name="iridescent_dark_avatar_placeholder">#FF6FB5</color>
-    <color name="iridescent_dark_quote_bg">#2A1D3C</color>
-    <color name="iridescent_dark_quote_bar">#FF6FB5</color>
-    <color name="iridescent_dark_quote_text">#A99BBE</color>
-    <color name="iridescent_dark_quote_border">#332544</color>
-    <color name="iridescent_dark_glass_bar_bg">#E6141020</color>
-    <color name="iridescent_dark_glass_bar_line">#40FF6FB5</color>
-    <color name="iridescent_dark_glass_sheet_bg">#F22A1D3C</color>
-    <color name="iridescent_dark_glass_sheet_line">#40FF6FB5</color>
-    <color name="iridescent_dark_menu_sheet_bg">#CC2A1D3C</color>
-    <color name="iridescent_dark_tag_bg">#FF6FB5</color>
-    <color name="iridescent_dark_tag_text">#FFFFFF</color>
 <!-- ===== PS 评分抽屉 · 键面文字色（细节轮2 黑白反色体系，2026-10-16）=====
      用户要求：白色背景用黑字、黑色背景用白字。
      键面 drawable 拆成「深面 ps_reset_btn（纯黑）/ 浅面 ps_done_btn（纯白）」，

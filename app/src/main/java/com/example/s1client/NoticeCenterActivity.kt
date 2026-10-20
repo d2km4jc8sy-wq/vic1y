@@ -56,8 +56,16 @@ import com.example.s1client.ui.design.BgColor
 import com.example.s1client.ui.design.BgColorBottom
 import com.example.s1client.ui.design.GlassBar
 import com.example.s1client.ui.design.HeartRed
+import com.example.s1client.ui.design.NoticeAt
+import com.example.s1client.ui.design.NoticeReply
+import com.example.s1client.ui.design.NoticeUnread
+import com.example.s1client.ui.design.PmUnreadDot
 import com.example.s1client.ui.theme.LocalS1Colors
 import com.example.s1client.ui.design.ChipBg
+import com.example.s1client.ui.design.EdgeLine
+import com.example.s1client.ui.design.ListPanel
+import com.example.s1client.ui.design.PillTint
+import com.example.s1client.ui.design.RowLine
 import com.example.s1client.ui.design.TextMain
 import com.example.s1client.ui.showUserCardDialog
 import com.example.s1client.ui.design.TextSub
@@ -290,7 +298,25 @@ fun ReminderCenterScreen(onBack: () -> Unit) {
             )
         }
 
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // 列表面板：默认与页面同色（视觉零变化）；机器猫等高饱和红页主题覆盖为卡片色，
+        // 让列表区有分层和锚点，而不是整页通铺红（2026-10-19 用户报告适配）。
+        // 面板上下缘再各压一条 1dp 相框发丝（edgeLine，默认透明不画）：
+        // 机器猫的蓝面板原本与枣红 tab 区/底栏硬碰，两条细灰边把面板从红里切出来，
+        // 与「我的」页蓝卡的相框是同一支语言（2026-10-19 用户报告「红蓝没有隔离」）
+        Column(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(EdgeLine)
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(ListPanel),
+                contentAlignment = Alignment.Center
+            ) {
             when {
                 loading -> CircularProgressIndicator(color = AccentPink)
                 error != null -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -348,6 +374,15 @@ fun ReminderCenterScreen(onBack: () -> Unit) {
                     }
                 }
             }
+            // 内容 Box（weight 1f）收尾
+            }
+            // 面板下缘发丝：与上缘对称，把蓝面板底边从枣红底栏切出来
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(EdgeLine)
+            )
         }
     }
 }
@@ -413,7 +448,7 @@ private fun FeedChips(
                 modifier = Modifier
                     .height(34.dp)
                     .clip(RoundedCornerShape(17.dp))
-                    .background(if (sel) AccentPink else TextMain.copy(alpha = 0.08f))
+                    .background(if (sel) PillTint else TextMain.copy(alpha = 0.08f))
                     .clickable { onSelect(i) }
                     .padding(horizontal = 13.dp),
                 contentAlignment = Alignment.Center
@@ -434,7 +469,9 @@ private fun FeedChips(
 private fun RowHairline() {
     // 2026-10-18：原来用 ChipBg 画分隔线。机器猫把 chipBg 改成蓝（图标圆要融进卡片），
     // 结果列表分隔线全变蓝。这里改用中性亮线的低透明度，不再跟图标底色联动。
-    val divider = LocalS1Colors.current.textMain.copy(alpha = 0.12f)
+    // 2026-10-19：收口为 rowLine token（默认值就是这里的 textMain 12%，行为不变；
+    // 机器猫蓝面板上提亮到白 14%，与「我的」页卡内行线同一支发丝）
+    val divider = RowLine
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -450,8 +487,8 @@ private fun NoticeRow(item: NoticeItem, showHairline: Boolean = true) {
     val scope = rememberCoroutineScope()
     Column {
     val typeColor = when (item.type) {
-        "reply" -> Color(0xFFFF6B6B)
-        "at" -> Color(0xFF4F80F2)
+        "reply" -> NoticeReply
+        "at" -> NoticeAt
         else -> TextSub
     }
     val typeLabel = when (item.type) {
@@ -497,7 +534,7 @@ private fun NoticeRow(item: NoticeItem, showHairline: Boolean = true) {
                     else -> S1Notify.show(context, "该提醒没有可跳转的内容")
                 }
             }
-            .padding(horizontal = 13.dp, vertical = 8.dp),
+            .padding(horizontal = 13.dp, vertical = 7.dp),
         verticalAlignment = Alignment.Top
     ) {
         // 未读竖条：服务端 new=1 才亮（HTML 兜底路径拿不到，恒为透明）
@@ -507,7 +544,7 @@ private fun NoticeRow(item: NoticeItem, showHairline: Boolean = true) {
                 .width(3.dp)
                 .height(38.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(if (item.isNew) AccentPink else Color.Transparent)
+                .background(if (item.isNew) NoticeUnread else Color.Transparent)
         )
         AsyncImage(
             model = NoticeParser.resolveUrl(item.avatar),
@@ -529,9 +566,11 @@ private fun NoticeRow(item: NoticeItem, showHairline: Boolean = true) {
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
+                        // fill=true：先把徽章与时间测量完，剩余宽度全给用户名，超出才截断。
+                        // 原 fill=false 在窄行会把徽章挤出同一行（2026-10-19 用户截图发现）
+                        modifier = Modifier.weight(1f)
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(6.dp))
                 }
                 Text(
                     typeLabel,
@@ -543,20 +582,28 @@ private fun NoticeRow(item: NoticeItem, showHairline: Boolean = true) {
                         .background(typeColor.copy(alpha = 0.12f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 )
+                // 时间挪到首行右侧：原来独占一行，与正文、用户名堆成三层（2026-10-19 收紧）
+                if (!item.time.isNullOrBlank()) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        item.time,
+                        color = TextSub,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(3.dp))
             Text(
                 item.content,
                 color = TextMain,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-                maxLines = 3,
+                fontSize = 13.5.sp,
+                lineHeight = 19.sp,
+                // 3 → 2 行：列表是概览，全文进详情看；这是行高压抑的最大来源
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            if (!item.time.isNullOrBlank()) {
-                Spacer(Modifier.height(4.dp))
-                Text(item.time, color = TextSub, fontSize = 12.sp)
-            }
         }
     }
     if (showHairline) RowHairline()
@@ -590,7 +637,8 @@ private fun PmRow(
             modifier = Modifier
                 .size(34.dp)
                 .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(Color(0xFFE94A72), Color(0xFFF48FB1))))
+                // PM 头像兜底：强调色 → 热帖红的主题渐变（原写死粉色，违反宪法 18 条）
+                .background(Brush.linearGradient(listOf(AccentPink, HeartRed)))
         ) {
             val letter = item.username.firstOrNull()?.toString()?.uppercase() ?: "?"
             Text(
@@ -610,7 +658,7 @@ private fun PmRow(
                         .align(Alignment.TopEnd)
                         .offset(x = 2.dp, y = (-2).dp)
                         .size(11.dp)
-                        .background(HeartRed, CircleShape)
+                        .background(PmUnreadDot, CircleShape)
                 )
             }
         }

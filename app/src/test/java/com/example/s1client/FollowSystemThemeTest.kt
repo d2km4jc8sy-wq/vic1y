@@ -19,7 +19,7 @@ class FollowSystemThemeTest {
 
     @Test
     fun `系统浅色映射焙茶午后`() {
-        assertEquals(ThemeManager.THEME_LIGHT, ThemeManager.mapFollowSystem(false))
+        assertEquals(ThemeManager.THEME_TEA, ThemeManager.mapFollowSystem(false))
     }
 
     @Test

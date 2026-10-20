@@ -104,7 +104,7 @@
                 android:paddingBottom="1dp"
                 android:textSize="10sp"
                 android:textStyle="bold"
-                android:textColor="#C77A00"
+                android:textColor="#E23B44"
                 android:visibility="gone" />
 
             <View

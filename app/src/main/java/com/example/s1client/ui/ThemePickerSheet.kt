@@ -96,15 +96,15 @@ private val CardSize = 156.dp
 @Composable
 private fun ThemePreviewCard(themeIndex: Int, name: String, active: Boolean) {
     val p = s1PaletteFor(themeIndex)
-    // 幻彩在列表里固定展示浅色那套 —— 否则点一下卡片会在深浅之间跳，容易被误解成 bug。
-    // 实际"深浅随机"由主题名「紫粉流光 · 深浅随机」传达。
-    val pPreview = if (themeIndex == ThemeManager.THEME_IRIDESCENT) {
-        s1PaletteFor(themeIndex, seed = 0)
+    // 幻彩渐变在列表里固定展示夜市深板 —— 否则点一下卡片会在深浅之间跳，
+    // 容易被误解成 bug。实际"深浅随机"由主题名传达。
+    val pPreview = if (ThemeManager.isIridescentFamily(themeIndex)) {
+        s1PaletteFor(themeIndex, seed = 2)   // seed=2 → %2=0 → 夜市深板
     } else p
     val shape = RoundedCornerShape(28.dp)
     // 每套主题一句特征说明；幻彩渐变提一句"深浅随机"
     val sub = when {
-        themeIndex == ThemeManager.THEME_IRIDESCENT -> "紫粉流光 · 深浅随机"
+        themeIndex == ThemeManager.THEME_IRIDESCENT -> "霓虹糖果 · 深浅随机"
         pPreview.isDark -> "深色 · 护眼"
         else -> "浅色 · 通透"
     }
@@ -180,7 +180,7 @@ private fun ThemePreviewCard(themeIndex: Int, name: String, active: Boolean) {
 /**
  * 主题选择器（底部弹窗 · 左右滑动轮播）。
  *
- * 交互：左右滑动 → 居中那张自动生效（只有 4 套主题且切换是即时的，
+ * 交互：左右滑动 → 居中那张自动生效（共 6 套主题且切换是即时的，
  * 边滑边看效果，整页 + 本弹窗都会跟着变色）；点两侧的卡片则把它滑到中间。
  * 生效即时是因为 ThemeManager.currentTheme 是可观察状态，Compose 直接重组；
  * 这里额外把系统栏按新调色板刷一遍（不再重建 Activity，XML 主题属性还是旧的）。

@@ -122,7 +122,6 @@ import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
-import com.example.s1client.ui.design.AccentCyan
 import com.example.s1client.ui.design.AccentPink
 import com.example.s1client.ui.design.S1Radius
 import com.example.s1client.ui.design.BgColor
@@ -530,6 +529,7 @@ fun ForumFeedPage(
                                         .displayMetrics.heightPixels).toInt()
                         }
                     }
+                    // P4 首次提示的本地记忆已随提示一起删掉（2026-10-19）
                     // key(开关)：AndroidView 的 factory 只跑一次，切换 PULL_IMPL 换的是
                     // 不同 View 类型，必须靠 key 强制重建实例（拍板 1：设置改秒切）。
                     androidx.compose.runtime.key(PULL_IMPL) {
@@ -607,16 +607,22 @@ fun ForumFeedPage(
                             }
                         },
                         modifier = if (PULL_IMPL == 1)
-                            // 相机扳手（2026-10-18 重做）：68×90dp，viewBox 100×132 等比。
-                            // 旧版 62×170 的高度是为了给「外挂式」扳手留摆程，
-                            // 新几何转轴在机身内、球头走 32 半径弧，控件不再需要那么高。
-                            // end 13dp = HTML right:16px 的斐波那契取整
+                            // 相机扳手（2026-10-19）：挂载点镜像到左缘（用户指定），版面零改动——
+                            // feed contentPadding 不变、卡片全宽，浮层行为与原右缘版完全一致（滚到顶浮现、滚动隐藏）。
+                            // 下移 26% 避开侧边返回手势区的做法保留（左缘同理）。
+                            // 行程仍为 D6（-30°→+60°）+ P1~P5 手感增强。
+                            //
+                            // 2026-10-20 方案 B：start 30→10dp。旧画布左边空 13vb，
+                            // 导致机身左缘实际落在 41.7dp、比卡片边距远 31.7dp，像块贴纸。
+                            // 控件画布已收紧到图形外框（VB 93×82 / VIEW_W 78dp），
+                            // 现在机身左缘 ≈10dp，与卡片 contentPadding start 对齐。
+                            //
+                            // 同日：top 26% → 23%。26% 时相机整体骑在第二张卡顶边上
+                            // （实测机身底缘 310.7dp = 左列卡缝 310.7dp，分毫不差）。
+                            // 上移 23dp 后整机落进第一张卡内部，不再骑缝。
                             Modifier
-                                .align(Alignment.TopEnd)
-                                // 下移到屏幕约 26% 处 + 右缘内缩 30dp：
-                                // 真机实测安卓侧边返回手势就在右边缘，原来贴顶的浮件
-                                // 极易与系统手势打架而误触拉出侧边栏（用户反馈）
-                                .padding(top = (LocalConfiguration.current.screenHeightDp * 0.26f).dp, end = 30.dp)
+                                .align(Alignment.TopStart)
+                                .padding(top = (LocalConfiguration.current.screenHeightDp * 0.23f).dp, start = 10.dp)
                                 .size(width = CameraLeverView.VIEW_W_DP.dp, height = CameraLeverView.VIEW_H_DP.dp)
                                 .zIndex(2f)
                         else
@@ -633,6 +639,8 @@ fun ForumFeedPage(
                                 // 滚动时整体淡出（FAB 行为）：解决"固定在右上压住卡片/与内容混叠"
                                 .alpha(pullAlpha)
                     )
+                    // P4 首次提示「下拉过片」已删（2026-10-19 用户要求）：
+                    // 实验功能的常驻提示语太吵，扳手本身已经够明显，不再教。
                     } // key(PULL_IMPL) 结束
 
                     // 实验功能：快门刷新遮罩 overlay（相机扳手 PULL_IMPL=1 · refreshing 驱动；
@@ -894,7 +902,11 @@ fun XhsCategoryTabs(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = tabs[index].name,
-                                color = if (isSelected) Color.White else TextSub,
+                                // 未选中的分类名同样不能用 textSub：顶栏是深色时它几乎看不见。
+                                // 用 onHeader 降一点透明度，既保证可读，又和选中态拉开层次。
+                                // ① 字色走令牌 onAccent（原写死白色）：深色幻彩板主色上是深字
+                                //    （白字压亮青/亮品红仅 2.1~3.1:1）；其余主题 onAccent 仍为白，视觉不变
+                                color = if (isSelected) s1c.onAccent else s1c.onHeader.copy(alpha = 0.78f),
                                 fontSize = 13.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 maxLines = 1,

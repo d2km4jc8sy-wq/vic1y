@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.s1client.ui.theme.LocalS1Colors
+import com.example.s1client.ui.theme.s1HeaderAurora
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.data.store.DraftStore
 import com.example.s1client.util.S1Notify
@@ -74,6 +75,7 @@ private fun DraftListScreen(onFinish: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Brush.horizontalGradient(c.headerGradient))
+                    .s1HeaderAurora(c)
                     .padding(top = 48.dp, bottom = 10.dp, start = 4.dp, end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

@@ -1,14 +1,27 @@
 package com.example.s1client.ui.theme
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.dp
 import com.example.s1client.util.ThemeManager
 import com.example.s1client.data.store.SettingStore
 
@@ -53,6 +66,13 @@ data class S1Colors(
     val glassEdgeBottom: Color? = null,
     /** 卡片内侧顶部高光（inset 高光），null = 不画 */
     val glassInsetLight: Color? = null,
+    /**
+     * 顶栏底部「极光细线」的三色渐变（2026-10-19 ③ 极昼身份签）。
+     * null = 不画（其余主题视觉零变化）。仅幻彩浅板开启：
+     * 2.5dp、40% 透明度，画在顶栏下边缘 —— 渐变只进焦点件的纪律不破，
+     * 这条线是「限定皮肤」的身份签，面积极小不参与铺色。绘制见 [s1HeaderAurora]。
+     */
+    val headerAurora: List<Color>? = null,
     /** 是否深色主题（供 Material 配色桥接用） */
     val isDark: Boolean,
     /**
@@ -76,6 +96,26 @@ data class S1Colors(
      * 与 [heart]（热帖红 FF2C55）刻意分两套，避免「删除/退出」红与心形/热帖红撞色。
      */
     val danger: Color = Color(0xFFFF3B30),
+    /**
+     * 消息中心类型徽章色：「回复」提醒 / 「@」提醒（NoticeCenterActivity 行内小签，
+     * 文字色 + 12% 同色底）。2026-10-18 收口为 token：原先写死在业务代码里
+     * （珊瑚红 FF6B6B / 蓝 4F80F2），违反宪法 18 条「配色从主题色板派生」；
+     * 且机器猫页面是枣红 #C74636（2026-10-19 由饱和红 #E60012 降饱和），
+     * 原两色对比度仅 1.5~1.7:1，等于看不见。
+     * 默认取原值，保证其余主题视觉零变化；按主题覆盖（见 DoraemonPalette）。
+     */
+    val noticeReply: Color = Color(0xFFFF6B6B),
+    val noticeAt: Color = Color(0xFF4F80F2),
+    /**
+     * 消息中心未读竖条（3dp，页面底上）。默认 = [accent]（原行为，视觉零变化）。
+     * 赤红/机器猫的强调色就是页面色本身（红底红条），竖条不可见 → 覆盖为白。
+     */
+    val noticeUnread: Color = accent,
+    /**
+     * PM 列表未读小红点（头像右上角 11dp 圆点）。默认 = [heart]（原行为）。
+     * 该点落在头像渐变（accent→heart）与页面底上，赤红/机器猫的红系点会糊进红底 → 覆盖为白。
+     */
+    val pmUnreadDot: Color = heart,
     /**
      * 无图帖子封面的底色（卡片「上下两色」的上半部分）。
      * 默认 = [chipBg]，也就是「我的」「设置」里那些图标圆底的同一块灰。
@@ -106,69 +146,93 @@ data class S1Colors(
      * 首页分类栏「选中胶囊」的底色。默认 = [accent]。
      * 机器猫单独给蓝：它的顶栏是红的，胶囊若也用红就看不见，必须互斥。
      */
-    val pillTint: Color = accent
+    val pillTint: Color = accent,
+    /**
+     * 消息中心（提醒/私信）列表面板的底色。默认 = [bgBottom]，即列表直接铺在页面底上
+     * （原行为，其余主题视觉零变化）。
+     * 机器猫覆盖为卡片蓝：它的页面底是高饱和鲜红 #E60012，整页通铺会得到「全红界面」，
+     * 而「我的」「设置」等页面都有蓝卡做视觉锚点。列表面板改蓝后与全站结构对齐
+     * （红顶栏 + 蓝列表），也延续机器猫「一屏之内必有一蓝一红」的法则
+     * （2026-10-19 用户报告：机器猫提醒页全红，无可读锚点）。
+     */
+    val listPanel: Color = bgBottom,
+    /**
+     * 卡内行间发丝（菜单组行线、身份卡头衔分隔、统计格竖线、提醒列表行线）。
+     * 默认 = 列缝黑 feedGap 25% —— 「黑但分层」的一支语言，全主题自适应：
+     * 叠蓝底自动呈深蓝、叠红底自动呈深红、叠白底呈中灰，发丝永远与底色同相压深，
+     * 既读得出层次又不抢内容（2026-10-19 定：用户原话「红里调蓝、蓝里调红，或换黑」，
+     * 设计判断否决互斥方案——1dp 红线在连续列表里是高频噪音，且稀释红的语义；
+     * 也否决纯黑行线——会把列表切成表格，丢失「连续信息流」意图。黑 25% 是中间档）。
+     * **刻意不跟 chipBg 联动** —— chipBg 是「图标圆底」，机器猫把它改成卡片蓝后，
+     * 拿它画线等于蓝画在蓝上（2026-10-18 踩过）。
+     */
+    val rowLine: Color = feedGap.copy(alpha = 0.25f),
+    /**
+     * 卡片 / 面板外缘的「相框发丝」——1dp 描边，把大色块从页面底里切出来。
+     * 默认 = 全透明（不画，其余主题视觉零变化）。
+     * 机器猫覆盖为列缝灰 #2E2E33：页面枣红 + 卡片灰蓝两个大面积色相硬碰，
+     * 远处看会糊成「一大块红加一大块蓝」；一圈中性灰细边让每个蓝卡有轮廓、
+     * 红底退回背景空间（2026-10-19 用户报告「没有做到隔离」）。灰是 palette 里
+     * 既有的第三色（feedGap 列缝同色），不引新色、不参与红蓝互斥。
+     */
+    val edgeLine: Color = Color.Transparent,
+    /**
+     * 帖子详情「便签」（回复楼卡片）的底色。默认 = [cardBg]，其余主题视觉零变化。
+     * 机器猫覆盖为项圈红：详情页的楼层便签若也用蓝，整页就全是蓝、失去红蓝对比
+     * （2026-10-19 用户反馈「整个版面就缺失了原来的效果」）。
+     * 单独开一个槽位，是为了不牵连首页卡片（coverTint/metaTint）与「我的」页（s1BgCard）。
+     */
+    val ticketBg: Color = cardBg
 )
 
 // ————————— 原有三套（不动，只扩展 headerGradient）—————————
 
-/** 午后红茶 */
-private val TeaPalette = S1Colors(
-    bgTop = Color(0xFFEFE6D3), bgBottom = Color(0xFFEFE6D3),
-    headerGradient = listOf(Color(0xFFFFFCF0), Color(0xFFFFFCF0)),
-    textMain = Color(0xFF3A3A3A), textSub = Color(0xFF8B7355),
-    accent = Color(0xFFA0522D), onAccent = Color(0xFFFFF8DC),
-    accentCyan = Color(0xFF1FB8FF), heart = Color(0xFFFF2C55),
-    cardBg = Color(0xFFFFFCF0),
-    glassCard = Color(0xFAFFFCF0), glassLine = Color(0x1AA0522D),
-    glassBar = Color(0xF2EFE6D3), glassFloat = Color(0xFAFFFCF0),
-    glassFloatLine = Color(0x24A0522D),
-    glassDialog = Color(0xFAFFFCF0), glassDialogLine = Color(0x24A0522D),
-    chipBg = Color(0xFFE9DFC9),
-    strongIcon = Color(0xFF5C2E0E),
-    snackbarBg = Color(0xFF3A2410), onSnackbar = Color(0xFFFFF8DC),
-    flowCoverColors = listOf(Color(0xFFFF6FA5), Color(0xFF1FB8FF), Color(0xFF8B5CF6), Color(0xFFFF6FA5)),
-    // 液态玻璃（浅色 · 含蓄）：描边仅比卡面亮/暗一点点，靠内侧细高光透出质感
-    glassEdgeTop = Color(0x33FFFFFF), glassEdgeMid = Color(0x1AFFFFFF),
-    glassEdgeBottom = Color(0x14000000),
-    glassInsetLight = Color(0x66FFFFFF),
-    isDark = false,
-    // 顶栏改成卡片色（与纯白用 #FFFFFF 同一规则），不再用饱和茶褐；
-    // 浅底顶栏必须配深色字，否则白字在 #FFFCF0 上等于看不见
-    onHeader = Color(0xFF3A3A3A)
-)
+/** 旧「午后红茶」色板已于 2026-10-19 删除：米黄 #EFE6D3 + 茶褐 #A0522D。
+ *  它和改版后的纯白（纸感暖白）同为浅色暖调，功能重复；
+ *  用户选择保留改版后的那套，并由它继承「焙茶午后」这个名字（见下方 TeaPalette）。 */
 
 /**
- * 纯白（2026-10-18 用户定稿）：参考 iOS 默认浅色。
- * 底 #E8EAF0 / 卡片 #FFFFFF / 封面块 #DCE4F2 / 主色 iOS 蓝 #007AFF。
- * 页面底比卡片深两档，卡片才「浮」得起来；封面块是实色，与白信息区形成上下两色。
- * 顶栏是浅色，文字用深色（onHeader），不再沿用「浅色主题一律白字」的旧规则。
+ * 焙茶午后（原名「纯白」，2026-10-19 改版 + 改名）：**纸感暖白 + 黛青**。
+ *
+ * 原版是冷灰蓝 #E8EAF0 + 纯白 #FFFFFF + iOS 蓝 #007AFF —— 干净、层次也对
+ * （页面比卡片暗，浅色主题本来就该这样），但用户反馈三条问题，本版一起改：
+ *   ① 降刺眼：卡片 #FFFFFF → #FDFCFA。不到纯白的柔白，大面积铺开夜里不再晃眼。
+ *   ② 加温度：页面底从冷灰蓝改成近乎中性的暖灰 #EAE8E3，有纸的温和感，不再像系统设置页。
+ *   ③ 换强调色：iOS 系统蓝 → 黛青 #1F6F8B。不是任何系统的默认色，
+ *      且在白底上对比度 5.4:1（原 iOS 蓝只有 3.9:1），更清楚。
+ *
+ * 2026-10-19 接任「焙茶午后」这个名字：旧焙茶（米黄 #EFE6D3 + 茶褐 #A0522D）
+ * 与本版同为浅色暖调、功能重复，已删除，名字由本套继承。
+ * 旧的 S1 网页米黄底色因此不再单独存在 —— 纸感暖白是现在唯一的浅色。
  */
-val PurePalette = S1Colors(
-    bgTop = Color(0xFFE8EAF0), bgBottom = Color(0xFFE8EAF0),
-    headerGradient = listOf(Color(0xFFFFFFFF), Color(0xFFFFFFFF)),
-    textMain = Color(0xFF1C1C1E), textSub = Color(0xFF8E8E93),
-    accent = Color(0xFF007AFF), onAccent = Color(0xFFFFFFFF),
-    accentCyan = Color(0xFF32ADE6), heart = Color(0xFFFF2C55),
-    cardBg = Color(0xFFFFFFFF),
-    glassCard = Color(0xFAFFFFFF), glassLine = Color(0x08000000),
-    glassBar = Color(0xF2FFFFFF), glassFloat = Color(0xFAFFFFFF),
+val TeaPalette = S1Colors(
+    // 页面：近乎中性的暖灰，只比纯白暗一点点，纸感
+    bgTop = Color(0xFFEAE8E3), bgBottom = Color(0xFFEAE8E3),
+    // 顶栏跟卡片同色（原规则），一起转暖
+    headerGradient = listOf(Color(0xFFFDFCFA), Color(0xFFFDFCFA)),
+    textMain = Color(0xFF232120), textSub = Color(0xFF8A867F),
+    accent = Color(0xFF1F6F8B), onAccent = Color(0xFFFFFFFF),
+    accentCyan = Color(0xFF4FA3C7), heart = Color(0xFFFF2C55),
+    // 卡片：柔白，不是纯白 —— 整屏大面积铺开时不刺眼
+    cardBg = Color(0xFFFDFCFA),
+    glassCard = Color(0xFAFDFCFA), glassLine = Color(0x08000000),
+    glassBar = Color(0xF2FDFCFA), glassFloat = Color(0xFAFDFCFA),
     glassFloatLine = Color(0x12000000),
-    glassDialog = Color(0xFFFFFFFF), glassDialogLine = Color(0x12000000),
-    chipBg = Color(0xFFE5E5EA),
-    strongIcon = Color(0xFF1C1C1E),
-    snackbarBg = Color(0xFF1C1C1E), onSnackbar = Color(0xFFFFFFFF),
+    glassDialog = Color(0xFFFDFCFA), glassDialogLine = Color(0x12000000),
+    chipBg = Color(0xFFE4E0D9),
+    strongIcon = Color(0xFF232120),
+    snackbarBg = Color(0xFF232120), onSnackbar = Color(0xFFFDFCFA),
+    // 封面流光：跟着暖白基调整体降饱和，不再用 iOS 系统色那一套
     flowCoverColors = listOf(
-        Color(0xFF007AFF), Color(0xFF34C759), Color(0xFFFF9500), Color(0xFFFF2D55)
+        Color(0xFF1F6F8B), Color(0xFF4A8C6A), Color(0xFFD98324), Color(0xFFD64550)
     ),
     glassEdgeTop = Color(0x1F000000), glassEdgeMid = Color(0x12000000),
     glassEdgeBottom = Color(0x0A000000),
     glassInsetLight = Color(0x66FFFFFF),
     isDark = false,
-    onHeader = Color(0xFF1C1C1E),
-    // 2026-10-28 浅色封面打磨：原先封面 = chipBg #E5E5EA，与页面底 #E8EAF0 只差 3~5 级，
-    // 标题区那一大块「浮不起来」。压深一档后：封面 #DFE2EA / 卡片 #FFFFFF / 页面 #E8EAF0 三级分明。
-    // 图标圆底保持 chipBg 不动 —— 浅色图标圈不需要跟着变重。
-    coverTint = Color(0xFFDFE2EA)
+    onHeader = Color(0xFF232120),
+    // 封面比页面深一档、比卡片深得多：三级分明，标题区那块才浮得起来
+    coverTint = Color(0xFFDFDCD5)
 )
 
 
@@ -178,11 +242,17 @@ val PurePalette = S1Colors(
 
 
 /**
- * 幻彩渐变：**固定 2 套**（浅色 / 深色），共用同一组「紫 → 品红 → 粉」色板。
+ * 幻彩渐变（2026-10-19 定稿）：**霓虹糖果家族 × 深浅两板 = 2 套**。
+ * 原 v1 极光家族（极夜/极昼）同日按用户决定剔除，主题索引 5 作废；
+ * 糖果家族（原 v2）顶替「幻彩渐变」名号并移到主题列表末位。
  *
- * 2026-10-12 用户定稿：原来 5 套互不相干的色板（樱粉/薄荷/薰衣草/蜜桃/云水）精简成 2 套，
- * 颜色统一到参考图那一组 —— 紫 #B569F6（上）+ 粉 #FF7AB5（下），过渡品红 #C03DEA，
- * 暖橙核 #FF775F。**抽取逻辑保留**：每次进主题仍从这 2 套里随机抽一套。
+ * 用户定位（原话）：「幻彩本来就是炫加实用的，像游戏里的顶级限定皮肤，
+ * 走特殊通道，资源其他池子不互享，带随机」。深浅两板由 ThemeManager.iridescentSeed 抛硬币：
+ *   索引 0 = 夜市（深），索引 1 = 镭射糖果（浅）
+ *
+ * 现版翻车教训（三层渐变叠大面积、饱和度高、标题对比不稳）的吸收方式：
+ * 渐变只出现在封面流光 / 签到按钮 / 卡片彩边这三个焦点件；页面底是微弱渐变（≤5% 明度差），
+ * 正文阅读区纯色。封面光斑色一律用亮调（封面标题是深字/白字压纱，亮色才能保证对比）。
  */
 private class IridescentPreset(
     val bgTop: Color, val bgBottom: Color,
@@ -190,6 +260,8 @@ private class IridescentPreset(
     val headerA: Color, val headerB: Color,
     val line: Color, val bar: Color,
     val cover: List<Color>,
+    /** 流光封面的兜底底色 + 底部压纱色（深色变体用），随家族走，不再写死紫 */
+    val coverTint: Color,
     // —— 深浅变体所需的其余令牌（浅色用默认值）——
     val isDark: Boolean = false,
     val cardBg: Color = Color(0xFFFFFFFF),
@@ -210,54 +282,72 @@ private class IridescentPreset(
      * 此前这里是写死的蓝灰 #7FB8D8，两套板共用，图标字和紫粉主调对不上；
      * 默认取强调色提亮 35%，各板可单独覆盖。
      */
-    val accentCyan: Color = lerpWhite(accent, 0.35f)
+    val accentCyan: Color = lerpWhite(accent, 0.35f),
+    /**
+     * 主色上的文字色（按钮/胶囊/气泡字）。默认白 = 旧规则。
+     * 2026-10-19 ①：深板改深字 —— 亮青/亮粉压白字只有 2.1~3.1:1（正文线 4.5），
+     * 压深底色 8.9 / 6.4:1；机器猫铃铛黄（onAccent 深棕）同款思路，浅板不动。
+     */
+    val onAccent: Color = Color(0xFFFFFFFF),
+    /** 顶栏底部极光细线（③）：true = 用封面三色在顶栏下缘画 2.5dp 光带（见 [S1Colors.headerAurora]） */
+    val auroraLine: Boolean = false
 )
 
 private val IridescentPresets = listOf(
-    // 0 · 浅色板 —— **iOS 27 Liquid Glass 基调 + 紫粉调**
-    //    用户反馈原版「过于偏白、刺眼」，原 #FBF7FD/#FDF4F9 已接近纯白。
-    //    本轮整体压暗并加重粉紫：
-    //      · 页面底色 #F2EAF6 → #FBE4F0（淡紫到粉的柔和渐变，比原版暗约 8%，
-    //        消除纯白的刺眼感，同时保留 Liquid Glass 的通透）；
-    //      · 文字用深紫灰 #3D2438 / #8A6B85（不用纯黑，避免在粉底上过硬）；
-    //      · 主色 #D6339C（紫粉），与封面流光板同色系。
+    // ══ 0 · 霓虹 · 夜市（深）═══════════════════════════════════
+    //    深紫黑底，霓虹三色：粉 / 电紫 / 电青。
+    //    2026-10-19 ②：强调色从霓虹粉 #FF4DA6 往品红推一档 #F44FD8 ——
+    //    原主色与点赞心形红 #FF2C55 只差约 19° 色相且明度接近，深紫底上扫一眼易混；
+    //    往红压 heart 会撞「删除/退出」红（danger #FF3B30，刻意分两套的既有约束），故推主色。
+    //    新主色落在封面粉(#FF7AC0)与电紫(#B45CFF)之间，家族更顺；strongIcon/描边随动。
+    //    2026-10-19 ①：主色上的文字弃白字（压亮粉 3.1:1）改深字 #120820（6.4:1）。
     IridescentPreset(
-        Color(0xFFF2EAF6), Color(0xFFFBE4F0),
-        Color(0xFFD6339C), Color(0xFF8B3FD9),
-        Color(0xFFF7EBFC), Color(0xFFFDE6F3),
-        Color(0x33B569F6), Color(0xE6F7F0F9),
-        listOf(Color(0xFFFF6FA6), Color(0xFFB66BF7), Color(0xFFFF8FC7)),
-        isDark = false,
-        cardBg = Color(0xFFFFFFFF),
-        textMain = Color(0xFF3D2438), textSub = Color(0xFF8A6B85),
-        glassCard = Color(0xF7FFFFFF), glassFloat = Color(0xF2FFFFFF),
-        glassDialog = Color(0xFAFFFFFF),
-        // 图标圆底改为强调色同族的淡紫粉（原来 #1AB569F6 是蓝紫，与紫粉主调不同族）
-        chipBg = Color(0x1AD6339C),
-        accentCyan = Color(0xFFF57FC4),
-        snackbarBg = Color(0xFFD6339C), onSnackbar = Color(0xFFFFFFFF),
-        glassEdgeTop = Color(0x8AFFFFFF), glassEdgeMid = Color(0x4DFFFFFF),
-        glassEdgeBottom = Color(0x1AFFFFFF), glassInsetLight = Color(0x6EFFFFFF)
-    ),
-    // 1 · 深色板（封面取自用户参考图 2：紫底 + 品红光 + 底部淡紫）
-    //    页面深紫、卡片深紫灰；封面紫 → 品红 → 淡紫
-    IridescentPreset(
-        Color(0xFF16101F), Color(0xFF1E1428),
-        Color(0xFFFF6FB5), Color(0xFFC99BF0),
-        Color(0xFF241735), Color(0xFF2E1836),
-        Color(0x33FF6FB5), Color(0xE6141020),
-        listOf(Color(0xFFB66BF7), Color(0xFFC636E7), Color(0xFFBE80F8)),
+        Color(0xFF120820), Color(0xFF1C0D30),
+        Color(0xFFF44FD8), Color(0xFFF88DE6),
+        Color(0xFF170A28), Color(0xFF241040),
+        Color(0x2EF44FD8), Color(0xE6170A28),
+        listOf(Color(0xFFFF7AC0), Color(0xFFB45CFF), Color(0xFF5CE1E6)),
+        coverTint = Color(0xFF1B0E2E),
         isDark = true,
-        cardBg = Color(0xFF221830),
-        textMain = Color(0xFFF4ECFA), textSub = Color(0xFFA99BBE),
-        glassCard = Color(0xF2221830), glassFloat = Color(0xF22A1D3C),
-        glassDialog = Color(0xF22A1D3C),
-        // 与浅色板统一：圆底取强调色的淡版，而不是白色淡版
-        chipBg = Color(0x26FF6FB5),
-        accentCyan = Color(0xFFFF9BD0),
-        snackbarBg = Color(0xFF2A1D3C), onSnackbar = Color(0xFFF4ECFA),
+        onAccent = Color(0xFF120820),   // ① 深字压亮品红 6.4:1（原白字 3.1:1）
+        cardBg = Color(0xFF221335),
+        textMain = Color(0xFFF6EBFB), textSub = Color(0xFFB39BCC),
+        glassCard = Color(0xF2221335), glassFloat = Color(0xF22D1A44),
+        glassDialog = Color(0xF22D1A44),
+        chipBg = Color(0xFF2F1C45),
+        accentCyan = Color(0xFFF88DE6),
+        snackbarBg = Color(0xFF2D1A44), onSnackbar = Color(0xFFF6EBFB),
         glassEdgeTop = Color(0x59FFFFFF), glassEdgeMid = Color(0x2EFFFFFF),
         glassEdgeBottom = Color(0x1AFFFFFF), glassInsetLight = Color(0x8AFFFFFF)
+    ),
+    // ══ 1 · 镭射 · 箔片（浅）═══════════════════════════════════
+    //    2026-10-19 改版（用户拍板「B·箔片」）：原来那套「银白粉紫底 + 糖果三色铺满整卡」
+    //    一屏八张卡同频重复，糊成一片，且页面底与白卡几乎同亮度、卡片浮不起来，被判定「好难看」。
+    //
+    //    新方向不再追求「糖」，改做一张镭射纸：
+    //      · 页面底从粉调收到冷调近白 #EFEDF6→#F8F5FC —— 白卡才浮得出来；
+    //      · 封面珠光底 #EDEAF4（coverTint），彩虹只在上半张做一条斜切箔带（见 XhsPostCard style 5）；
+    //      · 三色从粉彩换成箔片饱和色 粉/紫/青 —— 面积小了，浓度就必须上来，
+    //        否则又是「白开水」；这也是彩丝卡框与顶栏极光细线的取色来源；
+    //      · 强调色 #D6339C → #C2267F：白底上与白字上都更稳（4.36:1 → 5.0:1），也更少「糖」味。
+    IridescentPreset(
+        Color(0xFFEFEDF6), Color(0xFFF8F5FC),
+        Color(0xFFC2267F), Color(0xFF8F5CFF),
+        Color(0xFFFFFFFF), Color(0xFFFBF9FD),
+        Color(0x2EC2267F), Color(0xF2FBFAFE),
+        listOf(Color(0xFFFF4FB0), Color(0xFF8F5CFF), Color(0xFF22CFE6)),
+        coverTint = Color(0xFFEDEAF4),
+        isDark = false,
+        auroraLine = true,   // ③ 极光细线随幻彩浅板走：顶栏下缘 2.5dp 三色 40%
+        cardBg = Color(0xFFFFFFFF),
+        textMain = Color(0xFF35243C), textSub = Color(0xFF88708E),
+        glassCard = Color(0xF7FFFFFF), glassFloat = Color(0xF2FFFFFF),
+        glassDialog = Color(0xFAFFFFFF),
+        chipBg = Color(0xFFF1EDF7),
+        accentCyan = Color(0xFFE05FA8),  // ②加深一档：#F57FC4 白底图标字仅 2.4:1，#E05FA8 3.3:1
+        snackbarBg = Color(0xFF35243C), onSnackbar = Color(0xFFFFFFFF),
+        glassEdgeTop = Color(0x8AFFFFFF), glassEdgeMid = Color(0x4DFFFFFF),
+        glassEdgeBottom = Color(0x1AFFFFFF), glassInsetLight = Color(0x6EFFFFFF)
     )
 )
 
@@ -289,13 +379,29 @@ private fun lerpWhite(c: Color, amount: Float): Color = Color(
     alpha = c.alpha
 )
 
+/**
+ * 顶栏「极光细线」（2026-10-19 ③）：headerAurora 非空时在顶栏下缘画一条
+ * 2.5dp、40% 透明度的三色横向光带；null = 完全不画（其余主题视觉零变化）。
+ * 与顶栏渐变背景串联使用：`.background(Brush.horizontalGradient(c.headerGradient)).s1HeaderAurora(c)`。
+ * 只做绘制、不参与布局与点击，各屏顶栏行为除多一条细线外与旧版一致。
+ */
+fun Modifier.s1HeaderAurora(c: S1Colors): Modifier = drawBehind {
+    val aurora = c.headerAurora ?: return@drawBehind
+    val h = 2.5.dp.toPx()
+    drawRect(
+        brush = Brush.horizontalGradient(aurora.map { it.copy(alpha = 0.40f) }),
+        topLeft = Offset(0f, size.height - h),
+        size = Size(size.width, h)
+    )
+}
+
 private fun buildIridescentPalette(seed: Int): S1Colors {
     val p = IridescentPresets[seed.coerceIn(0, IridescentPresets.lastIndex)]
     return S1Colors(
         bgTop = p.bgTop, bgBottom = p.bgBottom,
         headerGradient = listOf(p.headerA, p.headerB),
         textMain = p.textMain, textSub = p.textSub,
-        accent = p.accent, onAccent = Color(0xFFFFFFFF),
+        accent = p.accent, onAccent = p.onAccent,
         accentCyan = p.accentCyan, heart = Color(0xFFFF2C55),
         cardBg = p.cardBg,
         glassCard = p.glassCard, glassLine = p.line,
@@ -307,10 +413,13 @@ private fun buildIridescentPalette(seed: Int): S1Colors {
         snackbarBg = p.snackbarBg, onSnackbar = p.onSnackbar,
         flowCoverColors = p.cover + p.cover.first(),
         coverColors = p.cover,
+        // 流光封面的兜底底色（XhsPostCard style 5 的 ① 底色 ④ 压纱都从它派生）
+        coverTint = p.coverTint,
         // 液态玻璃：浅色含蓄 / 深色明显
         glassEdgeTop = p.glassEdgeTop, glassEdgeMid = p.glassEdgeMid,
         glassEdgeBottom = p.glassEdgeBottom,
         glassInsetLight = p.glassInsetLight,
+        headerAurora = if (p.auroraLine) p.cover else null,
         isDark = p.isDark,
         // 幻彩顶栏是浅紫→浅粉，白字对比度仅 1.15:1（几乎不可见），改用主题主文字色
         onHeader = p.textMain
@@ -320,112 +429,221 @@ private fun buildIridescentPalette(seed: Int): S1Colors {
 // ————————— Linear 暗色（第 1 批改造新增）—————————
 
 /**
- * Linear 风格暗色：**低饱和 + 单强调色 + 靠边框分层**
- * 底 #1A1E24 / 卡片 #333B4A / 封面块 #242832 / 悬浮 #3A4252 / 边框 #454D5D / 主色 #5E6AD2
- * 2026-10-18 二改：暗色不是「越黑越高级」。原来的 #08090A / #0D0E10 是一整块死黑，
- * 卡片与封面连成一片，长时间看找不到边界很累眼。现在三级明度各差 10~16 个色阶，
- * 整体也抬到「深灰」而不是「黑」，白字的眩光随之降低。
- * 不用阴影（暗底上黑影不可见），靠明度差 + 1px 描边分层；圆角收敛到 9dp（见 MainActivity）
+ * Linear 墨蓝（2026-10-19 按 OLED 夜间护眼重做）：**近黑底 + 不刺眼的字 + 降饱和蓝**。
+ * 用户明确的使用场景是「OLED 屏幕、晚上」，所以这一版的目标和「好看」不完全一致，护眼优先：
+ *   ① 页面底压到近黑 #0A0C12 —— OLED 上黑色像素不发光，既省电也让整屏不再有底光刺眼。
+ *   ② 主文字从近白 #EDEDEF 降到浅灰 #C9CBD1 —— 纯白压在黑底上会晕开（halation），
+ *      浅灰仍有 10.5:1 的对比度，读得清但不晃眼。
+ *   ③ 强调色从饱和靛蓝 #5E6AD2 降到柔蓝 #61729E —— 蓝光抑制褪黑素，夜间降饱和降亮度。
+ *   ④ 卡片 #1B1E26 只比页面亮一档：靠明度差 + 1px 描边分层，不用阴影（暗底上黑影不可见）。
+ * 层次依然是三级：页面 #0A0C12 < 封面 #141620 < 卡片 #1B1E26，与赤红/Linear 同一套逻辑。
  */
 val LinearPalette = S1Colors(
-    bgTop = Color(0xFF1A1E24), bgBottom = Color(0xFF1A1E24),
-    headerGradient = listOf(Color(0xFF1A1E24), Color(0xFF1A1E24)),
-    textMain = Color(0xFFEDEDEF), textSub = Color(0xFF9197A3),
-    accent = Color(0xFF5E6AD2), onAccent = Color(0xFFFFFFFF),
-    accentCyan = Color(0xFF828FFF), heart = Color(0xFFFF2C55),
-    cardBg = Color(0xFF333B4A),
-    // 玻璃层：Linear 用「几乎不透明的深灰 + 极细描边」，避免传统玻璃的高光感
-    glassCard = Color(0xF2333B4A), glassLine = Color(0xFF454D5D),
-    glassBar = Color(0xF21A1E24), glassFloat = Color(0xFF3A4252),
-    glassFloatLine = Color(0xFF4A5364),
-    glassDialog = Color(0xFF3A4252), glassDialogLine = Color(0xFF4A5364),
-    chipBg = Color(0xFF3E4657),
-    strongIcon = Color(0xFFEDEDEF),
-    snackbarBg = Color(0xFF3E4657), onSnackbar = Color(0xFFEDEDEF),
-    // 卡片顶部语义色条：低饱和，与主色同族，避免花
+    bgTop = Color(0xFF0A0C12), bgBottom = Color(0xFF0A0C12),
+    headerGradient = listOf(Color(0xFF0A0C12), Color(0xFF0A0C12)),
+    textMain = Color(0xFFC9CBD1), textSub = Color(0xFF8A8D96),
+    accent = Color(0xFF61729E), onAccent = Color(0xFFFFFFFF),
+    accentCyan = Color(0xFF7D8CB8), heart = Color(0xFFE8546E),
+    cardBg = Color(0xFF1B1E26),
+    // 玻璃层：几乎不透明的深灰 + 极细描边，避免传统玻璃的高光感（夜间高光很刺眼）
+    glassCard = Color(0xF21B1E26), glassLine = Color(0xFF2A2E3A),
+    glassBar = Color(0xF20A0C12), glassFloat = Color(0xFF23262F),
+    glassFloatLine = Color(0xFF343842),
+    glassDialog = Color(0xFF23262F), glassDialogLine = Color(0xFF343842),
+    chipBg = Color(0xFF22252E),
+    strongIcon = Color(0xFFC9CBD1),
+    snackbarBg = Color(0xFF22252E), onSnackbar = Color(0xFFC9CBD1),
+    // 卡片顶部语义色条：整体降饱和降亮度，与主色同族，避免花、也避免夜间刺眼
     flowCoverColors = listOf(
-        Color(0xFF5E6AD2), Color(0xFF3E8E6E), Color(0xFFC79A3A),
-        Color(0xFF9A5BB8), Color(0xFF5E8FBF)
+        Color(0xFF61729E), Color(0xFF4A7C68), Color(0xFF9C7B45),
+        Color(0xFF6E5C8C), Color(0xFF5A6E8C)
     ),
-    // 液态玻璃（Linear · 明显）：整圈渐变描边 + 内侧高光，是这套主题的核心质感
-    glassEdgeTop = Color(0x66FFFFFF), glassEdgeMid = Color(0x33FFFFFF),
-    glassEdgeBottom = Color(0x26FFFFFF),
-    glassInsetLight = Color(0x99FFFFFF),
+    // 液态玻璃描边：比原版整体压暗一档 —— 夜间高光很晃眼
+    glassEdgeTop = Color(0x4DFFFFFF), glassEdgeMid = Color(0x26FFFFFF),
+    glassEdgeBottom = Color(0x1AFFFFFF),
+    glassInsetLight = Color(0x73FFFFFF),
     isDark = true,
-    // 封面比卡面更沉：卡面承载作者/分类/时间这些「要读的字」，封面只是标题的容器，
-    // 让它退到背景里去，主体的对比才落在信息区（2026-10-18 用户定案：与卡面对调）
-    coverTint = Color(0xFF242832)
+    // 封面：比页面亮一档、比卡面沉一档，三级分明（页面 < 封面 < 卡面）
+    coverTint = Color(0xFF141620)
 )
 
 /**
- * 机器猫（2026-10-18 四版·最终）：**主蓝副红，灰只出现在列缝**。
- *   页面 / 顶栏 / 底栏 = 红 #E60012（「我的」等页面因此整屏红）
- *   卡片 = 蓝（封面蓝、信息区红）→ 红蓝互斥，一屏之内必有一蓝一红
- *   强调色 = 蓝（tab 胶囊压红底，互斥）；图标字 = 红
- *   列缝 = 灰 #2E2E33 —— 唯一允许用灰的地方，只为把红蓝切开
+ * 机器猫（2026-10-19 致敬版）：**哆啦A梦四色 —— 蓝身、白肚、红项圈、黄铃铛**。
+ *
+ * 上一版的主次是反的：枣红铺满页面、灰蓝只做卡片，红成了主角、蓝退成配角，
+ * 结果看着像「一个红色的东西」，不是哆啦A梦 —— 哆啦A梦是蓝的，红只是脖子上的项圈。
+ *
+ * 本版按角色重新分配，四色各就各位：
+ *   蓝 #166BB0 = 身体 → 页面底；顶栏 / 底栏统一更深一档的 #125A96
+ *   白 #F0F7FD = 脸和肚子 → 卡片 / 列表面板（内容层，浅色）
+ *   红 = 项圈 → **卡片之间的列缝**（一圈红包着白卡，正是项圈的形状）
+ *              + 卡片内的强调（按钮、标签、气泡、引用条）
+ *   黄 #F5B91D = 铃铛 → 顶栏选中胶囊（既是哆啦的标志件，也解决了红在蓝底上
+ *                看不清的问题：红压蓝只有 1.3:1，黄压蓝 3.1:1）
+ * 卡片是浅色 → isDark = false，卡片内用深蓝黑字；顶栏是深蓝 → onHeader 用白字。
+ *
+ * 2026-10-19 用户定案修正：第一版把底栏做成一整条红，用户反馈
+ * 「瀑布流大量留白，到最下方突然转红，特别生硬」「下面的红色太抢眼」。
+ * 原话：哪怕上下统一蓝、中间缝隙红填充也会好很多 ——
+ * **可以哆啦A梦，但不要为了让人一看就觉得是哆啦A梦，而丢掉主题的本质：主题是为内容服务的。**
+ * 于是红从「底部一大条」降级为「包着卡片的一圈线」：面积小了、位置对了，
+ * 也更贴项圈 —— 项圈是绕一圈，不是挂在脚底。
  */
 val DoraemonPalette = S1Colors(
-    bgTop = Color(0xFFE60012), bgBottom = Color(0xFFE60012),
-    headerGradient = listOf(Color(0xFFE60012), Color(0xFFE60012)),
-    textMain = Color(0xFFFFFFFF), textSub = Color(0xCCFFFFFF),
-    accent = Color(0xFFE60012), onAccent = Color(0xFFFFFFFF),
-    accentCyan = Color(0xFFFF6B7A), heart = Color(0xFFFF6B7A),
-    cardBg = Color(0xFF0099E5),
-    glassCard = Color(0xF20099E5), glassLine = Color(0x33FFFFFF),
-    glassBar = Color(0xF2E60012), glassFloat = Color(0xF22E2E33),
+    // 页面 = 哆啦蓝（身体）
+    bgTop = Color(0xFF166BB0), bgBottom = Color(0xFF166BB0),
+    // 顶栏同蓝。整屏只用一个蓝 —— 上一版拆成「深蓝顶栏 / 蓝页面 / 浅蓝封面」三级，
+    // 是「颜色太多」的元凶（用户反馈出戏）。蓝就是一个蓝。
+    headerGradient = listOf(Color(0xFF166BB0), Color(0xFF166BB0)),
+    // 卡片是蓝底 / 红底 → 一律白字
+    textMain = Color(0xFFFFFFFF), textSub = Color(0xFFDCEBF8),
+    // 强调 = 铃铛黄。它是唯一在蓝底（3.1:1）和红底（3.4:1）上都读得出来的色，
+    // 所以按钮、图标、徽章全用黄 —— 红蓝做大面，黄只做点
+    accent = Color(0xFFF5B91D), onAccent = Color(0xFF3A2A00),
+    accentCyan = Color(0xFFF5B91D), heart = Color(0xFFE23B44),
+    cardBg = Color(0xFF166BB0),
+    glassCard = Color(0xF2125A96), glassLine = Color(0x4DFFFFFF),
+    glassBar = Color(0xF2166BB0), glassFloat = Color(0xF2E23B44),
     glassFloatLine = Color(0x4DFFFFFF),
-    glassDialog = Color(0xF22E2E33), glassDialogLine = Color(0x4DFFFFFF),
-    chipBg = Color(0xFF0099E5),
-    strongIcon = Color(0xFFFF6B7A),
-    snackbarBg = Color(0xFF2E2E33), onSnackbar = Color(0xFFFFFFFF),
+    glassDialog = Color(0xF2125A96), glassDialogLine = Color(0x4DFFFFFF),
+    chipBg = Color(0x33FFFFFF),
+    strongIcon = Color(0xFFFFFFFF),
+    snackbarBg = Color(0xFF125A96), onSnackbar = Color(0xFFFFFFFF),
+    // 封面流光：就红蓝黄三色，不掺白
     flowCoverColors = listOf(
-        Color(0xFF0099E5), Color(0xFFE60012), Color(0xFFFF6B7A), Color(0xFF0A6FA8)
+        Color(0xFF166BB0), Color(0xFFE23B44), Color(0xFFF5B91D), Color(0xFFE23B44)
     ),
     glassEdgeTop = Color(0x66FFFFFF), glassEdgeMid = Color(0x33FFFFFF),
-    glassEdgeBottom = Color(0x26FFFFFF),
+    glassEdgeBottom = Color(0x1A000000),
     glassInsetLight = Color(0x99FFFFFF),
     isDark = true,
-    coverTint = Color(0xFF0099E5),
-    metaTint = Color(0xFFE60012),
-    navBar = Color(0xFFE60012),
-    feedGap = Color(0xFF2E2E33),
-    // 胶囊单独给蓝：红顶栏上必须用蓝，才叫互斥
-    pillTint = Color(0xFF0099E5)
+    onHeader = Color(0xFFFFFFFF),
+    // 卡片直接做成红蓝双色块（用户定案：「上栏是蓝，封面上就是蓝，以此类推」）：
+    //   上半 = 蓝 #166BB0（对应蓝顶栏）  下半 = 红 #E23B44（对应红底栏）
+    // 不再塞浅蓝、白这类第三色去过渡 —— 过渡色正是上一版出戏的根因
+    coverTint = Color(0xFF166BB0),
+    metaTint = Color(0xFFE23B44),
+    navBar = Color(0xFFE23B44),
+    // 列缝 = 深蓝（2026-10-19 二改）。第一版试过纯白，用户反馈「配合红蓝看着有点干」——
+    // 白是无彩色，夹在蓝红之间像剪纸，没有过渡；深蓝与蓝同族，卡片从缝里「浮」出来，
+    // 红卡也靠这一层暗底托住，比白线润。
+    feedGap = Color(0xFF0B4570),
+    pillTint = Color(0xFFF5B91D),
+    noticeReply = Color(0xFFF5B91D),
+    noticeAt = Color(0xFFF5B91D),
+    noticeUnread = Color.White,
+    pmUnreadDot = Color.White,
+    // 列表面板 = 深蓝（比页面沉一档），白字可读，与卡片上半同族
+    listPanel = Color(0xFF125A96),
+    // 详情页楼层便签 = 项圈红：蓝页面 + 红便签，红蓝在一屏里直接对撞。
+    // 红蓝是经典互补对，不必回避（用户原话：「别怕红蓝撞一起，人类眼睛看很讨好」）
+    ticketBg = Color(0xFFE23B44)
+)
+
+/**
+ * 毛线主题（2026-10-20 新增）：**针织/毛线质感的原创浅色主题**。
+ *
+ * 不是任何游戏 IP 的复刻——只取"毛线针织"的材质语言：粉彩、奶油、焦糖棕、柔珊瑚，
+ * （2026-10-20 修订）原计划的针织纹理 / 手缝虚线 / 毛线球等绘制效果
+ * 已因性能原因全部剔除（小米10 上滑动明显发涩），**现仅保留配色**：
+ * 奶油底 #FBF1E3、焦糖棕字 #5C4A3A、柔玫瑰强调 #D2607F、粉彩点缀。
+ *
+ * 配色取舍（同一套"暖浅色"逻辑，但比焙茶更甜更柔）：
+ *   · 页面 = 奶油 #FBF1E3，比焙茶的暖灰更黄更"织物"；卡片 = 织物白 #FDF8F0（略暖于纯白）。
+ *   · 文字 = 焦糖棕 #5C4A3A（不用纯黑，保留毛线的暖）；次级 #9C8B7A（灰褐，不刺眼）。
+ *   · 强调 = 柔玫瑰 #D2607F：白字压上去约 4.6:1，满足正文线；且是"毛线"的标志色之一。
+ *   · 浅色点缀 = 薄荷 #6FB7A6 / 雾蓝 #8FB3E0 / 暖黄 #E9C16B，做流光封面与卡片色条。
+ *   · heart（热帖/喜欢）用柔珊瑚 #E88471，danger（错误）用暖红 #C24E4E——
+ *     都比系统默认的硬红更贴"织物"，但语义仍清晰可辨。
+ *   · success 收口为柔绿 #6FB38F（原默认 #34C759 偏荧光，与毛线调性不搭）。
+ */
+val YarnPalette = S1Colors(
+    // 页面：奶油，比焙茶更黄更暖，像米白毛线
+    bgTop = Color(0xFFFBF1E3), bgBottom = Color(0xFFFBF1E3),
+    // 顶栏同奶油，略提亮一档让标题区浮起来
+    headerGradient = listOf(Color(0xFFFDF6EC), Color(0xFFFDF6EC)),
+    textMain = Color(0xFF5C4A3A), textSub = Color(0xFF9C8B7A),
+    // 强调 = 柔玫瑰；白字压上去约 4.6:1
+    accent = Color(0xFFD2607F), onAccent = Color(0xFFFFFFFF),
+    accentCyan = Color(0xFF6FB7A6), heart = Color(0xFFE88471),
+    // 卡片：织物白（略暖于纯白，大面积铺开不刺眼）
+    cardBg = Color(0xFFFDF8F0),
+    glassCard = Color(0xFAFDF8F0), glassLine = Color(0x1F5C4A3A),
+    glassBar = Color(0xF6FBF1E3), glassFloat = Color(0xFAFDF8F0),
+    glassFloatLine = Color(0x245C4A3A),
+    glassDialog = Color(0xFFFDF8F0), glassDialogLine = Color(0x245C4A3A),
+    chipBg = Color(0xFFF0E3D2),
+    strongIcon = Color(0xFF5C4A3A),
+    snackbarBg = Color(0xFF5C4A3A), onSnackbar = Color(0xFFFBF1E3),
+    // 流光封面：粉彩四色，低饱和、甜柔
+    flowCoverColors = listOf(
+        Color(0xFFD2607F), Color(0xFF6FB7A6), Color(0xFF8FB3E0), Color(0xFFE9C16B)
+    ),
+    // 液态玻璃描边：浅色含蓄
+    glassEdgeTop = Color(0x33FFFFFF), glassEdgeMid = Color(0x1AFFFFFF),
+    glassEdgeBottom = Color(0x0A000000),
+    glassInsetLight = Color(0x66FFFFFF),
+    isDark = false,
+    onHeader = Color(0xFF5C4A3A),
+    // 浅色主题：顶部语义色条用柔玫瑰；封面比页面深一档
+    coverTint = Color(0xFFF3E6D4),
+    // 失败/喜欢走毛线调性（见上方说明）
+    success = Color(0xFF6FB38F),
+    danger = Color(0xFFC24E4E),
+    noticeReply = Color(0xFFD2607F),
+    noticeAt = Color(0xFF6FB7A6),
+    noticeUnread = Color(0xFFD2607F),
+    pmUnreadDot = Color(0xFFD2607F),
+    pillTint = Color(0xFFD2607F)
 )
 
 val LocalS1Colors = staticCompositionLocalOf { TeaPalette }
 
 /**
- * 朱砂（2026-10-18 三版定稿）：**红做缝、灰做面**。
- * 页面底 = 红 #A23341(降饱和后的砖红，满屏铺不刺眼)，卡片 = 不透明深灰 #222226，卡片之间 6~10dp 的缝露出红色当分隔，
- * 不靠描边也不靠阴影。红只占「缝 + 强调」，卡片内部全是中性色，读起来不刺眼。
- * 顶栏/底栏用比卡片略深的灰，避免红色从顶部漫出去。
+ * 赤红（2026-10-19 定稿，默认主题）：**红做氛围、灰做内容**。
+ *
+ * 取代了 2026-10-18 那一版（页面 #A23341 亮砖红 + 卡片 #222226 近黑）。
+ * 旧版第一眼惊艳，但明暗方向是反的：亮背景包围暗内容，
+ * 瞳孔在亮暗之间反复调节 —— 用户实测「看 20 分钟眼睛就特别难受」。
+ *
+ * 本版红色一个不改，只把明暗方向掉过来：
+ *   旧：页面 #A23341（中亮）> 卡片 #222226（很暗）
+ *   新：页面 #4A1C26（暗）  < 卡片 #4A4245（亮）
+ * → 暗背景衬托亮内容，与 Linear 同一套层次逻辑（页面 < 封面 < 卡面）。
+ * 于是红从「铺满屏幕的场」退回成「沉在底下的氛围」：
+ * 一眼看过去还是红的，但红不再抢内容的位置。风格比旧版收敛，可以长久用。
  */
 val CrimsonPalette = S1Colors(
-    bgTop = Color(0xFFA23341), bgBottom = Color(0xFFA23341),
-    headerGradient = listOf(Color(0xFF202125), Color(0xFF202125)),
-    textMain = Color(0xFFE2E2E4), textSub = Color(0xFF9C9CA2),
-    accent = Color(0xFFD62839), onAccent = Color(0xFFFFFFFF),
-    accentCyan = Color(0xFFFF6B7A), heart = Color(0xFFFF4D5E),
-    cardBg = Color(0xFF222226),
-    glassCard = Color(0xF2222226), glassLine = Color(0xFF35353A),
-    glassBar = Color(0xF2202125), glassFloat = Color(0xFF2C2C31),
-    glassFloatLine = Color(0xFF45464C),
-    glassDialog = Color(0xFF2C2C31), glassDialogLine = Color(0xFF45464C),
-    chipBg = Color(0xFF3E1F27),
-    strongIcon = Color(0xFFECECEE),
-    snackbarBg = Color(0xFF3E1F27), onSnackbar = Color(0xFFECECEE),
+    // 页面：深砖红。比旧版 #A23341 暗一半，红色识别度保留，亮度退到背景该有的位置
+    bgTop = Color(0xFF4A1C26), bgBottom = Color(0xFF4A1C26),
+    // 顶栏 / 底栏：暖灰，比卡面暗一档。避免红色从顶部漫出去（沿用赤红的同一条规则）
+    headerGradient = listOf(Color(0xFF3E3639), Color(0xFF3E3639)),
+    textMain = Color(0xFFEDEAEC), textSub = Color(0xFFB8AFB3),
+    // 强调色用亮红：暗红页面上红条不可见，粉底暖灰卡上也是，只有提亮的红才读得出来
+    accent = Color(0xFFFF6B7A), onAccent = Color(0xFFFFFFFF),
+    accentCyan = Color(0xFFFF8F9A), heart = Color(0xFFFF4D5E),
+    // 卡片：暖灰，比页面亮约 26 档（Linear 是 28 档），是这套主题真正的「内容层」
+    cardBg = Color(0xFF4A4245),
+    glassCard = Color(0xF24A4245), glassLine = Color(0xFF5A5053),
+    glassBar = Color(0xF2422E33), glassFloat = Color(0xFF544B4E),
+    glassFloatLine = Color(0xFF655B5E),
+    glassDialog = Color(0xFF544B4E), glassDialogLine = Color(0xFF655B5E),
+    chipBg = Color(0xFF5C3A40),
+    strongIcon = Color(0xFFEDEAEC),
+    snackbarBg = Color(0xFF5C3A40), onSnackbar = Color(0xFFEDEAEC),
+    // 封面流光：赤红家族四色，红只在封面与页面缝里出现
     flowCoverColors = listOf(
-        Color(0xFFD62839), Color(0xFF8E1B2C), Color(0xFFE5484D), Color(0xFF6E1420)
+        Color(0xFFD62839), Color(0xFF8E1B2C), Color(0xFFFF6B7A), Color(0xFFA23341)
     ),
     glassEdgeTop = Color(0x66FFFFFF), glassEdgeMid = Color(0x33FFFFFF),
     glassEdgeBottom = Color(0x26FFFFFF),
     glassInsetLight = Color(0x99FFFFFF),
     isDark = true,
-    // 封面比卡面更沉一档：标题落在近黑上，红只在页面缝里
-    coverTint = Color(0xFF16171A),
-    // 信息区不再单独上红——红已经由页面底承担，卡片内部保持整块灰
-    metaTint = null
+    // 封面比卡面沉一档、比页面亮一档：三层依次拉开，不再是旧版那种「黑洞」
+    coverTint = Color(0xFF382F33),
+    metaTint = null,
+    noticeUnread = Color.White,
+    pmUnreadDot = Color.White
 )
 
 
@@ -434,12 +652,12 @@ val CrimsonPalette = S1Colors(
  * （例如换主题后同步系统栏颜色，见 ThemeEdge.syncSystemBarsWithPalette）。
  */
 fun s1PaletteFor(themeIndex: Int, seed: Int = ThemeManager.iridescentSeed): S1Colors = when (themeIndex) {
-    ThemeManager.THEME_LIGHT -> TeaPalette
-    ThemeManager.THEME_PURE -> PurePalette
+    ThemeManager.THEME_TEA -> TeaPalette
     ThemeManager.THEME_LINEAR -> LinearPalette
     ThemeManager.THEME_CRIMSON -> CrimsonPalette
     ThemeManager.THEME_DORAEMON -> DoraemonPalette
-    ThemeManager.THEME_IRIDESCENT -> buildIridescentPalette(ThemeManager.iridescentSeed)
+    ThemeManager.THEME_IRIDESCENT -> buildIridescentPalette(ThemeManager.iridescentPaletteIndex(seed))
+    ThemeManager.THEME_YARN -> YarnPalette
     else -> TeaPalette
 }
 
@@ -511,6 +729,9 @@ fun S1Theme(
 
     CompositionLocalProvider(LocalS1Colors provides colors) {
         MaterialTheme(colorScheme = materialColorScheme, typography = typography) {
+            // 2026-10-19：显影换肤（scale 0.96→1 + 幕布淡出）整体删除。
+            // 它没换到什么视觉收益，反而在冷启动分支把 snapTo 写成了 1f ——
+            // 整块界面常年停在 96%，四边各让出 2%，露出窗口底色（浅色主题上一圈灰边）。
             androidx.compose.runtime.CompositionLocalProvider(
                 androidx.compose.ui.platform.LocalDensity provides scaledDensity,
                 content = content

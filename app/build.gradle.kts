@@ -46,9 +46,9 @@ android {
         applicationId = "com.example.s1client"
         minSdk = 24
         targetSdk = 35
-        // versionCode = git 提交数（见文件顶部）；versionName 1.1.2：启动画面回归默认图标
+        // versionCode = git 提交数（见文件顶部）；versionName 1.2：正式版（相机过片扳手上左缘 + 布局方案B）
         versionCode = gitCommitCount
-        versionName = "1.1.2"
+        versionName = "1.2"
     }
 
     compileOptions {

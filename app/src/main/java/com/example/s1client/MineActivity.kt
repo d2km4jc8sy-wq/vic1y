@@ -14,6 +14,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -91,6 +93,7 @@ import com.example.s1client.data.store.ReadHistoryStore
 import com.example.s1client.ui.ThemeSwatch
 import com.example.s1client.ui.showUserCardDialog
 import com.example.s1client.ui.theme.LocalS1Colors
+import com.example.s1client.ui.theme.s1HeaderAurora
 import com.example.s1client.ui.theme.S1Theme
 import com.example.s1client.data.store.AttendanceManager
 import com.example.s1client.data.store.BlockedAuthorManager
@@ -392,7 +395,7 @@ fun MineScreen(onFinish: () -> Unit) {
                                 .padding(horizontal = 13.dp)
                                 .height(1.dp)
                                 .fillMaxWidth()
-                                .background(Color.White.copy(alpha = 0.07f))
+                                .background(c.rowLine)
                         )
 
                         AttendanceContent(
@@ -551,7 +554,7 @@ fun FlowGlassCard(
     pulseKey: Int = 0,
     content: @Composable () -> Unit
 ) {
-    if (ThemeManager.currentTheme == ThemeManager.THEME_IRIDESCENT) {
+    if (ThemeManager.isIridescentFamily(ThemeManager.currentTheme)) {
         // 幻彩「彩色亮丝」卡框（2026-10-15 用户定稿，替代原旋转流光环）：
         // 与瀑布流卡框同一套语法、同一粗细 —— 1.5dp 主题色板渐变描边
         // （s1RingColors 四色，左上→右下，0.88）+ 贴边 4dp@0.10 同色柔光；
@@ -610,10 +613,13 @@ fun FlowGlassCard(
             }
         }
     } else {
+        // 相框发丝（2026-10-19）：常规主题 edgeLine 全透明，这一圈描边不画、视觉零变化；
+        // 机器猫给一圈列缝灰 #2E2E33，把灰蓝大卡从枣红页面里切出来，每个卡有轮廓
         Box(
             modifier
                 .clip(RoundedCornerShape(16.dp))
                 .background(LocalS1Colors.current.glassCard)
+                .border(1.dp, LocalS1Colors.current.edgeLine, RoundedCornerShape(16.dp))
         ) { content() }
     }
 }
@@ -659,8 +665,7 @@ private fun SocialTripod(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 8.dp, vertical = 8.dp)
     ) {
         // 提醒：走提醒中心（本身已包含私信轨），未读＝通知+私信合计
         TripodCell(
@@ -669,6 +674,16 @@ private fun SocialTripod(
             label = "提醒",
             showDot = unreadCount > 0
         ) { context.startActivity(Intent(context, NoticeCenterActivity::class.java)) }
+
+        // 两格之间的竖发丝（2026-10-19）：两格同为玻璃底，原来只靠 8dp 缝并排，
+        // 远看会糊成一块；一条 1dp 细线把它们切成两个半区（默认主题同样生效，轻量）
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 6.dp)
+                .width(1.dp)
+                .fillMaxHeight()
+                .background(LocalS1Colors.current.rowLine)
+        )
 
         TripodCell(
             modifier = Modifier.weight(1f),
@@ -787,12 +802,15 @@ private fun MenuGroup(items: List<MenuItem>) {
                 Chevron()
             }
             if (i < items.lastIndex) {
+                // 行间发丝走 rowLine（默认列缝黑 25%，叠底色自动同相压深）。
+                // 原来用 chipBg —— 那是「图标圆底」，机器猫把它改成卡片蓝后线就消失了
+                // （蓝画在蓝上），整组菜单糊成一块（2026-10-19 修正）
                 Box(
                     Modifier
                         .padding(horizontal = 13.dp)
                         .height(1.dp)
                         .fillMaxWidth()
-                        .background(c.chipBg)
+                        .background(c.rowLine)
                 )
             }
         }
@@ -845,6 +863,7 @@ private fun TopBar(onBack: () -> Unit, onGearClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .background(Brush.horizontalGradient(c.headerGradient))
+            .s1HeaderAurora(c)
             .statusBarsPadding()
     ) {
     Row(
@@ -962,7 +981,7 @@ private fun UserCard(
                             .padding(top = 9.dp)
                             .fillMaxWidth()
                             .height(1.dp)
-                            .background(c.chipBg)
+                            .background(c.rowLine)
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

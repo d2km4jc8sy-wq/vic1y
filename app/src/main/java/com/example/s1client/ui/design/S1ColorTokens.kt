@@ -80,3 +80,35 @@ val StrongIcon: Color
 /** 帖子无图卡片的流动幻彩封面（首尾同色 + TileMode.Repeated 循环） */
 val FlowCoverColors: List<Color>
     @Composable get() = LocalS1Colors.current.flowCoverColors
+
+/** 消息中心「回复」类型徽章色（默认珊瑚红；机器猫红底覆盖为白） */
+val NoticeReply: Color
+    @Composable get() = LocalS1Colors.current.noticeReply
+
+/** 消息中心「@」类型徽章色（默认蓝；机器猫红底覆盖为白） */
+val NoticeAt: Color
+    @Composable get() = LocalS1Colors.current.noticeAt
+
+/** 消息中心未读竖条色（默认=强调色；赤红/机器猫红底覆盖为白） */
+val NoticeUnread: Color
+    @Composable get() = LocalS1Colors.current.noticeUnread
+
+/** PM 列表未读小红点（默认=热帖红；赤红/机器猫覆盖为白） */
+val PmUnreadDot: Color
+    @Composable get() = LocalS1Colors.current.pmUnreadDot
+
+/** 消息中心列表面板底色（默认=页面底；机器猫覆盖为卡片蓝，避免全红界面） */
+val ListPanel: Color
+    @Composable get() = LocalS1Colors.current.listPanel
+
+/** 分类栏/筛选 chips「选中胶囊」底色（默认=强调色；机器猫覆盖为蓝，避免红叠红） */
+val PillTint: Color
+    @Composable get() = LocalS1Colors.current.pillTint
+
+/** 卡内行间发丝（默认=textMain 12% 中性淡线；机器猫蓝卡面覆盖为白 14%） */
+val RowLine: Color
+    @Composable get() = LocalS1Colors.current.rowLine
+
+/** 卡片/面板外缘相框发丝（默认透明不画；机器猫覆盖为列缝灰，把蓝卡从红页里切出来） */
+val EdgeLine: Color
+    @Composable get() = LocalS1Colors.current.edgeLine

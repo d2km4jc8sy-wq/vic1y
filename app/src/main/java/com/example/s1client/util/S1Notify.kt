@@ -103,6 +103,15 @@ object S1Notify {
         current = tv
         root.addView(tv, lp)
 
+        // 铃铛来件（2026-10-19 加餐）：机器猫主题限定——通知条如铃铛衰减摆动进场。
+        // 震感沿用上方按 Type 的原配，不叠加。仅机器猫主题生效（其他主题零变化）。
+        if (ThemeManager.currentTheme == ThemeManager.THEME_DORAEMON) {
+            android.animation.ObjectAnimator.ofFloat(tv, "rotation", 0f, 10f, -8f, 4f, 0f).apply {
+                duration = 750
+                start()
+            }
+        }
+
         tv.alpha = 0f
         tv.animate().alpha(1f).setDuration(180).start()
         tv.postDelayed({

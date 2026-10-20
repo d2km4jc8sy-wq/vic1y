@@ -2,6 +2,10 @@
 
 Stage1st 论坛第三方 Android 客户端（Kotlin + Jetpack Compose + View 混合）。
 
+- **作者**：vic1y
+- **当前版本**：v1.2（正式版 · 2026-10-20）
+- **应用包名**：com.example.s1client（versionName 1.2，versionCode 随 git 提交数递增）
+
 ## 文档地图
 
 | 文件 | 内容 |

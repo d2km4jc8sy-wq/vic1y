@@ -65,7 +65,7 @@ class ThemeMatrixCaptureTest {
     )
 
     @Test
-    fun `主题矩阵_7主题x3关键页_真实渲染落盘`() {
+    fun `主题矩阵_5主题x3关键页_真实渲染落盘`() {
         // Windows 开发机跳过；只有 Linux（CI）才往下走
         assumeTrue(
             "NATIVE 图形仅在 Linux CI 上运行（Windows 无 nativeruntime）",
@@ -77,7 +77,9 @@ class ThemeMatrixCaptureTest {
             Page("settings", 12, SettingsActivity::class.java),
             Page("changelog", 100, ChangelogActivity::class.java),
         )
-        val themes = ThemeManager.THEME_LIGHT..ThemeManager.THEME_LINEAR
+        // 2026-10-19 清理：旧 THEME_LIGHT..THEME_LINEAR 连续索引区间已失效（索引 1-4 作废、
+        // 现存 6 套索引不连续），改用 ThemeManager 的可见主题清单，随主题增删自动对齐
+        val themes = ThemeManager.VISIBLE_THEMES
         val totalCombos = themes.count() * pages.size
         val w = 1080
         val h = 2000
