@@ -807,7 +807,12 @@ fun SettingsScreen(onFinish: () -> Unit) {
         AlertDialog(
             onDismissRequest = { showAbout = false },
             title = { Text("关于", color = c.textMain) },
-            text = { Text("S1 Client\nV" + BuildConfig.VERSION_NAME + "\n\nStage1st 客户端", color = c.textMain) },
+            text = {
+                Text(
+                    "S1 Client\nV" + BuildConfig.VERSION_NAME + "\n作者 vic1y\n\nStage1st 客户端",
+                    color = c.textMain
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { showAbout = false }) { Text("知道了", color = c.accent) }
             },
